@@ -352,6 +352,23 @@
   }
   .vars-row-hint { font-size: 11px; color: var(--text-dim); margin-left: auto; }
 
+  #run-history { font-size: 12px; color: var(--text-dim); }
+  .rh-head { display: flex; align-items: center; gap: 8px; }
+  #run-history button {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text-dim);
+    border-radius: var(--radius-sm); padding: 3px 9px; font-size: 11px; cursor: pointer;
+  }
+  .rh-list { margin-top: 6px; display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow-y: auto; }
+  .rh-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 4px 0; border-bottom: 1px solid var(--border); }
+  .rh-when { white-space: nowrap; }
+  .rh-values { font-family: ui-monospace, "SF Mono", Consolas, monospace; color: var(--text); }
+  .rh-row input {
+    flex: 1; min-width: 140px; background: transparent; border: 1px solid transparent; color: var(--text);
+    border-radius: var(--radius-sm); padding: 3px 6px; font-size: 12px;
+  }
+  .rh-row input:hover, .rh-row input:focus { border-color: var(--border); outline: none; }
+  #run-history .rh-clear { align-self: flex-start; margin-top: 4px; }
+
   #gallery-row {
     display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start;
     padding-bottom: 4px;
@@ -877,6 +894,7 @@
     item.pinned = !!item.pinned;
     item.starred = !!item.starred;
     item.unread = !!item.unread;
+    item.runs = Array.isArray(item.runs) ? item.runs : [];
     item.deletedAt = item.deletedAt || null;
     item.archivedAt = item.archivedAt || null;
     item.autoExpireAt = item.autoExpireAt || null;
@@ -1206,8 +1224,89 @@
     if (item.contentType === "image") { copyImageToClipboard(item.content); return; }
     const content = liveContent !== undefined ? liveContent : item.content;
     const placeholders = extractPlaceholders(content);
-    if (placeholders.length === 0) { copyToClipboard(content); return; }
-    openPlaceholderFillModal(content, placeholders, (finalText) => copyToClipboard(finalText));
+    if (placeholders.length === 0) { copyToClipboard(content); logRun(item, null); return; }
+    openPlaceholderFillModal(content, placeholders, (finalText, values) => { copyToClipboard(finalText); logRun(item, values); });
+  }
+
+  // ---------- Run history (Commands) ----------
+  // Copying a Command counts as running it. This only records when (and the
+  // placeholder values used) with an optional note; nothing is ever executed.
+  const MAX_RUNS = 50;
+  let runHistoryOpen = false;
+
+  function logRun(item, values) {
+    if (item.type !== "command") return;
+    item.runs.unshift({ at: Date.now(), values: values || null, note: "" });
+    item.runs.length = Math.min(item.runs.length, MAX_RUNS);
+    // Not an edit, so updatedAt stays put and the list doesn't reorder.
+    put(ITEMS_STORE, item).catch((err) => console.error("Saving run history failed:", err));
+    const section = document.getElementById("run-history");
+    if (section && currentId === item.id) section.replaceWith(renderRunHistory(item));
+  }
+
+  function renderRunHistory(item) {
+    const el = document.createElement("div");
+    el.id = "run-history";
+    const head = document.createElement("div");
+    head.className = "rh-head";
+    const summary = document.createElement("span");
+    summary.textContent = item.runs.length
+      ? "Run history \u00b7 used " + item.runs.length + (item.runs.length === 1 ? " time" : " times") + " \u00b7 last " + timeAgo(item.runs[0].at)
+      : "Run history \u00b7 not used yet (copying it logs a run)";
+    head.appendChild(summary);
+    el.appendChild(head);
+    if (!item.runs.length) return el;
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.textContent = runHistoryOpen ? "Hide" : "Show";
+    head.appendChild(toggle);
+    const list = document.createElement("div");
+    list.className = "rh-list";
+    list.hidden = !runHistoryOpen;
+    toggle.addEventListener("click", () => {
+      runHistoryOpen = !runHistoryOpen;
+      list.hidden = !runHistoryOpen;
+      toggle.textContent = runHistoryOpen ? "Hide" : "Show";
+    });
+
+    item.runs.forEach((run) => {
+      const row = document.createElement("div");
+      row.className = "rh-row";
+      const when = document.createElement("span");
+      when.className = "rh-when";
+      when.textContent = formatFullDate(run.at);
+      row.appendChild(when);
+      if (run.values) {
+        const vals = document.createElement("span");
+        vals.className = "rh-values";
+        vals.textContent = Object.entries(run.values).map(([k, v]) => k + "=" + (v || "\u2014")).join("  ");
+        row.appendChild(vals);
+      }
+      const note = document.createElement("input");
+      note.type = "text";
+      note.placeholder = "Add a note\u2026";
+      note.value = run.note || "";
+      note.addEventListener("change", async () => {
+        run.note = note.value.trim();
+        await put(ITEMS_STORE, item);
+      });
+      row.appendChild(note);
+      list.appendChild(row);
+    });
+    const clear = document.createElement("button");
+    clear.type = "button";
+    clear.className = "rh-clear";
+    clear.textContent = "Clear history";
+    clear.addEventListener("click", async () => {
+      if (!confirm("Clear this command's run history? This can't be undone.")) return;
+      item.runs = [];
+      await put(ITEMS_STORE, item);
+      el.replaceWith(renderRunHistory(item));
+    });
+    list.appendChild(clear);
+    el.appendChild(list);
+    return el;
   }
 
   // ---------- Expiry / trash sweep ----------
@@ -2447,6 +2546,7 @@
     updateVarsRow();
     textarea.addEventListener("input", updateVarsRow);
     body.appendChild(varsRow);
+    if (item.type === "command" && !inTrash) body.appendChild(renderRunHistory(item));
 
     // ---------- Auto-save (debounced) ----------
     // Persists title/content shortly after typing pauses. Deliberately does
