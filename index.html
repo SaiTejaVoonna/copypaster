@@ -1236,7 +1236,28 @@
           database.createObjectStore(META_STORE, { keyPath: "id" });
         }
       };
-      req.onsuccess = (e) => resolve(e.target.result);
+      // Another tab or window still has an older version open, and the
+      // browser won't upgrade the storage until it lets go. Say so; this
+      // carries on by itself once that tab closes or reloads.
+      req.onblocked = () => {
+        itemsEl.innerHTML = "";
+        const box = document.createElement("div");
+        box.id = "empty-state";
+        box.innerHTML = '<div class="empty-icon">\u23f3</div><div class="empty-title">Waiting for another CopyPaster window</div>' +
+          '<div class="empty-hint">CopyPaster is open in another tab or window with an older version. Close or reload that one, and this opens by itself. Your notes are safe.</div>';
+        itemsEl.appendChild(box);
+      };
+      req.onsuccess = (e) => {
+        const database = e.target.result;
+        // A newer version opened in another tab needs to upgrade the storage:
+        // step aside (so it isn't stuck waiting) and offer to reload.
+        database.onversionchange = () => {
+          database.close();
+          db = null;
+          showToast("CopyPaster was updated in another tab", { sticky: true, action: { label: "Reload", onClick: () => location.reload() } });
+        };
+        resolve(database);
+      };
       req.onerror = (e) => reject(e.target.error);
     });
   }
@@ -1280,6 +1301,7 @@
   }
 
   function writeItems(apply) {
+    if (!db) return Promise.reject(new Error("not-ready"));
     return new Promise((resolve, reject) => {
       const tx = db.transaction(ITEMS_STORE, "readwrite");
       apply(tx.objectStore(ITEMS_STORE));
@@ -1301,7 +1323,10 @@
       // Never fail quietly: the change is only on screen, not saved.
       console.error("Saving failed:", err);
       const full = err && (err.name === "QuotaExceededError" || /quota/i.test(err.message || ""));
-      showToast(full ? "Couldn't save \u2014 this device is out of storage space" : "Couldn't save that change \u2014 please try again", { sticky: true });
+      const notReady = err && err.message === "not-ready";
+      showToast(full ? "Couldn't save \u2014 this device is out of storage space"
+        : notReady ? "Couldn't save \u2014 CopyPaster isn't ready. Close other CopyPaster tabs, or reload."
+        : "Couldn't save that change \u2014 please try again", { sticky: true });
       throw err;
     }
     items = items.map((item, i) => (item.vaulted && !item._locked && !vaultKey ? vaultStub(records[i]) : item)); // never keep readable Vault items while locked
@@ -6702,7 +6727,7 @@
       const errBox = document.createElement("div");
       errBox.id = "empty-state";
       errBox.style.color = "var(--danger)";
-      errBox.textContent = "Could not open local database: " + err.message;
+      errBox.textContent = "Could not open local database: " + ((err && err.message) || err);
       itemsEl.appendChild(errBox);
       console.error("IndexedDB error:", err);
     });
