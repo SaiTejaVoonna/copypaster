@@ -118,6 +118,12 @@
     display: inline-flex; align-items: center; justify-content: center;
   }
   #select-mode-btn:hover { color: var(--text); }
+  #mark-read-btn {
+    border: 1px solid var(--border); background: var(--panel-2); color: var(--accent);
+    border-radius: var(--radius-sm); padding: 6px 9px; cursor: pointer; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  #mark-read-btn.hidden { display: none; }
   #select-mode-btn.active { color: var(--accent); border-color: var(--accent); }
 
   .section-title-click { display: flex; align-items: center; gap: 5px; cursor: pointer; flex: 1; }
@@ -243,6 +249,11 @@
   .item-preview { flex: 1; min-width: 0; }
   .item-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
   .item-text.untitled { color: var(--text-dim); font-style: italic; }
+  .item-row.unread .item-text { font-weight: 600; }
+  .item-row.unread .item-text::before {
+    content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--accent); margin-right: 6px; vertical-align: middle;
+  }
   .item-meta { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); margin-top: 3px; }
   .row-expire { font-size: 11px; cursor: help; }
   .mini-tag { width: 6px; height: 6px; border-radius: 50%; }
@@ -279,6 +290,7 @@
   .icon-toggle:hover { color: var(--text); }
   .icon-toggle.on.star { color: var(--note); border-color: var(--note); }
   .icon-toggle.on.pin { color: var(--accent); border-color: var(--accent); }
+  .icon-toggle.on.unread { color: var(--accent); border-color: var(--accent); }
   .icon-toggle.on.lock { color: var(--command); border-color: var(--command); }
   .icon-toggle.on.zen { color: var(--accent); border-color: var(--accent); }
   .icon-toggle.on.archive { color: var(--snippet); border-color: var(--snippet); }
@@ -584,6 +596,12 @@
       <path d="M9 5a1 1 0 011-1h4a1 1 0 011 1v1a1 1 0 01-1 1h-4a1 1 0 01-1-1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
       <path d="M9 12h6M9 16h6" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
     </symbol>
+    <symbol id="icon-unread" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="5" fill="currentColor"/>
+    </symbol>
+    <symbol id="icon-check-all" viewBox="0 0 24 24">
+      <path d="M2.5 12.5l4.5 4.5L16 8M11 16.5l.5.5L21 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
     <symbol id="icon-check" viewBox="0 0 24 24">
       <path d="M5 12.5l5 5L19 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
     </symbol>
@@ -623,6 +641,7 @@
       <div id="list-title-row">
         <button id="menu-btn">☰</button>
         <div id="list-title">All Items</div>
+        <button id="mark-read-btn" class="hidden" title="Mark all read"><svg class="icon"><use href="#icon-check-all"></use></svg></button>
         <button id="select-mode-btn" title="Select multiple"><svg class="icon"><use href="#icon-check-box"></use></svg></button>
         <button id="paste-btn" title="Paste from clipboard \u2014 attaches to the open item, or creates a new one"><svg class="icon"><use href="#icon-paste"></use></svg></button>
         <button id="new-btn">+ New</button>
@@ -788,6 +807,7 @@
     item.tags = item.tags || [];
     item.pinned = !!item.pinned;
     item.starred = !!item.starred;
+    item.unread = !!item.unread;
     item.deletedAt = item.deletedAt || null;
     item.archivedAt = item.archivedAt || null;
     item.autoExpireAt = item.autoExpireAt || null;
@@ -1109,6 +1129,8 @@
 
   const NAV_ITEMS = [
     { key: "all", label: "All Items", icon: "grid" },
+    // Only listed while something is unread (or while you're looking at it).
+    { key: "unread", label: "Unread", icon: "unread", hideWhenEmpty: true },
     { key: "saved", label: "Favorites", icon: "star" },
     { key: "pinned", label: "Pinned", icon: "pin" },
     { key: "notes", label: "Notes", icon: "note" },
@@ -1120,6 +1142,7 @@
   function countForNav(key) {
     switch (key) {
       case "all": return cache.filter((i) => !i.deletedAt && !i.archivedAt).length;
+      case "unread": return cache.filter((i) => i.unread && !i.deletedAt && !i.archivedAt).length;
       case "saved": return cache.filter((i) => i.starred && !i.deletedAt && !i.archivedAt).length;
       case "pinned": return cache.filter((i) => i.pinned && !i.deletedAt && !i.archivedAt).length;
       case "notes": return cache.filter((i) => i.type === "note" && !i.deletedAt && !i.archivedAt).length;
@@ -1134,8 +1157,9 @@
     const nav = document.getElementById("main-nav");
     nav.innerHTML = "";
     for (const item of NAV_ITEMS) {
-      const el = document.createElement("div");
       const isActive = currentView === item.key;
+      if (item.hideWhenEmpty && !isActive && countForNav(item.key) === 0) continue;
+      const el = document.createElement("div");
       el.className = "nav-item" + (isActive ? " active" : "");
       el.title = item.label + " (" + countForNav(item.key) + ")";
       el.innerHTML = '<span class="nav-label"><span class="nav-icon">' + icon(item.icon) + '</span><span class="nav-text">' + item.label + '</span></span>' +
@@ -1147,7 +1171,21 @@
       });
       nav.appendChild(el);
     }
+    const unreadCount = countForNav("unread");
+    const markReadBtn = document.getElementById("mark-read-btn");
+    markReadBtn.classList.toggle("hidden", unreadCount === 0);
+    markReadBtn.title = "Mark all read (" + unreadCount + ")";
   }
+
+  document.getElementById("mark-read-btn").addEventListener("click", async () => {
+    // Reading never changes updatedAt, so nothing reorders.
+    for (const item of cache.filter((i) => i.unread)) {
+      item.unread = false;
+      await put(ITEMS_STORE, item);
+    }
+    renderAllViews();
+    showToast("All marked as read");
+  });
 
   // ---------- Folders (sidebar) ----------
 
@@ -1564,6 +1602,7 @@
     if (currentView === "archive") return !!item.archivedAt;
     if (item.archivedAt) return false;
     if (currentView === "all") return true;
+    if (currentView === "unread") return item.unread;
     if (currentView === "saved") return item.starred;
     if (currentView === "pinned") return item.pinned;
     if (currentView === "notes") return item.type === "note";
@@ -1740,7 +1779,7 @@
 
     for (const item of filtered) {
       const row = document.createElement("div");
-      row.className = "item-row" + (item.id === currentId ? " selected" : "") + (item.id === keyboardHighlightId ? " kbd-highlight" : "");
+      row.className = "item-row" + (item.id === currentId ? " selected" : "") + (item.id === keyboardHighlightId ? " kbd-highlight" : "") + (item.unread ? " unread" : "");
       if (item.color) row.style.borderLeft = "3px solid " + item.color;
 
       if (selectMode) {
@@ -1972,8 +2011,17 @@
 
   function openDetail(id) {
     const isNewItem = id !== lastRenderedDetailId;
+    // Opening an item reads it; re-rendering the one already open doesn't,
+    // so "Mark as unread" on the open item sticks until it's opened again.
+    const isOpening = id !== currentId;
     lastRenderedDetailId = id;
     currentId = id;
+    const opened = cache.find((i) => i.id === id);
+    if (isOpening && opened && opened.unread) {
+      opened.unread = false;
+      put(ITEMS_STORE, opened).catch((err) => console.error("Mark read failed:", err));
+      renderNav();
+    }
     renderList();
     const item = cache.find((i) => i.id === id);
     if (!item) return;
@@ -2059,6 +2107,17 @@
         // Note: lock is purely visual/behavioral state on the item, no sidebar counts depend on it.
         right.appendChild(lockBtn);
       }
+      const unreadBtn = document.createElement("button");
+      unreadBtn.className = "icon-toggle unread" + (item.unread ? " on" : "");
+      unreadBtn.innerHTML = icon("unread");
+      unreadBtn.title = item.unread ? "Mark as read" : "Mark as unread";
+      unreadBtn.addEventListener("click", async () => {
+        item.unread = !item.unread;
+        await put(ITEMS_STORE, item);
+        renderAllViews();
+        openDetail(item.id);
+      });
+      right.appendChild(unreadBtn);
       const pinBtn = document.createElement("button");
       pinBtn.className = "icon-toggle pin" + (item.pinned ? " on" : "");
       pinBtn.innerHTML = icon("pin");
@@ -2661,13 +2720,15 @@
         if (!item.id || existingItemIds.has(item.id)) continue;
         const normalized = normalize(item);
         convertStandaloneImageToGallery(normalized);
+        // New to this device, so flag it until it's been looked at.
+        if (!normalized.deletedAt) normalized.unread = true;
         await put(ITEMS_STORE, normalized);
         cache.push(normalized);
         addedItems++;
       }
 
       renderAllViews();
-      showToast("Imported " + addedItems + " items" + (addedTags || addedFolders ? " (+tags/folders)" : ""));
+      showToast("Imported " + addedItems + " items" + (addedTags || addedFolders ? " (+tags/folders)" : "") + (addedItems ? " \u2014 new ones are marked unread" : ""));
     } catch (err) {
       console.error("Import failed:", err);
       showToast("Import failed \u2014 not a valid .cps file");
