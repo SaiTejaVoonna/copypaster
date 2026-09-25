@@ -263,7 +263,14 @@
   .row-icon-btn:hover { color: var(--text); background: var(--panel-2); }
   .row-icon-btn.starred { color: var(--note); }
 
-  #empty-state { padding: 50px 24px; text-align: center; color: var(--text-dim); font-size: 13px; line-height: 1.6; }
+  #empty-state { padding: 48px 28px; text-align: center; color: var(--text-dim); font-size: 13px; line-height: 1.6; }
+  #empty-state .empty-icon { font-size: 30px; margin-bottom: 8px; opacity: 0.85; }
+  #empty-state .empty-title { color: var(--text); font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  #empty-state .empty-hint { max-width: 280px; margin: 0 auto; }
+  #empty-state button {
+    margin-top: 14px; background: var(--accent); color: var(--accent-text); border: none;
+    border-radius: var(--radius-sm); padding: 7px 14px; font-size: 13px; font-weight: 600; cursor: pointer;
+  }
 
   /* ---------- Detail pane ---------- */
   #detail-pane { flex: 1; display: flex; flex-direction: column; }
@@ -1717,6 +1724,43 @@
     return found ? found.label : "All Items";
   }
 
+  // What to say when the current list is empty: what this view is for and
+  // how to put something in it, instead of a bare "nothing here".
+  function emptyStateContent() {
+    if (searchQuery) return { icon: "\ud83d\udd0d", title: "No matches", hint: "Nothing contains \u201c" + searchQuery + "\u201d. Try fewer words, or a tag name." };
+    if (cache.filter((i) => !i.deletedAt).length === 0 && currentView !== "trash") {
+      return { icon: "\ud83d\udccb", title: "Your clipboard is empty", hint: "Paste anywhere (Ctrl/Cmd+V) to save something, or start a note.", action: "New note" };
+    }
+    if (typeof currentView === "object" && currentView.folder) return { icon: "\ud83d\udcc1", title: "This folder is empty", hint: "Drag items onto the folder in the sidebar, or pick it from an item's Folder menu." };
+    if (typeof currentView === "object" && currentView.tag) return { icon: "\ud83c\udff7\ufe0f", title: "Nothing tagged yet", hint: "Open an item and add this tag with \u201c+ Tag\u201d." };
+    switch (currentView) {
+      case "unread": return { icon: "\u2705", title: "All caught up", hint: "Nothing unread. Items you import, or mark as unread, show up here." };
+      case "saved": return { icon: "\u2b50", title: "No favorites yet", hint: "Tap the star on any item to keep it here for quick access." };
+      case "pinned": return { icon: "\ud83d\udccc", title: "Nothing pinned", hint: "Pinned items stay at the top of every list. Use the pin in an item's header." };
+      case "notes": return { icon: "\ud83d\udcdd", title: "No notes", hint: "Anything you paste or write is a Note.", action: "New note" };
+      case "commands": return { icon: "\u2328\ufe0f", title: "No commands yet", hint: "Commands are code you run again and again. Open any item and switch it to Command to lock it and pick a language." };
+      case "archive": return { icon: "\ud83d\uddc4\ufe0f", title: "Archive is empty", hint: "Archive hides items you want to keep but don\u2019t need every day." };
+      case "trash": return { icon: "\ud83d\uddd1\ufe0f", title: "Trash is empty", hint: "Deleted items stay here for 30 days, so you can restore them." };
+      default: return { icon: "\ud83d\udccb", title: "Nothing here", hint: "No items in this view." };
+    }
+  }
+  function renderEmptyState() {
+    const c = emptyStateContent();
+    const el = document.createElement("div");
+    el.id = "empty-state";
+    const add = (cls, text) => { const d = document.createElement("div"); d.className = cls; d.textContent = text; el.appendChild(d); };
+    add("empty-icon", c.icon);
+    add("empty-title", c.title);
+    add("empty-hint", c.hint);
+    if (c.action) {
+      const btn = document.createElement("button");
+      btn.textContent = "+ " + c.action;
+      btn.addEventListener("click", () => document.getElementById("new-btn").click());
+      el.appendChild(btn);
+    }
+    return el;
+  }
+
   function isFolderView() {
     return typeof currentView === "object" && !!currentView.folder;
   }
@@ -1811,13 +1855,7 @@
     itemsEl.innerHTML = "";
 
     if (filtered.length === 0) {
-      const empty = document.createElement("div");
-      empty.id = "empty-state";
-      if (searchQuery) empty.textContent = "No matches for \"" + searchQuery + "\".";
-      else if (currentView === "trash") empty.textContent = "Trash is empty.";
-      else if (cache.filter((i) => !i.deletedAt).length === 0) empty.textContent = "Nothing here yet. Hit + New, or paste (Ctrl/Cmd+V) anywhere to save a note.";
-      else empty.textContent = "No items in this view.";
-      itemsEl.appendChild(empty);
+      itemsEl.appendChild(renderEmptyState());
       return;
     }
 
