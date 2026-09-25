@@ -287,3 +287,23 @@ test("deleting the Vault removes its items and lets you start again", async ({ p
   const items = await storedItems(page);
   expect(items.map((i) => i.content)).toEqual(["an ordinary note"]);
 });
+
+test("big photos (3.5 MB) in a Vault item are encrypted, saved and still there after a reload", async ({ page }) => {
+  await setUpVault(page);
+  await vaultNote(page, "has a photo");
+  const photo = require("crypto").randomBytes(3.5 * 1024 * 1024); // size is what matters here
+  await page.setInputFiles("#attach-image-file", { name: "photo.jpg", mimeType: "image/jpeg", buffer: photo });
+  await expect(lastToast(page)).toContainText("Image attached", { timeout: 15000 });
+  await expect(page.locator("img.attached-image")).toHaveCount(1);
+  await expect(page.getByText("Couldn't save")).toHaveCount(0);
+  const [record] = await storedItems(page);
+  expect(record.images).toBeUndefined(); // the photo is inside the encrypted part
+  expect(record.enc.ct.length).toBeGreaterThan(photo.length);
+
+  await page.reload();
+  await nav(page, "Vault").click();
+  await page.click("#vault-lock-btn");
+  await unlock(page);
+  await page.locator(".item-row").first().click();
+  await expect(page.locator("img.attached-image")).toHaveCount(1);
+});
