@@ -267,7 +267,12 @@
   }
   .item-row[data-swipe-dir="left"]::after { left: 100%; background: var(--danger); }
   .item-row[data-swipe-dir="right"]::after { right: 100%; justify-content: flex-end; background: var(--accent); }
-  .item-row[data-swipe-ready]::after { filter: brightness(1.15); }
+  .swipe-action {
+    position: absolute; top: 0; bottom: 0; width: 96px; border: none; color: #fff;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+  .swipe-action.left { left: 100%; background: var(--danger); }
+  .swipe-action.right { right: 100%; background: var(--accent); }
   .item-row.selected { background: var(--panel-2); }
   .hidden { display: none !important; }
   .item-row.drag-over { border-top: 2px solid var(--accent); }
@@ -1121,7 +1126,14 @@
   //   action: { label, onClick }  adds a button (e.g. Undo) and stays 5 s
   //   sticky: true                stays until handle.close() (e.g. progress)
   // Returns a handle: { update(msg), progress(0..1), close() }.
+  // A tiny buzz for confirmations. Android browsers support it; iPhone
+  // Safari doesn't let websites vibrate, so there it silently does nothing.
+  function haptic(ms = 10) {
+    try { if (navigator.vibrate) navigator.vibrate(ms); } catch {}
+  }
+
   function showToast(msg, opts = {}) {
+    if (!opts.sticky) haptic();
     const el = document.createElement("div");
     el.className = "toast-item";
     el.setAttribute("role", "status");
@@ -2178,8 +2190,7 @@
   // Swipe a row left to move it to Trash, right to archive it (or restore /
   // unarchive in those views). Both show Undo. Vertical scrolling is left to
   // the browser; only a clearly sideways drag becomes a swipe.
-  const SWIPE_TRIGGER = 90;
-
+  
   function swipeActionsFor(item) {
     if (item.deletedAt) return { right: { label: "Restore", run: () => restoreFromTrash(item) } };
     return {
@@ -2214,21 +2225,81 @@
     showToast("Restored");
   }
 
+  // A full swipe only reveals the action button; the action happens when
+  // that button is tapped. Tapping anywhere else closes it.
+  const SWIPE_OPEN = 96;
+  let openSwipe = null; // { row, close }
+  function closeOpenSwipe() {
+    if (openSwipe) { const o = openSwipe; openSwipe = null; o.close(); }
+  }
+  // Like Mail on iPhone: while a button is showing, a tap anywhere else only
+  // closes it; it doesn't also open or press whatever was tapped.
+  document.addEventListener("touchstart", (e) => {
+    if (!openSwipe || openSwipe.row.contains(e.target)) return;
+    closeOpenSwipe();
+    const swallow = (ev) => { ev.stopPropagation(); ev.preventDefault(); };
+    document.addEventListener("click", swallow, { capture: true, once: true });
+    setTimeout(() => document.removeEventListener("click", swallow, { capture: true }), 500);
+  }, { passive: true, capture: true });
+
   function attachSwipeActions(row, item) {
     const actions = swipeActionsFor(item);
     let startX = 0, startY = 0, dx = 0, mode = null; // mode: null | "swipe" | "scroll"
-    const reset = () => {
+    let base = 0;       // where the row rests: 0, or ±SWIPE_OPEN while a button shows
+    let buzzed = false;
+    let button = null;
+
+    const swallowNextClick = () => {
+      // Browsers may or may not fire a click after a swipe, so the guard
+      // expires quickly rather than swallowing the next real tap.
+      const swallow = (e) => { e.stopPropagation(); e.preventDefault(); };
+      row.addEventListener("click", swallow, { capture: true, once: true });
+      setTimeout(() => row.removeEventListener("click", swallow, { capture: true }), 400);
+    };
+    const clearLabel = () => { delete row.dataset.swipe; delete row.dataset.swipeDir; };
+    const settle = (x) => {
       row.classList.remove("swiping");
       row.classList.add("swipe-settle");
-      row.style.transform = "";
-      delete row.dataset.swipe; delete row.dataset.swipeDir; delete row.dataset.swipeReady;
+      row.style.transform = x ? "translateX(" + x + "px)" : "";
       setTimeout(() => row.classList.remove("swipe-settle"), 200);
     };
+    const close = () => {
+      base = 0;
+      clearLabel();
+      if (button) { button.remove(); button = null; }
+      settle(0);
+      if (openSwipe && openSwipe.row === row) openSwipe = null;
+    };
+    const reveal = (dir) => {
+      closeOpenSwipe();
+      const action = dir === "left" ? actions.left : actions.right;
+      base = dir === "left" ? -SWIPE_OPEN : SWIPE_OPEN;
+      clearLabel();
+      button = document.createElement("button");
+      button.type = "button";
+      button.className = "swipe-action " + dir;
+      button.textContent = action.label;
+      button.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        openSwipe = null;
+        settle(dir === "left" ? -row.offsetWidth : row.offsetWidth);
+        await wait(170);
+        action.run();
+      });
+      row.appendChild(button);
+      settle(base);
+      openSwipe = { row, close };
+    };
+
     row.addEventListener("touchstart", (e) => {
       if (e.touches.length !== 1) return;
-      startX = e.touches[0].clientX; startY = e.touches[0].clientY; dx = 0; mode = null;
+      startX = e.touches[0].clientX; startY = e.touches[0].clientY; dx = 0; mode = null; buzzed = false;
+      // Tapping a row whose button is showing just closes it.
+      if (base && !e.target.closest(".swipe-action")) { close(); swallowNextClick(); mode = "closing"; }
     }, { passive: true });
     row.addEventListener("touchmove", (e) => {
+      if (mode === "closing") return;
       const x = e.touches[0].clientX - startX, y = e.touches[0].clientY - startY;
       if (mode === null && (Math.abs(x) > 10 || Math.abs(y) > 10)) mode = Math.abs(x) > Math.abs(y) * 1.5 ? "swipe" : "scroll";
       if (mode !== "swipe") return;
@@ -2236,33 +2307,24 @@
       if (!action) { dx = 0; return; }
       e.preventDefault();
       dx = x;
+      // Follow the finger, with resistance past the button width.
+      const travel = Math.abs(dx) > SWIPE_OPEN ? Math.sign(dx) * (SWIPE_OPEN + (Math.abs(dx) - SWIPE_OPEN) * 0.3) : dx;
       row.classList.add("swiping");
-      row.style.transform = "translateX(" + dx + "px)";
+      row.style.transform = "translateX(" + travel + "px)";
       row.dataset.swipe = action.label;
       row.dataset.swipeDir = x < 0 ? "left" : "right";
-      if (Math.abs(dx) >= SWIPE_TRIGGER) row.dataset.swipeReady = ""; else delete row.dataset.swipeReady;
+      if (Math.abs(dx) >= SWIPE_OPEN * 0.7 && !buzzed) { haptic(8); buzzed = true; }
     }, { passive: false });
-    row.addEventListener("touchend", async () => {
+    row.addEventListener("touchend", () => {
+      if (mode === "closing") { mode = null; return; }
       if (mode !== "swipe") return;
+      swallowNextClick();
       const action = dx < 0 ? actions.left : actions.right;
-      // A swipe must never also count as a tap that opens the item.
-      // Browsers may or may not fire that click, so the guard expires quickly
-      // rather than swallowing the next real tap.
-      const swallow = (e) => { e.stopPropagation(); e.preventDefault(); };
-      row.addEventListener("click", swallow, { capture: true, once: true });
-      setTimeout(() => row.removeEventListener("click", swallow, { capture: true }), 400);
-      if (action && Math.abs(dx) >= SWIPE_TRIGGER) {
-        row.classList.remove("swiping");
-        row.classList.add("swipe-settle");
-        row.style.transform = "translateX(" + (dx < 0 ? "-" : "") + "110%)";
-        await wait(170);
-        action.run();
-      } else {
-        reset();
-      }
+      if (action && Math.abs(dx) >= SWIPE_OPEN * 0.7) reveal(dx < 0 ? "left" : "right");
+      else { clearLabel(); settle(0); }
       mode = null;
     });
-    row.addEventListener("touchcancel", reset);
+    row.addEventListener("touchcancel", () => { if (!base) { clearLabel(); settle(0); } });
   }
 
   // ---------- List rendering ----------
@@ -2591,6 +2653,7 @@
           await put(ITEMS_STORE, item);
           renderNav(); renderFoldersList(); renderTagsList();
           openDetail(item.id);
+          showToast("Changed to " + (t === "command" ? "Command" + (item.locked ? " \u00b7 locked" : "") : "Note"));
         });
         typeSelect.appendChild(btn);
       });
@@ -2629,6 +2692,7 @@
           item.updatedAt = Date.now();
           await put(ITEMS_STORE, item);
           openDetail(item.id);
+          showToast(item.locked ? "Locked" : "Unlocked \u2014 you can edit it now");
         });
         // Note: lock is purely visual/behavioral state on the item, no sidebar counts depend on it.
         right.appendChild(lockBtn);
@@ -2642,18 +2706,20 @@
         await put(ITEMS_STORE, item);
         renderAllViews();
         openDetail(item.id);
+        showToast(item.unread ? "Marked unread" : "Marked read");
       });
       right.appendChild(unreadBtn);
       const pinBtn = document.createElement("button");
       pinBtn.className = "icon-toggle pin" + (item.pinned ? " on" : "");
       pinBtn.innerHTML = icon("pin");
-      pinBtn.title = "Pin";
+      pinBtn.title = item.pinned ? "Unpin" : "Pin to top";
       pinBtn.addEventListener("click", async () => {
         item.pinned = !item.pinned;
         item.updatedAt = Date.now();
         await put(ITEMS_STORE, item);
         renderNav();
         openDetail(item.id);
+        showToast(item.pinned ? "Pinned to top" : "Unpinned");
       });
       const starBtn = document.createElement("button");
       starBtn.className = "icon-toggle star" + (item.starred ? " on" : "");
@@ -2748,6 +2814,7 @@
         await put(ITEMS_STORE, item);
         renderAllViews();
         openDetail(item.id);
+        showToast(item.language ? "Language: " + langSelect.selectedOptions[0].textContent : "Language cleared");
       });
       langRow.appendChild(langLabel);
       langRow.appendChild(langSelect);
@@ -2864,6 +2931,8 @@
         item.updatedAt = Date.now();
         await put(ITEMS_STORE, item);
         renderFoldersList();
+        const folder = item.folderId && folderById(item.folderId);
+        showToast(folder ? "Moved to \u201c" + folder.name + "\u201d" : "Removed from folder");
       });
       folderRow.appendChild(folderLabel);
       folderRow.appendChild(folderSelect);
@@ -2886,6 +2955,7 @@
           await put(ITEMS_STORE, item);
           renderTagsList();
           openDetail(item.id);
+          showToast("Removed tag \u201c" + t.name + "\u201d");
         });
         chip.appendChild(removeBtn);
         tagsRow.appendChild(chip);
@@ -2910,6 +2980,7 @@
         item.updatedAt = Date.now();
         await put(ITEMS_STORE, item);
         openDetail(item.id);
+        showToast("Color removed");
       });
       colorRow.appendChild(noneSwatch);
       SWATCHES.forEach((color) => {
@@ -2921,6 +2992,7 @@
           item.updatedAt = Date.now();
           await put(ITEMS_STORE, item);
           openDetail(item.id);
+          showToast("Color set");
         });
         colorRow.appendChild(sw);
       });
@@ -3088,12 +3160,15 @@
   // timer. It asks instead of doing it silently: a temporary favorite is fine.
   async function toggleFavorite(item) {
     item.starred = !item.starred;
+    let timerRemoved = false;
     if (item.starred && item.autoExpireAt &&
         confirm("This note will auto-delete " + timeLeft(item.autoExpireAt) + ". Remove the timer so it stays?")) {
       item.autoExpireAt = null;
+      timerRemoved = true;
     }
     item.updatedAt = Date.now();
     await put(ITEMS_STORE, item);
+    showToast(item.starred ? "Added to Favorites" + (timerRemoved ? " \u00b7 timer removed" : "") : "Removed from Favorites");
   }
 
   // ---------- Auto-delete row ----------
@@ -3201,12 +3276,14 @@
       const marker = tag.emoji ? '<span class="tag-emoji">' + tag.emoji + '</span>' : '<span class="tag-dot" style="background:' + tag.color + '"></span>';
       row.innerHTML = marker + escapeHtml(tag.name);
       row.addEventListener("click", async () => {
-        item.tags = item.tags.includes(tag.id) ? item.tags.filter((x) => x !== tag.id) : item.tags.concat(tag.id);
+        const had = item.tags.includes(tag.id);
+        item.tags = had ? item.tags.filter((x) => x !== tag.id) : item.tags.concat(tag.id);
         item.updatedAt = Date.now();
         await put(ITEMS_STORE, item);
         closeAnyPopover();
         renderTagsList();
         openDetail(item.id);
+        showToast((had ? "Removed tag \u201c" : "Tagged \u201c") + tag.name + "\u201d");
       });
       list.appendChild(row);
     }
