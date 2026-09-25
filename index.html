@@ -173,6 +173,79 @@
   .placeholder-field-row input:focus { outline: none; border-color: var(--accent); }
   #placeholder-modal-footer { padding: 14px 18px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--border); }
 
+  /* Small form dialogs (Vault password, recovery key). */
+  #dialog-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 260;
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+  }
+  #dialog {
+    width: 400px; max-width: 100%; max-height: calc(100dvh - 32px); overflow-y: auto;
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    box-shadow: 0 16px 40px var(--shadow); padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;
+  }
+  #dialog h2 { margin: 0; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  #dialog h2 .icon { width: 20px; height: 20px; color: var(--accent); }
+  .dialog-text { font-size: 13px; color: var(--text-dim); line-height: 1.5; margin: 0; }
+  .dialog-field { display: flex; flex-direction: column; gap: 5px; }
+  .dialog-field label { font-size: 12px; color: var(--text-dim); }
+  .dialog-field input {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: var(--radius-sm); padding: 9px 11px; font-size: 14px;
+  }
+  .dialog-field input:focus { outline: none; border-color: var(--accent); }
+  .dialog-strength { font-size: 11px; color: var(--text-dim); min-height: 14px; }
+  .dialog-strength[data-level="0"] { color: var(--danger); }
+  .dialog-strength[data-level="1"] { color: #d9a441; }
+  .dialog-strength[data-level="3"] { color: #3fb27f; }
+  .dialog-error { font-size: 12px; color: var(--danger); min-height: 0; }
+  .dialog-error:empty { display: none; }
+  .dialog-extra { display: flex; flex-direction: column; gap: 8px; }
+  .dialog-link { background: none; border: none; color: var(--accent); font-size: 12px; padding: 0; cursor: pointer; text-align: left; }
+  .dialog-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+  .dialog-footer button, .dialog-extra .dialog-wide {
+    padding: 8px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+    background: var(--panel-2); color: var(--text); font-size: 13px; cursor: pointer;
+  }
+  .dialog-footer button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  .dialog-footer button.danger { background: var(--danger); color: #fff; border-color: var(--danger); }
+  .dialog-footer button:disabled { opacity: 0.55; cursor: default; }
+  .dialog-extra .dialog-wide { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
+  .recovery-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 17px; letter-spacing: 0.04em;
+    text-align: center; padding: 12px; border-radius: var(--radius-sm); background: var(--panel-2);
+    border: 1px dashed var(--border); user-select: all; -webkit-user-select: all; word-break: break-all;
+  }
+  .dialog-row { display: flex; gap: 8px; }
+  .dialog-row button { flex: 1; }
+  .dialog-check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+
+  /* Vault */
+  .item-row.locked-row .item-text { color: var(--text-dim); }
+  .type-dot.vault { color: var(--accent); }
+  .icon-toggle.vault.on { color: var(--accent); border-color: var(--accent); }
+  .detail-vault-note { color: var(--accent); }
+  #vault-lock-btn {
+    border: 1px solid var(--border); background: var(--panel-2); color: var(--accent);
+    border-radius: var(--radius-sm); padding: 5px 10px; cursor: pointer; flex-shrink: 0;
+    display: inline-flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap;
+  }
+  #vault-lock-btn:hover { border-color: var(--accent); }
+  #vault-lock-btn.hidden { display: none; }
+  #vault-lock-btn .icon { width: 15px; height: 15px; }
+  .vault-status { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .vault-status .icon { width: 18px; height: 18px; color: var(--accent); }
+  .settings-select-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; }
+  .settings-select-row button {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; cursor: pointer; white-space: nowrap;
+  }
+  .settings-select-row button:hover { border-color: var(--accent); }
+  .settings-select-row select {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: var(--radius-sm); padding: 5px 8px; font-size: 13px;
+  }
+  .settings-row-actions button.danger { color: var(--danger); }
+
   #settings-overlay {
     position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 200;
     display: flex; align-items: center; justify-content: center;
@@ -192,7 +265,8 @@
     border-bottom: 1px solid var(--border); font-size: 13px;
   }
   .settings-row:last-child { border-bottom: none; }
-  .settings-row-actions { display: flex; gap: 8px; }
+  .settings-row-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .settings-row-actions button { white-space: nowrap; }
   .settings-line { display: flex; align-items: center; justify-content: space-between; }
   .settings-row-actions button, .settings-line #theme-toggle {
     background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
@@ -778,6 +852,11 @@
       <rect x="3" y="8" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
       <path d="M9.5 13h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
     </symbol>
+    <symbol id="icon-vault" viewBox="0 0 24 24">
+      <path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6L12 3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+      <rect x="9" y="11" width="6" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M10.3 11V9.6a1.7 1.7 0 0 1 3.4 0V11" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    </symbol>
     <symbol id="icon-zoom-in" viewBox="0 0 24 24">
       <path d="M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM20 20l-4.8-4.8M10.5 7.8v5.4M7.8 10.5h5.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
     </symbol>
@@ -880,6 +959,7 @@
       <div id="list-title-row">
         <button id="menu-btn">☰</button>
         <div id="list-title">All Items</div>
+        <button id="vault-lock-btn" class="hidden" type="button"></button>
         <button id="mark-read-btn" class="hidden" title="Mark all read"><svg class="icon"><use href="#icon-check-all"></use></svg></button>
         <button id="select-mode-btn" title="Select multiple"><svg class="icon"><use href="#icon-check-box"></use></svg></button>
         <button id="paste-btn" title="Paste from clipboard \u2014 attaches to the open item, or creates a new one"><svg class="icon"><use href="#icon-paste"></use></svg></button>
@@ -942,6 +1022,10 @@
         <input id="import-file" type="file" accept=".cps,.json" hidden>
       </div>
     </div>
+    <div class="settings-section" id="vault-settings">
+      <div class="settings-section-title">Vault</div>
+      <div id="vault-settings-body"></div>
+    </div>
     <div class="settings-section" id="install-section">
       <div class="settings-section-title">App</div>
       <div class="settings-hint" id="install-hint"></div>
@@ -957,7 +1041,7 @@
       <div id="cleanup-rules"></div>
       <button id="cleanup-add-rule" type="button">+ Add rule</button>
     </div>
-    <div id="settings-footer">CopyPaster v1.5 · local-first, no account</div>
+    <div id="settings-footer">CopyPaster v1.7 · local-first, no account</div>
   </div>
 </div>
 
@@ -970,8 +1054,9 @@
   "use strict";
 
   const DB_NAME = "copypaster";
-  const DB_VERSION = 3;
+  const DB_VERSION = 4;
   const ITEMS_STORE = "items";
+  const META_STORE = "meta"; // one record per setting that must live with the data (the Vault's wrapped key)
   const TAGS_STORE = "tags";
   const FOLDERS_STORE = "folders";
   const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -1023,6 +1108,9 @@
         }
         if (!database.objectStoreNames.contains(FOLDERS_STORE)) {
           database.createObjectStore(FOLDERS_STORE, { keyPath: "id" });
+        }
+        if (!database.objectStoreNames.contains(META_STORE)) {
+          database.createObjectStore(META_STORE, { keyPath: "id" });
         }
       };
       req.onsuccess = (e) => resolve(e.target.result);
@@ -1080,7 +1168,11 @@
 
   async function saveItems(items) {
     if (!items.length) return items;
-    await writeItems((store) => items.forEach((item) => store.put(item)));
+    // Vault items are encrypted here, on the way to disk; everything else is
+    // stored as is. The in-memory item stays readable while the Vault is open.
+    const records = await Promise.all(items.map((item) => (item.vaulted ? vaultRecordFor(item) : item)));
+    await writeItems((store) => records.forEach((record) => store.put(record)));
+    items = items.map((item, i) => (item.vaulted && !item._locked && !vaultKey ? vaultStub(records[i]) : item)); // never keep readable Vault items while locked
     for (const item of items) {
       const i = cache.findIndex((c) => c.id === item.id);
       if (i === -1) cache.push(item);
@@ -1094,6 +1186,244 @@
     await saveItems([item]);
     return item;
   }
+
+  // ---------- Vault ----------
+  // Items in the Vault are stored encrypted (AES-256-GCM). They're encrypted
+  // with one random "vault key". That key is never stored as is: it's stored
+  // locked ("wrapped") by your password, separately by your recovery key, and
+  // by any Face ID / fingerprint passkey you add. So changing the password only
+  // re-wraps the key; the items themselves don't need re-encrypting.
+  //
+  // What stays readable on disk: id, dates, auto-delete time, and that it's a
+  // Vault item. Everything else (title, text, photos, tags, folder, color,
+  // type, run history) is inside the encrypted part.
+  //
+  // While locked, each Vault item in `cache` is a stub (_locked: true) that
+  // still carries its encrypted record, so the Trash, auto-delete and export
+  // keep working without the key. The key lives only in memory, so closing or
+  // reloading the page always locks the Vault.
+  const VAULT_PLAIN_FIELDS = ["id", "schemaVersion", "vaulted", "createdAt", "updatedAt", "deletedAt", "autoExpireAt", "order"];
+  const VAULT_PASSWORD_ITERATIONS = 600000; // PBKDF2-SHA256, OWASP 2023 guidance
+  const VAULT_RECOVERY_ITERATIONS = 100000; // the recovery key is random, so fewer rounds are fine
+  const VAULT_MIN_PASSWORD = 8;
+  const RECOVERY_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O or 1/I
+  const utf8 = new TextEncoder();
+  const fromUtf8 = new TextDecoder();
+
+  let vaultMeta = null;    // the stored META_STORE record, or null when no Vault is set up
+  let vaultKey = null;     // CryptoKey while unlocked
+  let vaultRawKey = null;  // the same key's bytes while unlocked (to re-wrap it); zeroed on lock
+
+  const toB64 = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes)));
+  const fromB64 = (str) => Uint8Array.from(atob(str), (c) => c.charCodeAt(0));
+  const toB64Url = (bytes) => toB64(bytes).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const fromB64Url = (str) => fromB64(str.replace(/-/g, "+").replace(/_/g, "/") + "===".slice((str.length + 3) % 4));
+  const randomBytes = (n) => crypto.getRandomValues(new Uint8Array(n));
+
+  const isVaultSetUp = () => !!vaultMeta;
+  const isVaultUnlocked = () => !!vaultKey;
+
+  async function passwordKek(secret, saltB64, iterations) {
+    const base = await crypto.subtle.importKey("raw", utf8.encode(secret), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey(
+      { name: "PBKDF2", hash: "SHA-256", salt: fromB64(saltB64), iterations },
+      base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  }
+
+  async function sealBytes(key, bytes, aad) {
+    const iv = randomBytes(12);
+    const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: utf8.encode(aad) }, key, bytes);
+    return { iv: toB64(iv), ct: toB64(ct) };
+  }
+
+  // Throws if the key is wrong or the data was changed.
+  async function openBytes(key, box, aad) {
+    return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: fromB64(box.iv), additionalData: utf8.encode(aad) }, key, fromB64(box.ct)));
+  }
+
+  const keyAad = (meta = vaultMeta) => "copypaster-vault-key:" + meta.keyId;
+  const itemAad = (id) => "copypaster-vault-item:" + id; // a record can't be swapped onto another id
+
+  async function useVaultKey(raw) {
+    vaultRawKey = raw;
+    vaultKey = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt", "decrypt"]);
+  }
+
+  // Normalizes a recovery key as typed: case, spaces and dashes don't matter.
+  const cleanRecoveryKey = (code) => code.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+  function makeRecoveryKey() {
+    const bytes = randomBytes(24);
+    const chars = [...bytes].map((b) => RECOVERY_ALPHABET[b % 32]).join(""); // 32 divides 256: no bias
+    return chars.match(/.{4}/g).join("-"); // 24 characters, 120 bits
+  }
+
+  async function wrapWithRecoveryKey(code) {
+    const salt = toB64(randomBytes(16));
+    const kek = await passwordKek(cleanRecoveryKey(code), salt, VAULT_RECOVERY_ITERATIONS);
+    return { salt, iterations: VAULT_RECOVERY_ITERATIONS, box: await sealBytes(kek, vaultRawKey, keyAad()) };
+  }
+
+  async function wrapWithPassword(password) {
+    const salt = toB64(randomBytes(16));
+    const kek = await passwordKek(password, salt, VAULT_PASSWORD_ITERATIONS);
+    return { salt, iterations: VAULT_PASSWORD_ITERATIONS, box: await sealBytes(kek, vaultRawKey, keyAad()) };
+  }
+
+  function saveVaultMeta() {
+    return new Promise((resolve, reject) => {
+      const req = storeTx(META_STORE, "readwrite").put(vaultMeta);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function loadVaultMeta() {
+    vaultMeta = await new Promise((resolve, reject) => {
+      const req = storeTx(META_STORE, "readonly").get("vault");
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  // Creates the Vault, unlocked. Returns the recovery key to show once.
+  async function createVault(password) {
+    vaultMeta = { id: "vault", version: 1, keyId: uuid(), createdAt: Date.now(), passkeys: [] };
+    await useVaultKey(randomBytes(32));
+    vaultMeta.password = await wrapWithPassword(password);
+    const recoveryKey = makeRecoveryKey();
+    vaultMeta.recovery = await wrapWithRecoveryKey(recoveryKey);
+    await saveVaultMeta();
+    vaultUnlockedChanged();
+    return recoveryKey;
+  }
+
+  // Tries a wrapped copy of the vault key; true if it opened.
+  async function unlockWith(kek, box) {
+    try {
+      await useVaultKey(await openBytes(kek, box, keyAad()));
+    } catch {
+      return false;
+    }
+    await decryptVaultItems();
+    vaultUnlockedChanged();
+    return true;
+  }
+
+  async function unlockWithPassword(password) {
+    const w = vaultMeta.password;
+    return unlockWith(await passwordKek(password, w.salt, w.iterations), w.box);
+  }
+
+  // Forgotten password: the recovery key opens the Vault and a new password
+  // is saved before anything shows as unlocked.
+  async function resetPasswordWithRecoveryKey(code, password) {
+    const w = vaultMeta.recovery;
+    let raw;
+    try {
+      raw = await openBytes(await passwordKek(cleanRecoveryKey(code), w.salt, w.iterations), w.box, keyAad());
+    } catch {
+      return false;
+    }
+    await useVaultKey(raw);
+    vaultMeta.password = await wrapWithPassword(password);
+    await saveVaultMeta();
+    await decryptVaultItems();
+    vaultUnlockedChanged();
+    return true;
+  }
+
+  // Both need the Vault unlocked.
+  async function setVaultPassword(password) {
+    vaultMeta.password = await wrapWithPassword(password);
+    await saveVaultMeta();
+  }
+  async function newRecoveryKey() {
+    const code = makeRecoveryKey();
+    vaultMeta.recovery = await wrapWithRecoveryKey(code);
+    await saveVaultMeta();
+    return code;
+  }
+
+  // ---- Items in and out of storage ----
+
+  function vaultStub(record) {
+    const stub = normalize({ ...record, type: "note", title: "", content: "" });
+    stub._locked = true;
+    stub.enc = record.enc;
+    return stub;
+  }
+
+  // What saveItems() writes for a Vault item.
+  async function vaultRecordFor(item) {
+    const plain = {};
+    for (const f of VAULT_PLAIN_FIELDS) if (item[f] !== undefined) plain[f] = item[f];
+    plain.vaulted = true;
+    if (item._locked) return { ...plain, enc: item.enc }; // only readable fields changed (Trash, restore)
+    if (!vaultKey) {
+      // The Vault locked while this change was on its way (say, auto-lock
+      // during the Delete animation). Keep the readable part of the change
+      // (moved to Trash, restored) with the stored encrypted copy.
+      const stored = await new Promise((resolve, reject) => {
+        const req = storeTx(ITEMS_STORE, "readonly").get(item.id);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+      if (!stored || !stored.enc) throw new Error("The Vault is locked");
+      console.warn("The Vault locked before this change was saved; only its date/Trash part was kept.");
+      return { ...plain, enc: stored.enc };
+    }
+    const secret = {};
+    for (const [k, v] of Object.entries(item)) {
+      if (!VAULT_PLAIN_FIELDS.includes(k) && k !== "enc" && k !== "_locked") secret[k] = v;
+    }
+    const enc = await sealBytes(vaultKey, utf8.encode(JSON.stringify(secret)), itemAad(item.id));
+    return { ...plain, enc };
+  }
+
+  async function openVaultRecord(record, key = vaultKey) {
+    const secret = JSON.parse(fromUtf8.decode(await openBytes(key, record.enc, itemAad(record.id))));
+    const plain = {};
+    for (const f of VAULT_PLAIN_FIELDS) if (record[f] !== undefined) plain[f] = record[f];
+    return normalize({ ...secret, ...plain, vaulted: true });
+  }
+
+  async function decryptVaultItems() {
+    let failed = 0;
+    for (let i = 0; i < cache.length; i++) {
+      const stub = cache[i];
+      if (!stub.vaulted || !stub._locked) continue;
+      try {
+        cache[i] = await openVaultRecord(stub);
+      } catch (err) {
+        failed++;
+        console.error("Couldn't open Vault item " + stub.id + ":", err);
+      }
+    }
+    if (failed) showToast(failed + (failed === 1 ? " Vault item" : " Vault items") + " couldn't be opened (damaged or from another Vault)");
+  }
+
+  async function lockVault(message) {
+    if (!vaultKey) return;
+    // Save what's being typed in an open Vault item while the key still exists.
+    if (currentId && (cache.find((i) => i.id === currentId) || {}).vaulted) {
+      await saveOpenDraft();
+      await closeDetail();
+    }
+    if (vaultRawKey) vaultRawKey.fill(0);
+    vaultRawKey = null;
+    vaultKey = null;
+    // Swap every readable Vault item for its encrypted stub from disk.
+    const stored = await getAll(ITEMS_STORE);
+    const stubs = new Map(stored.filter((r) => r.vaulted).map((r) => [r.id, vaultStub(r)]));
+    cache = cache.map((i) => (i.vaulted ? stubs.get(i.id) : i)).filter(Boolean);
+    for (const id of [...selectedIds]) if (stubs.has(id)) selectedIds.delete(id);
+    vaultUnlockedChanged();
+    if (message) showToast(message);
+  }
+
+  // Filled in by the Vault UI below.
+  let vaultUnlockedChanged = () => {};
 
   // Permanent removal (Delete forever, Trash clean-up, discarding blank notes).
   // Moving to Trash is just a save with deletedAt set.
@@ -1321,11 +1651,11 @@
 
   // ---------- Clipboard ----------
 
-  async function copyToClipboard(text) {
+  async function copyToClipboard(text, message = "Copied") {
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         await navigator.clipboard.writeText(text);
-        showToast("Copied");
+        showToast(message);
         return true;
       }
       throw new Error("Clipboard API unavailable");
@@ -1461,8 +1791,13 @@
     if (item.contentType === "image") { copyImageToClipboard(item.content); return; }
     const content = liveContent !== undefined ? liveContent : item.content;
     const placeholders = extractPlaceholders(content);
-    if (placeholders.length === 0) { copyToClipboard(content); logRun(item, null); return; }
-    openPlaceholderFillModal(content, placeholders, (finalText, values) => { copyToClipboard(finalText); logRun(item, values); });
+    const copy = (text) => {
+      if (!item.vaulted || !vaultPrefs.clearClipboard) return copyToClipboard(text);
+      scheduleClipboardClear();
+      return copyToClipboard(text, "Copied \u00b7 clipboard clears in 30 s");
+    };
+    if (placeholders.length === 0) { copy(content); logRun(item, null); return; }
+    openPlaceholderFillModal(content, placeholders, (finalText, values) => { copy(finalText); logRun(item, values); });
   }
 
   // ---------- Run history (Commands) ----------
@@ -1564,16 +1899,17 @@
     const rawItems = await getAll(ITEMS_STORE);
     // Anything normalize() changes on its way in (schema migration, old image
     // rules) gets written back once, so the stored data catches up.
-    const needsCorrection = rawItems.filter((raw) =>
+    await loadVaultMeta();
+    const needsCorrection = rawItems.filter((raw) => !raw.vaulted && (
       (raw.schemaVersion || 1) < SCHEMA_VERSION ||
       !ITEM_TYPES.includes(raw.type) ||
-      (raw.type === "command" && (raw.contentType === "image" || raw.autoExpireAt)));
-    cache = rawItems.map(normalize);
+      (raw.type === "command" && (raw.contentType === "image" || raw.autoExpireAt))));
+    cache = rawItems.map((raw) => (raw.vaulted ? vaultStub(raw) : normalize(raw)));
     await saveItems(needsCorrection);
 
     // Clean out completely blank items left behind before empty notes were
     // discarded automatically (they showed up as "Untitled").
-    await deleteItems(cache.filter((i) => !i.deletedAt && isBlankItem(i)).map((i) => i.id));
+    await deleteItems(cache.filter((i) => !i.vaulted && !i.deletedAt && isBlankItem(i)).map((i) => i.id));
 
     // The rigid "whole item is one big image, no text" shape is retired.
     // Convert every remaining old-style image item to the flexible gallery
@@ -1634,19 +1970,23 @@
     { key: "pinned", label: "Pinned", icon: "pin" },
     { key: "notes", label: "Notes", icon: "note" },
     { key: "commands", label: "Commands", icon: "command" },
+    { key: "vault", label: "Vault", icon: "vault" },
     { key: "archive", label: "Archive", icon: "archive" },
     { key: "trash", label: "Trash", icon: "trash" }
   ];
 
   function countForNav(key) {
+    // Vault items only count in the Vault (and in Trash once deleted).
+    const live = (i) => !i.vaulted && !i.deletedAt && !i.archivedAt;
     switch (key) {
-      case "all": return cache.filter((i) => !i.deletedAt && !i.archivedAt).length;
-      case "unread": return cache.filter((i) => i.unread && !i.deletedAt && !i.archivedAt).length;
-      case "saved": return cache.filter((i) => i.starred && !i.deletedAt && !i.archivedAt).length;
-      case "pinned": return cache.filter((i) => i.pinned && !i.deletedAt && !i.archivedAt).length;
-      case "notes": return cache.filter((i) => i.type === "note" && !i.deletedAt && !i.archivedAt).length;
-      case "commands": return cache.filter((i) => i.type === "command" && !i.deletedAt && !i.archivedAt).length;
-      case "archive": return cache.filter((i) => i.archivedAt && !i.deletedAt).length;
+      case "all": return cache.filter(live).length;
+      case "unread": return cache.filter((i) => i.unread && live(i)).length;
+      case "saved": return cache.filter((i) => i.starred && live(i)).length;
+      case "pinned": return cache.filter((i) => i.pinned && live(i)).length;
+      case "notes": return cache.filter((i) => i.type === "note" && live(i)).length;
+      case "commands": return cache.filter((i) => i.type === "command" && live(i)).length;
+      case "vault": return cache.filter((i) => i.vaulted && !i.deletedAt).length;
+      case "archive": return cache.filter((i) => !i.vaulted && i.archivedAt && !i.deletedAt).length;
       case "trash": return cache.filter((i) => i.deletedAt).length;
       default: return 0;
     }
@@ -1809,7 +2149,7 @@
   }
 
   function countInFolder(folderId) {
-    return cache.filter((i) => !i.deletedAt && i.folderId === folderId).length;
+    return cache.filter((i) => !i.vaulted && !i.deletedAt && i.folderId === folderId).length;
   }
 
   async function moveItemToFolder(itemId, folderId) {
@@ -1909,7 +2249,7 @@
     }
     const tagsWithCounts = tagCache.map((tag) => ({
       tag,
-      count: cache.filter((i) => !i.deletedAt && i.tags.includes(tag.id)).length
+      count: cache.filter((i) => !i.vaulted && !i.deletedAt && i.tags.includes(tag.id)).length
     }));
     tagsWithCounts.sort((a, b) => b.count - a.count || a.tag.name.localeCompare(b.tag.name));
 
@@ -2119,6 +2459,8 @@
   // ---------- List filtering ----------
 
   function matchesView(item) {
+    if (item.vaulted) return currentView === "vault" ? !item.deletedAt : currentView === "trash" && !!item.deletedAt;
+    if (currentView === "vault") return false;
     if (currentView === "trash") return !!item.deletedAt;
     if (item.deletedAt) return false;
     if (currentView === "archive") return !!item.archivedAt;
@@ -2199,7 +2541,13 @@
   // how to put something in it, instead of a bare "nothing here".
   function emptyStateContent() {
     if (searchQuery) return { icon: "\ud83d\udd0d", title: "No matches", hint: "Nothing contains \u201c" + searchQuery + "\u201d. Try fewer words, or a tag name." };
-    if (cache.filter((i) => !i.deletedAt).length === 0 && currentView !== "trash") {
+    if (currentView === "vault") {
+      const count = countForNav("vault");
+      if (!isVaultSetUp()) return { icon: "\ud83d\udd10", title: "Keep secrets locked", hint: "Passwords, API keys and private notes go here, encrypted with a password only you know. No account needed.", action: "Set up Vault", onAction: () => startVaultSetup() };
+      if (!isVaultUnlocked() && count) return { icon: "\ud83d\udd12", title: "Vault is locked", hint: "Unlock to see your " + count + (count === 1 ? " item." : " items."), action: "Unlock", onAction: () => promptUnlock() };
+      return { icon: "\ud83d\udd10", title: "Vault is empty", hint: "Paste here or tap + New: anything made in the Vault is encrypted from the start. You can also move any item in from its menu." + (isVaultUnlocked() ? "" : " (Unlock first.)"), action: "New note" };
+    }
+    if (cache.filter((i) => !i.vaulted && !i.deletedAt).length === 0 && currentView !== "trash") {
       return { icon: "\ud83d\udccb", title: "Your clipboard is empty", hint: "Paste anywhere (Ctrl/Cmd+V) to save something, or start a note.", action: "New note" };
     }
     if (typeof currentView === "object" && currentView.folder) return { icon: "\ud83d\udcc1", title: "This folder is empty", hint: "Drag items onto the folder in the sidebar, or pick it from an item's Folder menu." };
@@ -2225,8 +2573,8 @@
     add("empty-hint", c.hint);
     if (c.action) {
       const btn = document.createElement("button");
-      btn.textContent = "+ " + c.action;
-      btn.addEventListener("click", () => document.getElementById("new-btn").click());
+      btn.textContent = c.onAction ? c.action : "+ " + c.action;
+      btn.addEventListener("click", () => (c.onAction ? c.onAction() : document.getElementById("new-btn").click()));
       el.appendChild(btn);
     }
     return el;
@@ -2386,7 +2734,8 @@
         showToast(item.pinned ? "Pinned to top" : "Unpinned");
       } },
       { label: item.archivedAt ? "Unarchive" : "Archive", run: () => toggleArchiveWithUndo(item) },
-      { label: "Move to folder\u2026", run: () => openFolderSheet(item) },
+      { label: item.vaulted ? "Move out of Vault" : "Move to Vault", run: () => (item.vaulted ? moveOutOfVault(item) : moveToVault(item)) },
+      ...(item.vaulted ? [] : [{ label: "Move to folder\u2026", run: () => openFolderSheet(item) }]),
       { label: "Select\u2026", run: () => {
         if (!selectMode) document.getElementById("select-mode-btn").click();
         selectedIds.add(item.id);
@@ -2644,7 +2993,8 @@
       filtered = sorted.filter((i) => i.pinned).concat(sorted.filter((i) => !i.pinned));
     }
 
-    visibleIds = filtered.map((i) => i.id);
+    visibleIds = filtered.filter((i) => !i._locked).map((i) => i.id); // locked items can't be selected
+    updateVaultLockButton();
     if (keyboardHighlightId && !visibleIds.includes(keyboardHighlightId)) keyboardHighlightId = null;
     updateSelectAllRow();
 
@@ -2656,6 +3006,7 @@
     }
 
     for (const item of filtered) {
+      if (item._locked) { itemsEl.appendChild(lockedVaultRow(item)); continue; }
       const row = document.createElement("div");
       row.dataset.id = item.id;
       row.className = "item-row" + (item.id === currentId ? " selected" : "") + (item.id === keyboardHighlightId ? " kbd-highlight" : "") + (item.unread ? " unread" : "");
@@ -2822,7 +3173,7 @@
   }
 
   async function reorderWithinFolder(folderId, draggedItemId, targetItemId) {
-    const list = cache.filter((i) => !i.deletedAt && i.folderId === folderId).sort((a, b) => a.order - b.order);
+    const list = cache.filter((i) => !i.vaulted && !i.deletedAt && i.folderId === folderId).sort((a, b) => a.order - b.order);
     const fromIdx = list.findIndex((i) => i.id === draggedItemId);
     const toIdx = list.findIndex((i) => i.id === targetItemId);
     if (fromIdx === -1 || toIdx === -1) return;
@@ -2895,6 +3246,7 @@
   // pin) isn't worth keeping. It's thrown away when you leave it, so tapping
   // "+ New" and backing out doesn't leave an "Untitled" item behind.
   function isBlankItem(item) {
+    if (item._locked) return false; // a locked Vault item's content is just unreadable, not empty
     return !(item.title || "").trim() && !(item.content || "").trim() && !item.images.length &&
       !item.tags.length && !item.folderId && !item.starred && !item.pinned && !item.runs.length;
   }
@@ -2924,6 +3276,8 @@
   let editor = null; // { item, inTrash, titleInput, textarea, statusEl, flush }
 
   function openDetail(id) {
+    const target = cache.find((i) => i.id === id);
+    if (target && target._locked) { promptUnlock(() => openDetail(id)); return; }
     // Rebuilding the item that's open: keep what was typed but not saved yet.
     if (editor && editor.item.id === id && id === currentId) editor.flush();
     if (currentId && id !== currentId && discardIfBlank(currentId)) renderNav();
@@ -2968,8 +3322,8 @@
   // Redraws one section of the open editor in place.
   function redrawDetail(section) {
     if (!editor || editor.item.id !== currentId) return;
-    const builders = { header: buildDetailHeader, properties: buildDetailProperties };
-    const ids = { header: "detail-header", properties: "detail-properties" };
+    const builders = { header: buildDetailHeader, properties: buildDetailProperties, footer: buildDetailFooter };
+    const ids = { header: "detail-header", properties: "detail-properties", footer: "detail-footer" };
     const old = document.getElementById(ids[section]);
     if (old) old.replaceWith(builders[section](editor));
   }
@@ -3100,6 +3454,14 @@
         showToast(item.archivedAt ? "Archived" : "Unarchived");
       });
       right.appendChild(archiveBtn);
+
+      const vaultBtn = document.createElement("button");
+      vaultBtn.className = "icon-toggle vault" + (item.vaulted ? " on" : "");
+      vaultBtn.innerHTML = icon("vault");
+      vaultBtn.title = item.vaulted ? "Move out of Vault" : "Move to Vault";
+      vaultBtn.setAttribute("aria-label", vaultBtn.title);
+      vaultBtn.addEventListener("click", () => (item.vaulted ? moveOutOfVault(item) : moveToVault(item)));
+      right.appendChild(vaultBtn);
     }
     header.appendChild(right);
     return header;
@@ -3279,7 +3641,7 @@
       body.appendChild(expireRow);
     }
 
-    if (!inTrash) {
+    if (!inTrash && !item.vaulted) {
       const folderRow = document.createElement("div");
       folderRow.className = "field-row";
       const folderLabel = document.createElement("span");
@@ -3314,7 +3676,8 @@
       folderRow.appendChild(folderLabel);
       folderRow.appendChild(folderSelect);
       body.appendChild(folderRow);
-
+    }
+    if (!inTrash) {
       const tagsRow = document.createElement("div");
       tagsRow.id = "tags-row";
       for (const tid of item.tags) {
@@ -3385,6 +3748,12 @@
     const meta = document.createElement("div");
     meta.id = "detail-meta";
     meta.textContent = "Added " + formatFullDate(item.createdAt) + (inTrash ? " \u00b7 Deleted " + formatFullDate(item.deletedAt) : "");
+    if (item.vaulted) {
+      const vaultNote = document.createElement("span");
+      vaultNote.className = "detail-vault-note";
+      vaultNote.textContent = " \u00b7 Encrypted in Vault";
+      meta.appendChild(vaultNote);
+    }
     if (!inTrash) {
       ed.statusEl = document.createElement("span");
       ed.statusEl.id = "autosave-status";
@@ -3616,6 +3985,7 @@
 
   // Closes the top-most open thing. Returns false when there's nothing left.
   function stepBack() {
+    if (document.getElementById("dialog-overlay")) { closeDialog(); return true; }
     if (document.getElementById("action-sheet-overlay")) { closeActionSheet(); return true; }
     if (document.getElementById("palette-overlay")) { closePalette(); return true; }
     const placeholderModal = document.getElementById("placeholder-modal-overlay");
@@ -3716,14 +4086,20 @@
 
   // ---------- Export / Import ----------
 
-  document.getElementById("export-btn").addEventListener("click", () => {
+  document.getElementById("export-btn").addEventListener("click", async () => {
+    // Vault items go into the file exactly as stored: encrypted. The file also
+    // carries the Vault's password-locked key, so the same password opens them
+    // after importing on another device. (Passkeys belong to this device.)
+    const stored = await getAll(ITEMS_STORE);
+    const vaultRecords = new Map(stored.filter((r) => r.vaulted).map((r) => [r.id, r]));
     const payload = {
       cpsVersion: 1,
       exportedAt: new Date().toISOString(),
-      items: cache,
+      items: cache.map((i) => (i.vaulted ? vaultRecords.get(i.id) : i)).filter(Boolean),
       tags: tagCache,
       folders: folderCache
     };
+    if (vaultMeta) payload.vault = { ...vaultMeta, passkeys: [] };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -3769,6 +4145,7 @@
         addedTags++;
       }
       const incoming = data.items || [];
+      const vaultImport = await prepareVaultImport(data, incoming.filter((i) => i.vaulted && i.enc && !existingItemIds.has(i.id)));
       const progress = incoming.length > 20 ? showToast("Importing\u2026", { sticky: true }) : null;
       let processed = 0;
       const batch = [];
@@ -3779,6 +4156,14 @@
           progress.progress(processed / incoming.length);
         }
         if (!item.id || existingItemIds.has(item.id)) continue;
+        if (item.vaulted) {
+          const vaultItem = await importVaultRecord(item, vaultImport);
+          if (!vaultItem) continue;
+          batch.push(vaultItem);
+          if (batch.length === 50) await saveItems(batch.splice(0));
+          addedItems++;
+          continue;
+        }
         const normalized = normalize(item);
         convertStandaloneImageToGallery(normalized);
         // New to this device, so flag it until it's been looked at.
@@ -3791,7 +4176,8 @@
 
       if (progress) progress.close();
       renderAllViews();
-      showToast("Imported " + addedItems + " items" + (addedTags || addedFolders ? " (+tags/folders)" : "") + (addedItems ? " \u2014 new ones are marked unread" : ""));
+      showToast("Imported " + addedItems + " items" + (addedTags || addedFolders ? " (+tags/folders)" : "") + (addedItems ? " \u2014 new ones are marked unread" : "") +
+        (vaultImport.skipped ? " \u00b7 " + vaultImport.skipped + " Vault items skipped" : ""));
     } catch (err) {
       console.error("Import failed:", err);
       showToast("Import failed \u2014 not a valid .cps file");
@@ -3802,8 +4188,10 @@
 
   document.getElementById("new-btn").addEventListener("click", () => newItem("note"));
   async function newItem(type) {
+    if (currentView === "vault" && !isVaultUnlocked()) { promptUnlock(() => newItem(type)); return; }
     await saveOpenDraft();
     const item = normalize({ id: uuid(), type, content: "", createdAt: Date.now(), updatedAt: Date.now() });
+    if (currentView === "vault") item.vaulted = true; // encrypted from the first save
     await saveItem(item);
     renderAllViews();
     openDetail(item.id);
@@ -4288,7 +4676,9 @@
   async function addImageItem(dataUrl, toastMsg) {
     console.log("[CopyPaster] image data URL length:", dataUrl.length, "chars (~" + Math.round(dataUrl.length * 0.75 / 1024) + "KB)");
     await saveOpenDraft();
+    if (currentView === "vault" && !isVaultUnlocked()) { promptUnlock(() => addImageItem(dataUrl, toastMsg)); return; }
     const item = normalize({ id: uuid(), type: "note", content: "", images: [dataUrl], createdAt: Date.now(), updatedAt: Date.now() });
+    if (currentView === "vault") item.vaulted = true;
     await saveItem(item);
     renderAllViews();
     openDetail(item.id);
@@ -4476,14 +4866,16 @@
   // Archive gets a fresh copy. "Keep a copy" in the toast saves one anyway.
   function findDuplicate(text) {
     const key = text.trim();
-    return cache.find((i) => !i.deletedAt && !i.archivedAt && !i.images.length && (i.content || "").trim() === key);
+    return cache.find((i) => !i.vaulted && !i.deletedAt && !i.archivedAt && !i.images.length && (i.content || "").trim() === key);
   }
 
   async function addTextItem(rawText, toastMsg, allowDuplicate = false) {
     const text = allowDuplicate ? rawText : cleanPastedText(rawText);
     if (!text.trim()) { showToast("Nothing left after clean-up"); return; }
+    const intoVault = currentView === "vault";
+    if (intoVault && !isVaultUnlocked()) { promptUnlock(() => addTextItem(rawText, toastMsg, allowDuplicate)); return; }
     await saveOpenDraft();
-    const existing = allowDuplicate ? null : findDuplicate(text);
+    const existing = allowDuplicate || intoVault ? null : findDuplicate(text);
     if (existing) {
       existing.updatedAt = Date.now();
       await saveItem(existing);
@@ -4495,11 +4887,21 @@
       return existing;
     }
     const item = normalize({ id: uuid(), type: "note", content: text, createdAt: Date.now(), updatedAt: Date.now() });
+    if (intoVault) item.vaulted = true;
     await saveItem(item);
     renderAllViews();
     openDetail(item.id);
     const contentField = document.getElementById("content-input");
     if (contentField) contentField.focus();
+    if (intoVault) { showToast("Saved in the Vault"); return item; }
+    const secret = detectSecret(text);
+    if (secret) {
+      // Suggest only, like code detection.
+      showToast("Looks like " + secret + ". Move it to the Vault?", {
+        action: { label: "Move to Vault", onClick: () => moveToVault(item) }
+      });
+      return item;
+    }
     const code = detectCode(text);
     if (code) {
       // Suggest only; nothing changes unless the button is pressed.
@@ -4638,6 +5040,10 @@
       { label: "Paste from clipboard", icon: "paste", run: click("paste-btn") },
       ...NAV_ITEMS.filter((n) => !n.hideWhenEmpty || countForNav(n.key) > 0)
         .map((n) => ({ label: "Go to " + n.label, icon: n.icon, run: () => switchView(n.key) })),
+      ...(isVaultSetUp() ? [isVaultUnlocked()
+        ? { label: "Lock Vault", icon: "vault", run: () => lockVault("Vault locked") }
+        : { label: "Unlock Vault", icon: "vault", run: () => promptUnlock() }]
+        : [{ label: "Set up Vault", icon: "vault", run: () => startVaultSetup() }]),
       { label: "Select multiple items", icon: "check-box", run: click("select-mode-btn") },
       { label: "Switch light/dark theme", icon: "grid", run: click("theme-toggle") },
       { label: "Export backup", icon: "download", run: click("export-btn") },
@@ -4662,7 +5068,7 @@
     const q = query.toLowerCase();
     const scored = [];
     for (const item of cache) {
-      if (item.deletedAt) continue;
+      if (item.deletedAt || item._locked) continue;
       const title = (item.title || "").toLowerCase();
       const content = (item.content || "").toLowerCase();
       const tagNames = item.tags.map((id) => (tagById(id) || {}).name || "").join(" ").toLowerCase();
@@ -4977,6 +5383,759 @@
     renderInstallSection();
   });
   renderInstallSection();
+
+  // ---------- Vault: screens ----------
+  // Per-device choices; the Vault itself (keys, items) lives in IndexedDB.
+  const VAULT_PREFS_KEY = "copypaster-vault-prefs";
+  const vaultPrefs = { autoLockMinutes: 5, clearClipboard: true };
+  try { Object.assign(vaultPrefs, JSON.parse(localStorage.getItem(VAULT_PREFS_KEY) || "{}")); } catch {}
+  const saveVaultPrefs = () => { try { localStorage.setItem(VAULT_PREFS_KEY, JSON.stringify(vaultPrefs)); } catch {} };
+
+  let lastVaultActivity = Date.now();
+
+  vaultUnlockedChanged = () => {
+    lastVaultActivity = Date.now();
+    renderAllViews();
+    renderVaultSettings();
+    if (currentId) redrawDetail("header");
+  };
+
+  // ---- A small form dialog ----
+  // onSubmit(values, dialog) returns an error message to show, or nothing to close.
+  let currentDialog = null;
+
+  function openDialog({ title, text, fields = [], submitLabel = "OK", cancelLabel = "Cancel", danger = false, persistent = false, extra, onSubmit, onCancel }) {
+    if (currentDialog) {
+      if (currentDialog.busy) currentDialog.remove(); // replaced by a follow-up step
+      else currentDialog.cancel();
+    }
+    const overlay = document.createElement("div");
+    overlay.id = "dialog-overlay";
+    const form = document.createElement("form");
+    form.id = "dialog";
+    form.noValidate = true;
+    form.setAttribute("role", "dialog");
+    form.setAttribute("aria-modal", "true");
+    const heading = document.createElement("h2");
+    heading.innerHTML = icon("vault") + "<span></span>";
+    heading.lastChild.textContent = title;
+    form.appendChild(heading);
+    if (text) {
+      const p = document.createElement("p");
+      p.className = "dialog-text";
+      p.textContent = text;
+      form.appendChild(p);
+    }
+
+    const inputs = {};
+    for (const f of fields) {
+      const wrap = document.createElement("div");
+      wrap.className = "dialog-field";
+      const input = document.createElement("input");
+      input.id = "dialog-" + f.name;
+      input.name = f.name;
+      input.type = f.type || "text";
+      input.autocomplete = f.autocomplete || "off";
+      input.spellcheck = false;
+      input.setAttribute("autocapitalize", "off");
+      if (f.placeholder) input.placeholder = f.placeholder;
+      const label = document.createElement("label");
+      label.htmlFor = input.id;
+      label.textContent = f.label;
+      wrap.append(label, input);
+      if (f.strength) {
+        const meter = document.createElement("div");
+        meter.className = "dialog-strength";
+        input.addEventListener("input", () => {
+          const st = passwordStrength(input.value);
+          meter.textContent = input.value ? st.label : "";
+          meter.dataset.level = st.level;
+        });
+        wrap.appendChild(meter);
+      }
+      inputs[f.name] = input;
+      form.appendChild(wrap);
+    }
+
+    const error = document.createElement("div");
+    error.className = "dialog-error";
+    error.setAttribute("role", "alert");
+    form.appendChild(error);
+
+    const dialog = {
+      busy: false,
+      setError: (message) => { error.textContent = message || ""; },
+      remove: () => { overlay.remove(); if (currentDialog === dialog) currentDialog = null; },
+      done: () => dialog.remove(),
+      cancel: () => { dialog.remove(); if (onCancel) onCancel(); }
+    };
+
+    if (extra) {
+      const box = document.createElement("div");
+      box.className = "dialog-extra";
+      extra(box, dialog);
+      if (box.childNodes.length) form.appendChild(box);
+    }
+
+    const footer = document.createElement("div");
+    footer.className = "dialog-footer";
+    if (cancelLabel) {
+      const cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.textContent = cancelLabel;
+      cancel.addEventListener("click", () => dialog.cancel());
+      footer.appendChild(cancel);
+    }
+    const submit = document.createElement("button");
+    submit.type = "submit";
+    submit.className = danger ? "danger" : "primary";
+    submit.textContent = submitLabel;
+    footer.appendChild(submit);
+    form.appendChild(footer);
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      if (dialog.busy) return;
+      dialog.busy = true;
+      submit.disabled = true;
+      submit.textContent = "Working…";
+      dialog.setError("");
+      const values = {};
+      for (const [name, input] of Object.entries(inputs)) values[name] = input.value;
+      let problem;
+      try {
+        problem = await onSubmit(values, dialog);
+      } catch (err) {
+        console.error(err);
+        problem = "Something went wrong: " + (err.message || err);
+      }
+      dialog.busy = false;
+      submit.disabled = false;
+      submit.textContent = submitLabel;
+      if (problem) {
+        dialog.setError(problem);
+        const first = Object.values(inputs)[0];
+        if (first) { first.focus(); first.select(); }
+        return;
+      }
+      dialog.done();
+    });
+    form.addEventListener("keydown", (e) => {
+      if (e.key !== "Escape") return;
+      e.stopPropagation();
+      e.preventDefault();
+      if (!persistent && !dialog.busy) dialog.cancel();
+    });
+    overlay.addEventListener("click", (e) => {
+      if (e.target === overlay && !persistent && !dialog.busy) dialog.cancel();
+    });
+    overlay.appendChild(form);
+    document.body.appendChild(overlay);
+    currentDialog = dialog;
+    const first = Object.values(inputs)[0];
+    setTimeout(() => (first || submit).focus(), 30);
+    return dialog;
+  }
+
+  function closeDialog() {
+    if (currentDialog && !currentDialog.busy) currentDialog.cancel();
+  }
+
+  function passwordStrength(pw) {
+    if (pw.length < VAULT_MIN_PASSWORD) return { level: 0, label: "Too short — at least " + VAULT_MIN_PASSWORD + " characters" };
+    const kinds = [/[a-z]/, /[A-Z]/, /[0-9]/, /[^A-Za-z0-9]/].filter((re) => re.test(pw)).length;
+    if (pw.length >= 16 || (pw.length >= 12 && kinds >= 2)) return { level: 3, label: "Strong" };
+    if (kinds >= 3 || pw.length >= 12) return { level: 2, label: "OK — longer is stronger" };
+    return { level: 1, label: "Weak — add length, or mix in numbers and symbols" };
+  }
+
+  function checkNewPassword(password, confirm) {
+    if (password.length < VAULT_MIN_PASSWORD) return "Use at least " + VAULT_MIN_PASSWORD + " characters.";
+    if (password !== confirm) return "The two passwords don't match.";
+    return null;
+  }
+
+  const newPasswordFields = (label = "Vault password") => [
+    { name: "password", label, type: "password", autocomplete: "new-password", strength: true },
+    { name: "confirm", label: "Type it again", type: "password", autocomplete: "new-password" }
+  ];
+
+  // ---- Set up, unlock, recover ----
+
+  function startVaultSetup(then) {
+    openDialog({
+      title: "Set up your Vault",
+      text: "Vault items are encrypted with a password only you know. There's no account and no reset by email: if you forget the password and lose the recovery key, nobody can open them, not even CopyPaster.",
+      fields: newPasswordFields(),
+      submitLabel: "Create Vault",
+      onSubmit: async ({ password, confirm }) => {
+        const problem = checkNewPassword(password, confirm);
+        if (problem) return problem;
+        const code = await createVault(password);
+        showRecoveryKey(code, () => {
+          showToast("Vault ready — anything you put in it is encrypted");
+          if (then) then();
+        });
+      }
+    });
+  }
+
+  function showRecoveryKey(code, after) {
+    openDialog({
+      title: "Save your recovery key",
+      text: "If you forget your Vault password, this key is the only way back in. It's shown only now. Keep it somewhere safe outside CopyPaster: a password manager, or written on paper.",
+      cancelLabel: null,
+      submitLabel: "Done",
+      persistent: true,
+      extra: (box) => {
+        const codeEl = document.createElement("div");
+        codeEl.className = "recovery-code";
+        codeEl.id = "recovery-code";
+        codeEl.textContent = code;
+        const row = document.createElement("div");
+        row.className = "dialog-row";
+        const copyBtn = document.createElement("button");
+        copyBtn.type = "button";
+        copyBtn.className = "dialog-wide";
+        copyBtn.textContent = "Copy";
+        copyBtn.addEventListener("click", () => navigator.clipboard.writeText(code).then(() => showToast("Recovery key copied")).catch(() => showToast("Couldn't copy — select the key and copy it")));
+        const saveBtn = document.createElement("button");
+        saveBtn.type = "button";
+        saveBtn.className = "dialog-wide";
+        saveBtn.textContent = "Download";
+        saveBtn.addEventListener("click", () => {
+          const text = "CopyPaster Vault recovery key\n\n" + code + "\n\nCreated " + new Date().toLocaleString() +
+            "\nKeep this safe. With this key, someone who has your CopyPaster data or backup can open your Vault.\n";
+          const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "copypaster-recovery-key.txt";
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          setTimeout(() => URL.revokeObjectURL(url), 10000);
+        });
+        row.append(copyBtn, saveBtn);
+        const check = document.createElement("label");
+        check.className = "dialog-check";
+        check.innerHTML = '<input type="checkbox" id="recovery-saved"> I’ve saved my recovery key';
+        box.append(codeEl, row, check);
+      },
+      onSubmit: async () => {
+        if (!document.getElementById("recovery-saved").checked) return "Tick the box once you’ve saved the key.";
+        if (after) after();
+      },
+      onCancel: () => { if (after) after(); }
+    });
+  }
+
+  function promptUnlock(then, onCancel) {
+    if (!isVaultSetUp()) { startVaultSetup(then); return; }
+    if (isVaultUnlocked()) { if (then) then(); return; }
+    const count = countForNav("vault");
+    openDialog({
+      title: "Unlock Vault",
+      text: count ? count + (count === 1 ? " item is" : " items are") + " locked." : "",
+      fields: [{ name: "password", label: "Vault password", type: "password", autocomplete: "current-password" }],
+      submitLabel: "Unlock",
+      onCancel,
+      extra: (box, dialog) => {
+        if (vaultMeta.passkeys.length && passkeysSupported()) {
+          const b = document.createElement("button");
+          b.type = "button";
+          b.id = "passkey-unlock-btn";
+          b.className = "dialog-wide";
+          b.innerHTML = icon("vault") + " Use Face ID / fingerprint";
+          b.addEventListener("click", async () => {
+            dialog.setError("");
+            try {
+              if (await unlockWithPasskey()) {
+                dialog.done();
+                showToast("Vault unlocked");
+                if (then) then();
+              } else {
+                dialog.setError("That passkey isn't one this Vault knows. Use your password.");
+              }
+            } catch (err) {
+              console.error("Passkey unlock failed:", err);
+              dialog.setError(err.name === "NotAllowedError" ? "Cancelled. Try again, or use your password." : "Face ID / fingerprint didn't work here. Use your password.");
+            }
+          });
+          box.appendChild(b);
+        }
+        const forgot = document.createElement("button");
+        forgot.type = "button";
+        forgot.className = "dialog-link";
+        forgot.textContent = "Forgot your password? Use your recovery key";
+        forgot.addEventListener("click", () => { dialog.done(); recoverVault(then, onCancel); });
+        box.appendChild(forgot);
+      },
+      onSubmit: async ({ password }) => {
+        if (!password) return "Enter your Vault password.";
+        if (!(await unlockWithPassword(password))) return "That password didn't open the Vault.";
+        showToast("Vault unlocked");
+        if (then) then();
+      }
+    });
+  }
+
+  function recoverVault(then, onCancel) {
+    openDialog({
+      title: "Use your recovery key",
+      text: "Enter the recovery key you saved when you set up the Vault, then choose a new password.",
+      fields: [
+        { name: "code", label: "Recovery key", placeholder: "XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" },
+        ...newPasswordFields("New password")
+      ],
+      submitLabel: "Unlock",
+      onCancel,
+      onSubmit: async ({ code, password, confirm }) => {
+        if (cleanRecoveryKey(code).length !== 24) return "A recovery key has 24 letters and numbers.";
+        const problem = checkNewPassword(password, confirm);
+        if (problem) return problem;
+        if (!(await resetPasswordWithRecoveryKey(code, password))) return "That recovery key didn't open the Vault.";
+        showToast("Vault unlocked · new password set");
+        if (then) then();
+      }
+    });
+  }
+
+  function changeVaultPassword() {
+    openDialog({
+      title: "Change Vault password",
+      fields: [
+        { name: "current", label: "Current password", type: "password", autocomplete: "current-password" },
+        ...newPasswordFields("New password")
+      ],
+      submitLabel: "Change password",
+      onSubmit: async ({ current, password, confirm }) => {
+        const problem = checkNewPassword(password, confirm);
+        if (problem) return problem;
+        // Checked against the stored copy even while the Vault is open, so
+        // someone at an unlocked screen can't change it.
+        const w = vaultMeta.password;
+        try {
+          await openBytes(await passwordKek(current, w.salt, w.iterations), w.box, keyAad());
+        } catch {
+          return "The current password isn't right.";
+        }
+        if (!isVaultUnlocked()) await unlockWithPassword(current);
+        await setVaultPassword(password);
+        showToast("Vault password changed");
+      }
+    });
+  }
+
+  function confirmNewRecoveryKey() {
+    const make = () => openDialog({
+      title: "New recovery key",
+      text: "This makes a new recovery key. The old one stops working.",
+      submitLabel: "Make new key",
+      onSubmit: async () => {
+        const code = await newRecoveryKey();
+        showRecoveryKey(code, () => showToast("New recovery key saved"));
+      }
+    });
+    if (isVaultUnlocked()) make(); else promptUnlock(make);
+  }
+
+  function deleteVaultFlow() {
+    const count = cache.filter((i) => i.vaulted).length;
+    openDialog({
+      title: "Delete the Vault?",
+      text: "This deletes the Vault and its " + count + (count === 1 ? " item" : " items") + " forever, including any in Trash. Type DELETE to confirm.",
+      fields: [{ name: "confirm", label: "Type DELETE" }],
+      submitLabel: "Delete forever",
+      danger: true,
+      onSubmit: async ({ confirm }) => {
+        if (confirm.trim().toUpperCase() !== "DELETE") return "Type DELETE to confirm.";
+        const open = currentId && cache.find((i) => i.id === currentId);
+        if (open && open.vaulted) await closeDetail();
+        await deleteItems(cache.filter((i) => i.vaulted).map((i) => i.id));
+        await new Promise((resolve, reject) => {
+          const req = storeTx(META_STORE, "readwrite").delete("vault");
+          req.onsuccess = () => resolve();
+          req.onerror = () => reject(req.error);
+        });
+        if (vaultRawKey) vaultRawKey.fill(0);
+        vaultRawKey = null;
+        vaultKey = null;
+        vaultMeta = null;
+        vaultUnlockedChanged();
+        showToast("Vault deleted");
+      }
+    });
+  }
+
+  // ---- Moving items in and out ----
+
+  async function moveToVault(item) {
+    if (!isVaultUnlocked()) { promptUnlock(() => moveToVault(item)); return; }
+    if (currentId === item.id && editor) editor.flush();
+    item.vaulted = true;
+    await saveItem(item);
+    if (currentId === item.id) ["header", "properties", "footer"].forEach(redrawDetail);
+    showToast("Moved to Vault · encrypted", { action: { label: "Undo", onClick: () => moveOutOfVault(item, true) } });
+  }
+
+  async function moveOutOfVault(item, isUndo = false) {
+    if (item._locked || !isVaultUnlocked()) { promptUnlock(() => moveOutOfVault(cache.find((i) => i.id === item.id) || item, isUndo)); return; }
+    if (currentId === item.id && editor) editor.flush();
+    item.vaulted = false;
+    await saveItem(item);
+    if (currentId === item.id) ["header", "properties", "footer"].forEach(redrawDetail);
+    if (isUndo) showToast("Moved back out of the Vault");
+    else showToast("Moved out of Vault · no longer encrypted", { action: { label: "Undo", onClick: () => moveToVault(item) } });
+  }
+
+  // ---- List and header ----
+
+  function lockedVaultRow(item) {
+    const row = document.createElement("div");
+    row.dataset.id = item.id;
+    row.className = "item-row locked-row";
+    row.title = "Unlock the Vault to see this item";
+    const dot = document.createElement("div");
+    dot.className = "type-dot vault";
+    dot.innerHTML = icon("vault");
+    row.appendChild(dot);
+    const preview = document.createElement("div");
+    preview.className = "item-preview";
+    const text = document.createElement("div");
+    text.className = "item-text";
+    text.textContent = "Locked item";
+    const meta = document.createElement("div");
+    meta.className = "item-meta";
+    meta.textContent = timeAgo(item.updatedAt);
+    if (item.autoExpireAt && !item.deletedAt) {
+      const expireEl = document.createElement("span");
+      expireEl.className = "row-expire";
+      expireEl.textContent = "⏳";
+      expireEl.title = "Auto-deletes " + timeLeft(item.autoExpireAt);
+      meta.appendChild(expireEl);
+    }
+    preview.append(text, meta);
+    row.appendChild(preview);
+    if (item.deletedAt) {
+      // In Trash it can still be restored or deleted without unlocking.
+      attachSwipeActions(row, item);
+      row.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        if (Date.now() - lastLongPress < 1000) return;
+        showContextMenu(e.clientX, e.clientY, itemQuickActions(item).map((a) => ({ label: a.label, danger: a.danger, onClick: a.run })));
+      });
+    }
+    row.addEventListener("click", () => promptUnlock(() => openDetail(item.id)));
+    return row;
+  }
+
+  function updateVaultLockButton() {
+    const btn = document.getElementById("vault-lock-btn");
+    const show = currentView === "vault" && isVaultSetUp();
+    btn.classList.toggle("hidden", !show);
+    if (!show) return;
+    const unlocked = isVaultUnlocked();
+    btn.innerHTML = icon("vault") + "<span>" + (unlocked ? "Lock" : "Unlock") + "</span>";
+    btn.title = unlocked ? "Lock the Vault now" : "Unlock the Vault";
+  }
+  document.getElementById("vault-lock-btn").addEventListener("click", () => (isVaultUnlocked() ? lockVault("Vault locked") : promptUnlock()));
+
+  // ---- Settings ----
+
+  function renderVaultSettings() {
+    const body = document.getElementById("vault-settings-body");
+    body.innerHTML = "";
+    const hint = (text) => {
+      const d = document.createElement("div");
+      d.className = "settings-hint";
+      d.textContent = text;
+      body.appendChild(d);
+    };
+    const actionsRow = () => {
+      const d = document.createElement("div");
+      d.className = "settings-row-actions";
+      body.appendChild(d);
+      return d;
+    };
+    const button = (parent, id, label, onClick, cls) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.id = id;
+      b.textContent = label;
+      if (cls) b.className = cls;
+      b.addEventListener("click", onClick);
+      parent.appendChild(b);
+      return b;
+    };
+
+    if (!isVaultSetUp()) {
+      hint("Keep passwords, API keys and private notes encrypted with a password only you know. Nothing is sent anywhere.");
+      button(actionsRow(), "vault-setup-btn", "Set up Vault", () => startVaultSetup());
+      return;
+    }
+
+    const count = countForNav("vault");
+    const status = document.createElement("div");
+    status.className = "vault-status";
+    status.innerHTML = icon("vault") + "<span></span>";
+    status.lastChild.textContent = (isVaultUnlocked() ? "Unlocked" : "Locked") + " · " + count + (count === 1 ? " item" : " items");
+    body.appendChild(status);
+
+    const row = actionsRow();
+    button(row, "vault-lock-toggle", isVaultUnlocked() ? "Lock now" : "Unlock", () => (isVaultUnlocked() ? lockVault("Vault locked") : promptUnlock()));
+    button(row, "vault-change-password", "Change password", changeVaultPassword);
+    button(row, "vault-new-recovery", "New recovery key", confirmNewRecoveryKey);
+
+    if (passkeysSupported()) {
+      const on = vaultMeta.passkeys.length > 0;
+      const line = document.createElement("div");
+      line.className = "settings-select-row";
+      const label = document.createElement("span");
+      label.textContent = "Face ID / fingerprint unlock: " + (on ? "on" : "off");
+      line.appendChild(label);
+      button(line, "vault-passkey-btn", on ? "Turn off" : "Turn on", on ? removePasskeys : setupPasskey);
+      body.appendChild(line);
+    }
+
+    const lockLine = document.createElement("div");
+    lockLine.className = "settings-select-row";
+    const lockLabel = document.createElement("label");
+    lockLabel.htmlFor = "vault-autolock";
+    lockLabel.textContent = "Lock automatically";
+    const select = document.createElement("select");
+    select.id = "vault-autolock";
+    [[1, "After 1 minute"], [5, "After 5 minutes"], [15, "After 15 minutes"], [60, "After 1 hour"], [0, "Only when I close the app"]].forEach(([value, text]) => {
+      const opt = document.createElement("option");
+      opt.value = String(value);
+      opt.textContent = text;
+      if (vaultPrefs.autoLockMinutes === value) opt.selected = true;
+      select.appendChild(opt);
+    });
+    select.addEventListener("change", () => {
+      vaultPrefs.autoLockMinutes = Number(select.value);
+      lastVaultActivity = Date.now();
+      saveVaultPrefs();
+    });
+    lockLine.append(lockLabel, select);
+    body.appendChild(lockLine);
+
+    const clip = document.createElement("label");
+    clip.className = "settings-check";
+    clip.innerHTML = '<input type="checkbox" id="vault-clear-clipboard"> Clear the clipboard 30 seconds after copying a Vault item';
+    clip.firstChild.checked = vaultPrefs.clearClipboard;
+    clip.firstChild.addEventListener("change", (e) => {
+      vaultPrefs.clearClipboard = e.target.checked;
+      saveVaultPrefs();
+    });
+    body.appendChild(clip);
+
+    hint("Forgot the password and lost the recovery key? Nobody can open the Vault, but you can delete it and start again.");
+    button(actionsRow(), "vault-delete-btn", "Delete Vault…", deleteVaultFlow, "danger");
+  }
+  renderVaultSettings();
+
+  // ---- Auto-lock ----
+  for (const type of ["pointerdown", "keydown", "touchstart", "wheel"]) {
+    document.addEventListener(type, () => { lastVaultActivity = Date.now(); }, { capture: true, passive: true });
+  }
+  function checkAutoLock() {
+    if (!isVaultUnlocked() || !vaultPrefs.autoLockMinutes) return;
+    if (Date.now() - lastVaultActivity < vaultPrefs.autoLockMinutes * 60000) return;
+    const m = vaultPrefs.autoLockMinutes;
+    lockVault("Vault locked after " + (m === 60 ? "1 hour" : m + (m === 1 ? " minute" : " minutes")) + " without use");
+  }
+  setInterval(checkAutoLock, 10000);
+  document.addEventListener("visibilitychange", checkAutoLock);
+
+  // ---- Clipboard clean-up after copying a Vault item ----
+  let clipboardClearTimer = null;
+  function scheduleClipboardClear() {
+    clearTimeout(clipboardClearTimer);
+    clipboardClearTimer = setTimeout(async () => {
+      clipboardClearTimer = null;
+      // Browsers only let a page write to the clipboard while it's in front.
+      if (!document.hasFocus()) return;
+      try {
+        await navigator.clipboard.writeText("");
+        showToast("Clipboard cleared");
+      } catch {}
+    }, 30000);
+  }
+
+  // ---- Spotting secrets in pasted text ----
+  const SECRET_PATTERNS = [
+    [/-----BEGIN [A-Z ]*PRIVATE KEY-----/, "a private key"],
+    [/\bAKIA[0-9A-Z]{16}\b/, "an AWS access key"],
+    [/\bgh[pousr]_[A-Za-z0-9]{36,}|\bgithub_pat_[A-Za-z0-9_]{50,}/, "a GitHub token"],
+    [/\bsk-ant-[A-Za-z0-9_-]{20,}/, "an Anthropic API key"],
+    [/\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}/, "an API key"],
+    [/\b(?:sk|rk)_live_[A-Za-z0-9]{16,}/, "a Stripe key"],
+    [/\bxox[abposr]-[A-Za-z0-9-]{10,}/, "a Slack token"],
+    [/\bAIza[0-9A-Za-z_-]{35}\b/, "a Google API key"],
+    [/\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/, "a login token"],
+    [/\b(?:password|passwd|pwd|passcode|secret|api[_-]?key|access[_-]?token)\s*[:=]\s*\S{6,}/i, "a password"]
+  ];
+  function detectSecret(text) {
+    for (const [re, label] of SECRET_PATTERNS) if (re.test(text)) return label;
+    // One long, random-looking word mixing cases and digits: probably a key.
+    const t = text.trim();
+    if (/\s/.test(t) || t.length < 20 || t.length > 200) return null;
+    if (/^(https?:|www\.)/i.test(t) || /\.[a-z]{2,4}$/i.test(t)) return null; // links and file names
+    if (!(/[a-z]/.test(t) && /[A-Z]/.test(t) && /[0-9]/.test(t))) return null;
+    const counts = {};
+    for (const ch of t) counts[ch] = (counts[ch] || 0) + 1;
+    const entropy = -Object.values(counts).reduce((sum, n) => sum + (n / t.length) * Math.log2(n / t.length), 0);
+    return entropy >= 3.8 ? "a key or password" : null;
+  }
+
+  // ---- Face ID / fingerprint (passkeys with the PRF extension) ----
+  // The passkey gives a secret only while you pass Face ID / fingerprint; that
+  // secret wraps a copy of the vault key. Works where the browser and device
+  // support passkey PRF; the password always works too.
+  const passkeysSupported = () => !!(window.PublicKeyCredential && window.isSecureContext && navigator.credentials);
+
+  async function prfKek(prfOutput, saltB64) {
+    const base = await crypto.subtle.importKey("raw", prfOutput, "HKDF", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey(
+      { name: "HKDF", hash: "SHA-256", salt: fromB64(saltB64), info: utf8.encode("copypaster-vault-passkey") },
+      base, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  }
+
+  async function passkeyPrf(rawId, prfSalt) {
+    const assertion = await navigator.credentials.get({ publicKey: {
+      challenge: randomBytes(32),
+      allowCredentials: [{ type: "public-key", id: rawId }],
+      userVerification: "required",
+      timeout: 60000,
+      extensions: { prf: { eval: { first: prfSalt } } }
+    } });
+    const prf = assertion.getClientExtensionResults().prf;
+    if (!prf || !prf.results) throw new Error("This passkey can't unlock the Vault (no PRF support)");
+    return prf.results.first;
+  }
+
+  async function addVaultPasskey() {
+    const prfSalt = randomBytes(32);
+    const credential = await navigator.credentials.create({ publicKey: {
+      rp: { name: "CopyPaster" },
+      user: { id: randomBytes(16), name: "CopyPaster Vault", displayName: "CopyPaster Vault" },
+      challenge: randomBytes(32),
+      pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
+      authenticatorSelection: { userVerification: "required", residentKey: "preferred" },
+      timeout: 60000,
+      extensions: { prf: { eval: { first: prfSalt } } }
+    } });
+    const prf = credential.getClientExtensionResults().prf;
+    if (!prf || prf.enabled === false) throw new Error("This device's passkeys can't unlock the Vault (no PRF support)");
+    // Some devices only hand out the secret when signing in, not when creating.
+    const output = (prf.results && prf.results.first) || await passkeyPrf(credential.rawId, prfSalt);
+    const hkdfSalt = toB64(randomBytes(16));
+    const kek = await prfKek(output, hkdfSalt);
+    vaultMeta.passkeys.push({ id: toB64Url(credential.rawId), prfSalt: toB64(prfSalt), hkdfSalt, box: await sealBytes(kek, vaultRawKey, keyAad()), addedAt: Date.now() });
+    await saveVaultMeta();
+  }
+
+  async function unlockWithPasskey() {
+    const evalByCredential = {};
+    for (const pk of vaultMeta.passkeys) evalByCredential[pk.id] = { first: fromB64(pk.prfSalt) };
+    const assertion = await navigator.credentials.get({ publicKey: {
+      challenge: randomBytes(32),
+      allowCredentials: vaultMeta.passkeys.map((pk) => ({ type: "public-key", id: fromB64Url(pk.id) })),
+      userVerification: "required",
+      timeout: 60000,
+      extensions: { prf: { evalByCredential } }
+    } });
+    const prf = assertion.getClientExtensionResults().prf;
+    if (!prf || !prf.results) throw new Error("No PRF result from the passkey");
+    const pk = vaultMeta.passkeys.find((p) => p.id === toB64Url(assertion.rawId));
+    if (!pk) return false;
+    return unlockWith(await prfKek(prf.results.first, pk.hkdfSalt), pk.box);
+  }
+
+  async function setupPasskey() {
+    if (!isVaultUnlocked()) { promptUnlock(setupPasskey); return; }
+    try {
+      await addVaultPasskey();
+      renderVaultSettings();
+      showToast("Face ID / fingerprint unlock is on");
+    } catch (err) {
+      console.error("Adding a passkey failed:", err);
+      showToast(err.name === "NotAllowedError" ? "Cancelled" : "This device or browser can't unlock with Face ID / fingerprint yet. Your password still works.");
+    }
+  }
+
+  async function removePasskeys() {
+    if (!confirm("Turn off Face ID / fingerprint unlock? You'll unlock with your password.")) return;
+    vaultMeta.passkeys = [];
+    await saveVaultMeta();
+    renderVaultSettings();
+    showToast("Face ID / fingerprint unlock is off");
+  }
+
+  // ---- Importing Vault items from a backup ----
+  // Items from the same Vault import as they are (still encrypted). Into a
+  // device with no Vault, the backup's Vault comes along and opens with its
+  // password. Items from a different Vault are opened with that Vault's
+  // password and re-encrypted into this one.
+  async function prepareVaultImport(data, records) {
+    const ctx = { mode: "same", foreignKey: null, skipped: 0 };
+    if (!records.length) return ctx;
+    const other = data.vault && data.vault.keyId && data.vault.password ? data.vault : null;
+    if (!other) { ctx.mode = "skip"; return ctx; }
+    if (!vaultMeta) {
+      vaultMeta = { ...other, passkeys: [] };
+      await saveVaultMeta();
+      renderVaultSettings();
+      return ctx;
+    }
+    if (vaultMeta.keyId === other.keyId) return ctx;
+    ctx.foreignKey = await askForOtherVaultKey(other, records.length);
+    ctx.mode = ctx.foreignKey ? "move" : "skip";
+    return ctx;
+  }
+
+  function askForOtherVaultKey(meta, count) {
+    return new Promise((resolve) => {
+      const ask = () => openDialog({
+        title: "Vault items from another Vault",
+        text: "This backup has " + count + (count === 1 ? " Vault item" : " Vault items") + " locked with a different password. Enter that Vault's password or recovery key to move them into your Vault, or skip them.",
+        fields: [{ name: "secret", label: "That Vault's password or recovery key", type: "password" }],
+        submitLabel: "Move them in",
+        cancelLabel: "Skip",
+        onCancel: () => resolve(null),
+        onSubmit: async ({ secret }) => {
+          for (const [value, w] of [[secret, meta.password], [cleanRecoveryKey(secret), meta.recovery]]) {
+            if (!w || !value) continue;
+            try {
+              const raw = await openBytes(await passwordKek(value, w.salt, w.iterations), w.box, keyAad(meta));
+              resolve(await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]));
+              return;
+            } catch {}
+          }
+          return "That didn't open the other Vault.";
+        }
+      });
+      if (isVaultUnlocked()) ask();
+      else promptUnlock(ask, () => resolve(null));
+    });
+  }
+
+  async function importVaultRecord(record, ctx) {
+    if (ctx.mode === "skip") { ctx.skipped++; return null; }
+    if (ctx.mode === "move") {
+      try {
+        return await openVaultRecord(record, ctx.foreignKey); // saved re-encrypted with this Vault's key
+      } catch {
+        ctx.skipped++;
+        return null;
+      }
+    }
+    if (isVaultUnlocked()) {
+      try { return await openVaultRecord(record); } catch {}
+    }
+    return vaultStub(record);
+  }
+
 
   // Ask the browser to treat saved data as important, so it isn't cleared
   // under storage pressure or by Safari's 7-day rule for unused sites.

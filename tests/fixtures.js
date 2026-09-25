@@ -6,7 +6,7 @@ const { expect } = base;
 const test = base.test.extend({
   page: async ({ page }, use) => {
     const errors = [];
-    page.on("pageerror", (e) => errors.push(e.message));
+    page.on("pageerror", (e) => errors.push(e.stack || e.message));
     page.on("dialog", (d) => d.accept()); // confirm() prompts: say OK
     await use(page);
     expect(errors, "uncaught page errors").toEqual([]);
