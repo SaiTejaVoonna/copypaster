@@ -1860,10 +1860,19 @@
       starBtn.title = item.starred ? "Remove from Favorites" : "Add to Favorites";
       starBtn.addEventListener("click", async (e) => {
         e.stopPropagation();
-        item.starred = !item.starred;
-        item.updatedAt = Date.now();
-        await put(ITEMS_STORE, item);
+        await toggleFavorite(item);
         renderAllViews();
+        // If this item is open, update its star and timer in place rather than
+        // re-rendering the editor (which could drop a pending autosave).
+        if (currentId === item.id) {
+          const detailStar = document.querySelector("#detail-pane .icon-toggle.star");
+          if (detailStar) {
+            detailStar.classList.toggle("on", item.starred);
+            detailStar.title = item.starred ? "Remove from Favorites" : "Add to Favorites";
+          }
+          const expireRow = document.getElementById("expire-row");
+          if (expireRow) renderExpireRow(item, expireRow, false);
+        }
       });
       const copyBtn = document.createElement("button");
       copyBtn.className = "row-icon-btn";
@@ -2064,10 +2073,8 @@
       starBtn.innerHTML = icon("star");
       starBtn.title = item.starred ? "Remove from Favorites" : "Add to Favorites";
       starBtn.addEventListener("click", async () => {
-        item.starred = !item.starred;
-        item.updatedAt = Date.now();
-        await put(ITEMS_STORE, item);
-        renderNav();
+        await toggleFavorite(item);
+        renderAllViews();
         openDetail(item.id);
       });
       right.appendChild(pinBtn);
@@ -2461,6 +2468,18 @@
       ignoreNextPopState = true;
       history.back();
     }
+  }
+
+  // Favoriting a Note that has an auto-delete timer offers to remove the
+  // timer. It asks instead of doing it silently: a temporary favorite is fine.
+  async function toggleFavorite(item) {
+    item.starred = !item.starred;
+    if (item.starred && item.autoExpireAt &&
+        confirm("This note will auto-delete " + timeLeft(item.autoExpireAt) + ". Remove the timer so it stays?")) {
+      item.autoExpireAt = null;
+    }
+    item.updatedAt = Date.now();
+    await put(ITEMS_STORE, item);
   }
 
   // ---------- Auto-delete row ----------
