@@ -164,7 +164,7 @@
   #placeholder-modal-header { padding: 14px 18px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 14px; }
   .placeholder-field-row { padding: 10px 18px; display: flex; flex-direction: column; gap: 5px; }
   .placeholder-field-row label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; }
-  .placeholder-field-row input {
+  .placeholder-field-row input, .placeholder-field-row select {
     background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
     border-radius: var(--radius-sm); padding: 7px 10px; font-size: 13px;
   }
@@ -350,6 +350,7 @@
     background: var(--panel-2); border: 1px solid var(--command); color: var(--command);
     border-radius: 999px; padding: 2px 8px; font-family: ui-monospace, "SF Mono", Consolas, monospace;
   }
+  .vars-row-hint { font-size: 11px; color: var(--text-dim); margin-left: auto; }
 
   #gallery-row {
     display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start;
@@ -1111,21 +1112,24 @@
 
   // ---------- Placeholder variables ({{name}}) ----------
 
-  const PLACEHOLDER_RE = /\{\{([a-zA-Z0-9_ ]+)\}\}/g;
+  // {{name}} asks for free text. {{name: a | b | c}} offers a dropdown of
+  // preset values (the first is preselected). The same name can appear many
+  // times; it's asked once and filled everywhere, using the first options seen.
+  const PLACEHOLDER_RE = /\{\{\s*([a-zA-Z0-9_ ]+?)\s*(?::([^{}]*))?\}\}/g;
 
   function extractPlaceholders(text) {
-    const names = [];
-    let m;
-    const re = new RegExp(PLACEHOLDER_RE);
-    while ((m = re.exec(text || "")) !== null) {
+    const found = [];
+    for (const m of (text || "").matchAll(PLACEHOLDER_RE)) {
       const name = m[1].trim();
-      if (name && !names.includes(name)) names.push(name);
+      if (!name || found.some((p) => p.name === name)) continue;
+      const options = m[2] !== undefined ? m[2].split("|").map((o) => o.trim()).filter(Boolean) : [];
+      found.push({ name, options });
     }
-    return names;
+    return found;
   }
 
   function fillPlaceholders(text, values) {
-    return (text || "").replace(new RegExp(PLACEHOLDER_RE), (match, name) => {
+    return (text || "").replace(PLACEHOLDER_RE, (match, name) => {
       const key = name.trim();
       return values[key] ? values[key] : match;
     });
@@ -1144,14 +1148,24 @@
     panel.appendChild(header);
 
     const inputs = {};
-    placeholders.forEach((name) => {
+    placeholders.forEach(({ name, options }) => {
       const row = document.createElement("div");
       row.className = "placeholder-field-row";
       const label = document.createElement("label");
       label.textContent = name;
-      const input = document.createElement("input");
-      input.type = "text";
-      input.placeholder = "Value for " + name;
+      let input;
+      if (options.length) {
+        input = document.createElement("select");
+        for (const opt of options) {
+          const o = document.createElement("option");
+          o.value = opt; o.textContent = opt;
+          input.appendChild(o);
+        }
+      } else {
+        input = document.createElement("input");
+        input.type = "text";
+        input.placeholder = "Value for " + name;
+      }
       inputs[name] = input;
       row.appendChild(label);
       row.appendChild(input);
@@ -1169,8 +1183,8 @@
     copyBtn.textContent = "Copy";
     copyBtn.addEventListener("click", () => {
       const values = {};
-      placeholders.forEach((name) => { values[name] = inputs[name].value; });
-      onCopy(fillPlaceholders(content, values));
+      placeholders.forEach(({ name }) => { values[name] = inputs[name].value; });
+      onCopy(fillPlaceholders(content, values), values);
       overlay.remove();
     });
     footer.appendChild(cancelBtn);
@@ -1180,7 +1194,9 @@
     overlay.appendChild(panel);
     overlay.addEventListener("click", (e) => { if (e.target === overlay) overlay.remove(); });
     document.body.appendChild(overlay);
-    const firstInput = panel.querySelector("input");
+    // Enter copies from any field, like pressing the Copy button.
+    panel.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); copyBtn.click(); } });
+    const firstInput = panel.querySelector("input, select");
     if (firstInput) firstInput.focus();
   }
 
@@ -2425,7 +2441,8 @@
       }
       varsRow.classList.remove("hidden");
       varsRow.innerHTML = '<span class="vars-row-label">Variables:</span>' +
-        vars.map((v) => '<span class="var-chip">{{' + escapeHtml(v) + '}}</span>').join("");
+        vars.map((v) => '<span class="var-chip" title="' + escapeHtml(v.options.length ? "Choices: " + v.options.join(", ") : "Free text") + '">{{' + escapeHtml(v.name) + (v.options.length ? " \u25be" : "") + '}}</span>').join("") +
+        '<span class="vars-row-hint">Tip: {{env: dev | prod}} gives a dropdown</span>';
     }
     updateVarsRow();
     textarea.addEventListener("input", updateVarsRow);
