@@ -1205,9 +1205,7 @@
       el.innerHTML = '<span class="nav-label"><span class="nav-icon">' + icon(item.icon) + '</span><span class="nav-text">' + item.label + '</span></span>' +
         '<span class="count">' + countForNav(item.key) + '</span>';
       el.addEventListener("click", () => {
-        currentView = item.key;
-        closeSidebarOnMobile();
-        renderNav(); renderFoldersList(); renderTagsList(); renderList();
+        switchView(item.key);
       });
       nav.appendChild(el);
     }
@@ -1226,6 +1224,18 @@
     renderAllViews();
     showToast("All marked as read");
   });
+
+  // Changing views cross-fades the list where the browser supports the
+  // View Transitions API (Chrome/Edge today); elsewhere it just switches.
+  function switchView(view) {
+    closeSidebarOnMobile();
+    const apply = () => {
+      currentView = view;
+      renderNav(); renderFoldersList(); renderTagsList(); renderList();
+    };
+    if (document.startViewTransition && motionOK()) document.startViewTransition(apply);
+    else apply();
+  }
 
   // ---------- Folders (sidebar) ----------
 
@@ -1263,9 +1273,7 @@
           renderFoldersList();
           return;
         }
-        currentView = { folder: folder.id };
-        closeSidebarOnMobile();
-        renderNav(); renderFoldersList(); renderTagsList(); renderList();
+        switchView({ folder: folder.id });
       });
       row.addEventListener("contextmenu", (e) => {
         e.preventDefault();
@@ -1294,9 +1302,7 @@
           subRow.innerHTML = '<span class="nav-label">' + icon("folder", "icon-sm") + ' ' + escapeHtml(sub.name) + '</span>' +
             '<span class="count">' + countInFolder(sub.id) + '</span>';
           subRow.addEventListener("click", () => {
-            currentView = { folder: sub.id };
-            closeSidebarOnMobile();
-            renderNav(); renderFoldersList(); renderTagsList(); renderList();
+            switchView({ folder: sub.id });
           });
           subRow.addEventListener("contextmenu", (e) => {
             e.preventDefault();
@@ -1451,9 +1457,7 @@
         : '<span class="tag-dot" style="background:' + tag.color + '"></span>';
       row.innerHTML = '<span class="nav-label">' + marker + escapeHtml(tag.name) + '</span>' + '<span class="count">' + count + '</span>';
       row.addEventListener("click", () => {
-        currentView = { tag: tag.id };
-        closeSidebarOnMobile();
-        renderNav(); renderFoldersList(); renderTagsList(); renderList();
+        switchView({ tag: tag.id });
       });
       row.addEventListener("contextmenu", (e) => {
         e.preventDefault();
