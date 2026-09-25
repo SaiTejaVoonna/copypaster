@@ -1,0 +1,11 @@
+{
+  "name": "copypaster",
+  "private": true,
+  "description": "Browser tests for CopyPaster. The app itself is index.html and needs no build.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}
