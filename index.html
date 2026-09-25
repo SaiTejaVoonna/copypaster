@@ -451,6 +451,8 @@
   #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
   /* ---------- Mobile ---------- */
+  /* Hidden by default; must come before the media queries below so they can show it. */
+  #back-btn, #menu-btn { display: none; background: transparent; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; padding: 0 4px; align-items: center; }
   @media (max-width: 900px) {
     #sidebar { position: absolute; inset: 0; z-index: 40; transform: translateX(-100%); transition: transform 0.18s; }
     #sidebar.open { transform: translateX(0); }
@@ -463,7 +465,6 @@
     #back-btn { display: inline-flex; }
     #menu-btn { display: inline-flex; }
   }
-  #back-btn, #menu-btn { display: none; background: transparent; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; padding: 0 4px; align-items: center; }
 </style>
 </head>
 <body>
@@ -1856,6 +1857,7 @@
     detailPane.innerHTML = "";
     detailPane.classList.add("open");
     detailPane.classList.toggle("anim", isNewItem);
+    pushDetailHistory();
 
     const header = document.createElement("div");
     header.id = "detail-header";
@@ -2355,13 +2357,50 @@
     detailPane.appendChild(footer);
   }
 
-  async function closeDetail() {
+  async function closeDetail(fromPopState = false) {
     await saveOpenDraft();
     currentId = null;
     detailPane.classList.remove("open");
     detailPane.innerHTML = '<div id="placeholder">Select an item, or create a new one</div>';
     renderList();
+    // Closed by the UI (← button, Escape, delete...) rather than the phone's
+    // back button: pop our history entry so the next back press leaves
+    // nothing stale behind.
+    if (!fromPopState && history.state && history.state.cpDetail) {
+      ignoreNextPopState = true;
+      history.back();
+    }
   }
+
+  // ---------- Mobile back button ----------
+  // On phones the detail pane covers the list, so the hardware/gesture back
+  // button should close it instead of leaving the app. Opening the pane
+  // pushes one history entry (only one, however many items get opened in a
+  // row); popstate closes the pane.
+  const mobileLayout = window.matchMedia("(max-width: 720px)");
+  let ignoreNextPopState = false;
+
+  function pushDetailHistory() {
+    if (!mobileLayout.matches) return;
+    if (history.state && history.state.cpDetail) return;
+    history.pushState({ cpDetail: true }, "");
+  }
+
+  window.addEventListener("popstate", () => {
+    if (ignoreNextPopState) {
+      ignoreNextPopState = false;
+      // Something reopened the pane before our own history.back() landed.
+      if (detailPane.classList.contains("open")) pushDetailHistory();
+      return;
+    }
+    if (!detailPane.classList.contains("open")) return;
+    const placeholderModal = document.getElementById("placeholder-modal-overlay");
+    if (placeholderModal) placeholderModal.remove();
+    if (document.getElementById("image-lightbox")) closeImageLightbox();
+    closeAnyPopover();
+    document.body.classList.remove("zen-mode");
+    closeDetail(true);
+  });
 
   function openTagAssignPopover(anchorEvent, item) {
     closeAnyPopover();
