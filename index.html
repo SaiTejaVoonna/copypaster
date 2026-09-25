@@ -237,8 +237,6 @@
   .drag-handle:active { cursor: grabbing; }
 
   .type-dot { width: 16px; display: flex; align-items: center; justify-content: center; margin-top: 3px; flex-shrink: 0; }
-  .type-dot.clip { color: var(--clip); }
-  .type-dot.snippet { color: var(--snippet); }
   .type-dot.note { color: var(--note); }
   .type-dot.command { color: var(--command); }
 
@@ -272,8 +270,6 @@
 
   .type-btn { border: 1px solid var(--border); background: transparent; color: var(--text-dim); border-radius: var(--radius-sm); padding: 5px 10px; font-size: 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; }
   .type-btn:disabled { opacity: 0.35; cursor: not-allowed; }
-  .type-btn.active.clip { border-color: var(--clip); color: var(--clip); }
-  .type-btn.active.snippet { border-color: var(--snippet); color: var(--snippet); }
   .type-btn.active.note { border-color: var(--note); color: var(--note); }
   .type-btn.active.command { border-color: var(--command); color: var(--command); }
 
@@ -686,23 +682,25 @@
   const TAGS_STORE = "tags";
   const FOLDERS_STORE = "folders";
   const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
+  // Bump when the stored item shape changes, and add a step to migrateItem().
+  // v1: original shape (no schemaVersion field). v2: Clip and Snippet merged into Note.
+  const SCHEMA_VERSION = 2;
 
   const SWATCHES = ["#0a84ff", "#30d158", "#ffd60a", "#ff9f0a", "#ff453a", "#bf5af2", "#64d2ff", "#8e8e93"];
   const EMOJI_OPTIONS = ["🔥","✅","📌","💻","🔑","⚙️","🐞","📊","🎯","📁","⭐","🚀","🧩","🔗","🗂️","📄","💡","⏰","🔒","📝","🚧","✨","📦","🧪"];
   function icon(name, extraClass) {
     return '<svg class="icon' + (extraClass ? " " + extraClass : "") + '"><use href="#icon-' + name + '"></use></svg>';
   }
-  const TYPE_ICONS = { clip: "clip", snippet: "snippet", note: "note", command: "command" };
+  const ITEM_TYPES = ["note", "command"];
+  const TYPE_ICONS = { note: "note", command: "command" };
   const TYPE_DESCRIPTIONS = {
-    clip: "Short-lived — something you'll paste elsewhere once or twice, then forget.",
-    snippet: "Saved on purpose — code or text you'll reuse again and again.",
-    note: "Freeform writing — meeting notes, reminders, drafts. Not really \u201cclipboard material.\u201d",
+    note: "Anything you keep \u2014 pasted text, images, snippets, writing. Can auto-expire.",
     command: "A script or command you run repeatedly. Locks read-only after saving so you don't fat-finger it."
   };
 
   let db = null;
   let currentId = null;
-  let currentView = "all"; // 'all' | 'saved' | 'recent' | 'pinned' | 'notes' | 'trash' | {tag:id} | {folder:id}
+  let currentView = "all"; // 'all' | 'saved' | 'pinned' | 'notes' | 'commands' | 'archive' | 'trash' | {tag:id} | {folder:id}
   let searchQuery = "";
   const SORT_MODE_KEY = "copypaster-sort-mode";
   let sortMode = localStorage.getItem(SORT_MODE_KEY) || "updated-desc";
@@ -783,13 +781,28 @@
     item.autoExpireAt = item.autoExpireAt || null;
     item.folderId = item.folderId || null;
     item.order = (typeof item.order === "number") ? item.order : item.createdAt || Date.now();
-    // A whole-image item can only be a Clip or Note \u2014 Snippet/Command need
-    // text content. Old data saved before this rule existed gets corrected here.
-    if (item.contentType === "image" && (item.type === "snippet" || item.type === "command")) {
-      item.type = "clip";
-    }
+    migrateItem(item);
+    // A whole-image item can't be a Command \u2014 Commands need text content.
+    if (item.contentType === "image" && item.type === "command") item.type = "note";
+    if (!ITEM_TYPES.includes(item.type)) item.type = "note";
+    // Only Notes can auto-expire; a Command must never disappear on a timer.
+    if (item.type === "command") item.autoExpireAt = null;
     const hasContent = !!(item.content && item.content.trim());
     item.locked = (item.type === "command" && hasContent) ? (item.locked !== false) : !!item.locked;
+    return item;
+  }
+
+  // Upgrades an item stored by an older version of the app, one schema step
+  // at a time. Also runs on imported items, so old export files still load.
+  function migrateItem(item) {
+    let v = item.schemaVersion || 1;
+    if (v < 2) {
+      // Clip and Snippet were merged into Note. Everything they had (images,
+      // tags, folder, favorite, pin, expiry timer) carries over unchanged.
+      if (item.type === "clip" || item.type === "snippet") item.type = "note";
+      v = 2;
+    }
+    item.schemaVersion = v;
     return item;
   }
 
@@ -1038,7 +1051,12 @@
 
   async function refresh() {
     const rawItems = await getAll(ITEMS_STORE);
-    const needsCorrection = rawItems.filter((raw) => raw.contentType === "image" && (raw.type === "snippet" || raw.type === "command"));
+    // Anything normalize() changes on its way in (schema migration, old image
+    // rules) gets written back once, so the stored data catches up.
+    const needsCorrection = rawItems.filter((raw) =>
+      (raw.schemaVersion || 1) < SCHEMA_VERSION ||
+      !ITEM_TYPES.includes(raw.type) ||
+      (raw.type === "command" && (raw.contentType === "image" || raw.autoExpireAt)));
     cache = rawItems.map(normalize);
     for (const item of needsCorrection) await put(ITEMS_STORE, item);
 
@@ -1080,9 +1098,9 @@
   const NAV_ITEMS = [
     { key: "all", label: "All Items", icon: "grid" },
     { key: "saved", label: "Favorites", icon: "star" },
-    { key: "recent", label: "Recent", icon: "clock" },
     { key: "pinned", label: "Pinned", icon: "pin" },
     { key: "notes", label: "Notes", icon: "note" },
+    { key: "commands", label: "Commands", icon: "command" },
     { key: "archive", label: "Archive", icon: "archive" },
     { key: "trash", label: "Trash", icon: "trash" }
   ];
@@ -1091,9 +1109,9 @@
     switch (key) {
       case "all": return cache.filter((i) => !i.deletedAt && !i.archivedAt).length;
       case "saved": return cache.filter((i) => i.starred && !i.deletedAt && !i.archivedAt).length;
-      case "recent": return cache.filter((i) => i.type === "clip" && !i.deletedAt && !i.archivedAt).length;
       case "pinned": return cache.filter((i) => i.pinned && !i.deletedAt && !i.archivedAt).length;
       case "notes": return cache.filter((i) => i.type === "note" && !i.deletedAt && !i.archivedAt).length;
+      case "commands": return cache.filter((i) => i.type === "command" && !i.deletedAt && !i.archivedAt).length;
       case "archive": return cache.filter((i) => i.archivedAt && !i.deletedAt).length;
       case "trash": return cache.filter((i) => i.deletedAt).length;
       default: return 0;
@@ -1535,9 +1553,9 @@
     if (item.archivedAt) return false;
     if (currentView === "all") return true;
     if (currentView === "saved") return item.starred;
-    if (currentView === "recent") return item.type === "clip";
     if (currentView === "pinned") return item.pinned;
     if (currentView === "notes") return item.type === "note";
+    if (currentView === "commands") return item.type === "command";
     if (typeof currentView === "object" && currentView.tag) return item.tags.includes(currentView.tag);
     if (typeof currentView === "object" && currentView.folder) return item.folderId === currentView.folder;
     return true;
@@ -1659,7 +1677,7 @@
       empty.id = "empty-state";
       if (searchQuery) empty.textContent = "No matches for \"" + searchQuery + "\".";
       else if (currentView === "trash") empty.textContent = "Trash is empty.";
-      else if (cache.filter((i) => !i.deletedAt).length === 0) empty.textContent = "Nothing here yet. Hit + New, or paste (Ctrl/Cmd+V) anywhere to save a clip.";
+      else if (cache.filter((i) => !i.deletedAt).length === 0) empty.textContent = "Nothing here yet. Hit + New, or paste (Ctrl/Cmd+V) anywhere to save a note.";
       else empty.textContent = "No items in this view.";
       itemsEl.appendChild(empty);
       return;
@@ -1731,7 +1749,7 @@
         }
       } else {
         dot.className = "type-dot " + item.type;
-        dot.innerHTML = icon(TYPE_ICONS[item.type] || "clip");
+        dot.innerHTML = icon(TYPE_ICONS[item.type] || "note");
         dot.title = item.type[0].toUpperCase() + item.type.slice(1);
         row.appendChild(dot);
         if (item.type === "command" && item.language) {
@@ -1912,17 +1930,18 @@
     const typeSelect = document.createElement("div");
     typeSelect.id = "type-select";
     if (!inTrash) {
-      ["clip", "snippet", "note", "command"].forEach((t) => {
+      ITEM_TYPES.forEach((t) => {
         const btn = document.createElement("button");
-        const disabledForImage = item.contentType === "image" && (t === "snippet" || t === "command");
+        const disabledForImage = item.contentType === "image" && t === "command";
         btn.className = "type-btn " + t + (item.type === t ? " active" : "");
         btn.innerHTML = icon(TYPE_ICONS[t]) + " " + t[0].toUpperCase() + t.slice(1);
         btn.disabled = disabledForImage;
-        btn.title = disabledForImage ? "Images can only be a Clip or Note, not " + t[0].toUpperCase() + t.slice(1) : TYPE_DESCRIPTIONS[t];
+        btn.title = disabledForImage ? "An image-only item can't be a Command \u2014 add some text first" : TYPE_DESCRIPTIONS[t];
         btn.addEventListener("click", async () => {
           const becomingCommand = t === "command" && item.type !== "command";
           item.type = t;
           if (becomingCommand && item.content && item.content.trim()) item.locked = true;
+          if (becomingCommand) item.autoExpireAt = null;
           item.updatedAt = Date.now();
           await put(ITEMS_STORE, item);
           renderNav(); renderFoldersList(); renderTagsList();
@@ -2135,7 +2154,7 @@
     if (!titleInput.disabled) titleInput.addEventListener("input", scheduleAutosave);
     if (!textarea.disabled) textarea.addEventListener("input", scheduleAutosave);
 
-    if (item.type === "clip" && !inTrash) {
+    if (item.type === "note" && !inTrash) {
       const expireRow = document.createElement("div");
       expireRow.id = "expire-row";
       const sw = document.createElement("div");
@@ -2144,7 +2163,7 @@
       knob.className = "switch-knob";
       sw.appendChild(knob);
       const label = document.createElement("span");
-      label.textContent = item.autoExpireAt ? "Auto-deletes " + timeAgo(item.autoExpireAt).replace(" ago", "") : "Auto-delete this clip";
+      label.textContent = item.autoExpireAt ? "Auto-deletes " + timeAgo(item.autoExpireAt).replace(" ago", "") : "Auto-delete this note";
       const durationSelect = document.createElement("select");
       durationSelect.id = "expire-duration";
       [["1", "1 hour"], ["24", "24 hours"], ["168", "7 days"]].forEach(([hrs, text]) => {
@@ -2550,7 +2569,7 @@
 
   document.getElementById("new-btn").addEventListener("click", async () => {
     await saveOpenDraft();
-    const item = normalize({ id: uuid(), type: "clip", content: "", createdAt: Date.now(), updatedAt: Date.now() });
+    const item = normalize({ id: uuid(), type: "note", content: "", createdAt: Date.now(), updatedAt: Date.now() });
     await put(ITEMS_STORE, item);
     cache.push(item);
     renderAllViews();
@@ -2871,26 +2890,26 @@
   async function addImageItem(dataUrl, toastMsg) {
     console.log("[CopyPaster] image data URL length:", dataUrl.length, "chars (~" + Math.round(dataUrl.length * 0.75 / 1024) + "KB)");
     await saveOpenDraft();
-    const item = normalize({ id: uuid(), type: "clip", content: "", images: [dataUrl], createdAt: Date.now(), updatedAt: Date.now() });
+    const item = normalize({ id: uuid(), type: "note", content: "", images: [dataUrl], createdAt: Date.now(), updatedAt: Date.now() });
     await put(ITEMS_STORE, item);
     cache.push(item);
     renderAllViews();
     openDetail(item.id);
     const titleField = document.getElementById("title-input");
     if (titleField) titleField.focus();
-    showToast(toastMsg || "Pasted as new clip \u2014 paste again to add more images");
+    showToast(toastMsg || "Pasted as new note \u2014 paste again to add more images");
   }
 
   async function addTextItem(text, toastMsg) {
     await saveOpenDraft();
-    const item = normalize({ id: uuid(), type: "clip", content: text, createdAt: Date.now(), updatedAt: Date.now() });
+    const item = normalize({ id: uuid(), type: "note", content: text, createdAt: Date.now(), updatedAt: Date.now() });
     await put(ITEMS_STORE, item);
     cache.push(item);
     renderAllViews();
     openDetail(item.id);
     const contentField = document.getElementById("content-input");
     if (contentField) contentField.focus();
-    showToast(toastMsg || "Pasted as new clip");
+    showToast(toastMsg || "Pasted as new note");
   }
 
   document.addEventListener("paste", async (e) => {
