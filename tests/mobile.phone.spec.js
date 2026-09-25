@@ -8,6 +8,7 @@ test.beforeEach(async ({ page }) => { await openApp(page); });
 // Real touch events through the DevTools protocol (Playwright's tap() has no drag or hold).
 async function touch(page) {
   const cdp = await page.context().newCDPSession(page);
+  if (process.env.SLOW) await cdp.send("Emulation.setCPUThrottlingRate", { rate: Number(process.env.SLOW) });
   const send = (type, points) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: points });
   return {
     async swipe(x1, x2, y) {
@@ -40,6 +41,13 @@ test("swipe reveals a button; tapping it trashes, tapping elsewhere just closes 
   await expect(page.locator("#detail-pane")).not.toHaveClass(/open/);
 
   await fingers.swipe(320, 150, await rowCenter(page, "two"));
+  // If the button didn't show, say what happened instead.
+  const state = await page.evaluate(() => ({
+    sheet: !!document.getElementById("action-sheet"),
+    detailOpen: document.getElementById("detail-pane").classList.contains("open"),
+    rows: [...document.querySelectorAll(".item-row")].map((r) => [r.innerText.split("\n")[0], r.style.transform, r.className]),
+  }));
+  expect(await page.locator(".swipe-action").count(), JSON.stringify(state)).toBe(1);
   await page.locator(".swipe-action").tap();
   await expect.poll(() => rowTexts(page)).toEqual(["one", "three"]);
   await expect(lastToast(page)).toContainText("Trash");
