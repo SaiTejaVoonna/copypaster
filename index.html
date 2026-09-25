@@ -3250,6 +3250,17 @@
 
   // ---------- Boot ----------
 
+  // Ask the browser to treat saved data as important, so it isn't cleared
+  // under storage pressure or by Safari's 7-day rule for unused sites.
+  // Browsers decide silently (Chrome grants it to engaged or installed
+  // sites); a "no" just means the old behavior, so it's fire-and-forget.
+  if (navigator.storage && navigator.storage.persist) {
+    navigator.storage.persisted()
+      .then((already) => already || navigator.storage.persist())
+      .then((granted) => console.log("[CopyPaster] persistent storage:", granted))
+      .catch(() => {});
+  }
+
   openDB()
     .then(async (database) => {
       db = database;
