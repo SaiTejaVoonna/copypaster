@@ -2793,17 +2793,9 @@
         e.stopPropagation();
         await toggleFavorite(item);
         renderAllViews();
-        // If this item is open, update its star and timer in place rather than
-        // re-rendering the editor (which could drop a pending autosave).
-        if (currentId === item.id) {
-          const detailStar = document.querySelector("#detail-pane .icon-toggle.star");
-          if (detailStar) {
-            detailStar.classList.toggle("on", item.starred);
-            detailStar.title = item.starred ? "Remove from Favorites" : "Add to Favorites";
-          }
-          const expireRow = document.getElementById("expire-row");
-          if (expireRow) renderExpireRow(item, expireRow, false);
-        }
+        // If this item is open, update its header and timer in place (the
+        // text being typed is left alone).
+        if (currentId === item.id) { redrawDetail("header"); redrawDetail("properties"); }
       });
       const copyBtn = document.createElement("button");
       copyBtn.className = "row-icon-btn";
@@ -2919,7 +2911,21 @@
     return true;
   }
 
+  // ---------- Item editor ----------
+  // The editor is built from four sections that can each be redrawn alone:
+  //   header      back, Note/Command, and the toggles (lock, unread, pin, star, archive)
+  //   fields      photos, title, content, language, variables, run history
+  //   properties  auto-delete, folder, tags, color
+  //   footer      dates and the Delete / Copy / Paste / Save buttons
+  // Most actions change one section and redraw only that one, so typing in the
+  // title or content is never interrupted. Changes that reshape the editor
+  // (Note/Command, lock, language, photos) rebuild it with openDetail(), which
+  // first keeps anything typed but not yet saved.
+  let editor = null; // { item, inTrash, titleInput, textarea, statusEl, flush }
+
   function openDetail(id) {
+    // Rebuilding the item that's open: keep what was typed but not saved yet.
+    if (editor && editor.item.id === id && id === currentId) editor.flush();
     if (currentId && id !== currentId && discardIfBlank(currentId)) renderNav();
     const isNewItem = id !== lastRenderedDetailId;
     // Opening an item reads it; re-rendering the one already open doesn't,
@@ -2942,12 +2948,34 @@
     renderList();
     const item = cache.find((i) => i.id === id);
     if (!item) return;
-    const inTrash = !!item.deletedAt;
+    if (editor) editor.flush = () => {}; // the old editor's inputs are going away
 
+    const ed = { item, inTrash: !!item.deletedAt, titleInput: null, textarea: null, statusEl: null, flush: () => {} };
+    editor = ed;
     detailPane.innerHTML = "";
     detailPane.classList.add("open");
     detailPane.classList.toggle("anim", isNewItem);
 
+    const body = document.createElement("div");
+    body.id = "detail-body";
+    buildDetailFields(ed, body);
+    body.appendChild(buildDetailProperties(ed));
+    detailPane.appendChild(buildDetailHeader(ed));
+    detailPane.appendChild(body);
+    detailPane.appendChild(buildDetailFooter(ed));
+  }
+
+  // Redraws one section of the open editor in place.
+  function redrawDetail(section) {
+    if (!editor || editor.item.id !== currentId) return;
+    const builders = { header: buildDetailHeader, properties: buildDetailProperties };
+    const ids = { header: "detail-header", properties: "detail-properties" };
+    const old = document.getElementById(ids[section]);
+    if (old) old.replaceWith(builders[section](editor));
+  }
+
+  function buildDetailHeader(ed) {
+    const { item, inTrash } = ed;
     const header = document.createElement("div");
     header.id = "detail-header";
     const left = document.createElement("div");
@@ -2973,13 +3001,13 @@
         btn.disabled = disabledForImage;
         btn.title = disabledForImage ? "An image-only item can't be a Command \u2014 add some text first" : TYPE_DESCRIPTIONS[t];
         btn.addEventListener("click", async () => {
+          ed.flush();
           const becomingCommand = t === "command" && item.type !== "command";
           item.type = t;
           if (becomingCommand && item.content && item.content.trim()) item.locked = true;
           if (becomingCommand) item.autoExpireAt = null;
           item.updatedAt = Date.now();
           await saveItem(item);
-          renderNav(); renderFoldersList(); renderTagsList();
           openDetail(item.id);
           showToast("Changed to " + (t === "command" ? "Command" + (item.locked ? " \u00b7 locked" : "") : "Note"));
         });
@@ -3016,13 +3044,13 @@
         lockBtn.innerHTML = icon(item.locked ? "lock-closed" : "lock-open");
         lockBtn.title = item.locked ? "Unlock to edit" : "Lock (read-only)";
         lockBtn.addEventListener("click", async () => {
+          ed.flush();
           item.locked = !item.locked;
           item.updatedAt = Date.now();
           await saveItem(item);
-          openDetail(item.id);
+          openDetail(item.id); // locking swaps the editor for the colored view
           showToast(item.locked ? "Locked" : "Unlocked \u2014 you can edit it now");
         });
-        // Note: lock is purely visual/behavioral state on the item, no sidebar counts depend on it.
         right.appendChild(lockBtn);
       }
       const unreadBtn = document.createElement("button");
@@ -3033,8 +3061,7 @@
       unreadBtn.addEventListener("click", async () => {
         item.unread = !item.unread;
         await saveItem(item);
-        renderAllViews();
-        openDetail(item.id);
+        redrawDetail("header");
         showToast(item.unread ? "Marked unread" : "Marked read");
       });
       right.appendChild(unreadBtn);
@@ -3046,8 +3073,7 @@
         item.pinned = !item.pinned;
         item.updatedAt = Date.now();
         await saveItem(item);
-        renderNav();
-        openDetail(item.id);
+        redrawDetail("header");
         showToast(item.pinned ? "Pinned to top" : "Unpinned");
       });
       const starBtn = document.createElement("button");
@@ -3056,8 +3082,8 @@
       starBtn.title = item.starred ? "Remove from Favorites" : "Add to Favorites";
       starBtn.addEventListener("click", async () => {
         await toggleFavorite(item);
-        renderAllViews();
-        openDetail(item.id);
+        redrawDetail("header");
+        redrawDetail("properties"); // the auto-delete timer may have been removed
       });
       right.appendChild(pinBtn);
       right.appendChild(starBtn);
@@ -3070,17 +3096,17 @@
         item.archivedAt = item.archivedAt ? null : Date.now();
         item.updatedAt = Date.now();
         await saveItem(item);
-        renderAllViews();
-        openDetail(item.id);
+        redrawDetail("header");
         showToast(item.archivedAt ? "Archived" : "Unarchived");
       });
       right.appendChild(archiveBtn);
     }
     header.appendChild(right);
+    return header;
+  }
 
-    const body = document.createElement("div");
-    body.id = "detail-body";
-
+  function buildDetailFields(ed, body) {
+    const { item, inTrash } = ed;
     // Image gallery (Keep-style) sits above the title \u2014 separate from an
     // item that IS an image (contentType "image" below still renders its own way).
     if (!inTrash) {
@@ -3138,11 +3164,11 @@
         langSelect.appendChild(opt);
       });
       langSelect.addEventListener("change", async () => {
+        ed.flush();
         item.language = langSelect.value || null;
         item.updatedAt = Date.now();
         await saveItem(item);
-        renderAllViews();
-        openDetail(item.id);
+        openDetail(item.id); // the prompt and colors depend on the language
         showToast(item.language ? "Language: " + langSelect.selectedOptions[0].textContent : "Language cleared");
       });
       langRow.appendChild(langLabel);
@@ -3194,16 +3220,19 @@
     body.appendChild(varsRow);
     if (item.type === "command" && !inTrash) body.appendChild(renderRunHistory(item));
 
+    ed.titleInput = titleInput;
+    ed.textarea = textarea;
+
     // ---------- Auto-save (debounced) ----------
     // Persists title/content shortly after typing pauses. Deliberately does
-    // NOT apply the "lock this Command" behavior that clicking Save does \u2014
+    // NOT apply the "lock this Command" behavior that clicking Save does —
     // autosave should never disable the field out from under someone mid-type.
     // Also deliberately avoids re-rendering the detail pane itself, so focus
     // and cursor position are never disturbed while typing.
     let autosaveTimer = null;
     function scheduleAutosave() {
       clearTimeout(autosaveTimer);
-      if (autosaveStatusEl) autosaveStatusEl.textContent = "";
+      if (ed.statusEl) ed.statusEl.textContent = "";
       autosaveTimer = setTimeout(async () => {
         const newTitle = titleInput.value.trim();
         const newContent = textarea.value;
@@ -3212,17 +3241,37 @@
         item.content = newContent;
         item.updatedAt = Date.now();
         await saveItem(item);
-        renderAllViews();
-        if (autosaveStatusEl) {
-          autosaveStatusEl.textContent = "\u00b7 Saved";
-          clearTimeout(autosaveStatusEl._fadeTimer);
-          autosaveStatusEl._fadeTimer = setTimeout(() => { autosaveStatusEl.textContent = ""; }, 2500);
+        if (ed.statusEl) {
+          ed.statusEl.textContent = "\u00b7 Saved";
+          clearTimeout(ed.statusEl._fadeTimer);
+          ed.statusEl._fadeTimer = setTimeout(() => { ed.statusEl.textContent = ""; }, 2500);
         }
       }, 700);
     }
+
+    // Before the editor is rebuilt: copy what's typed into the item right away
+    // (so the rebuilt editor shows it) and save it.
+    ed.flush = () => {
+      if (!autosaveTimer) return;
+      clearTimeout(autosaveTimer);
+      autosaveTimer = null;
+      const newTitle = titleInput.value.trim();
+      if (newTitle === (item.title || "") && textarea.value === item.content) return;
+      item.title = newTitle;
+      item.content = textarea.value;
+      item.updatedAt = Date.now();
+      saveItem(item).catch((err) => console.error("Saving typed text failed:", err));
+    };
     if (!titleInput.disabled) titleInput.addEventListener("input", scheduleAutosave);
     if (!textarea.disabled) textarea.addEventListener("input", scheduleAutosave);
+  }
 
+  function buildDetailProperties(ed) {
+    const { item, inTrash } = ed;
+    // display: contents, so the rows lay out exactly as if they sat in the body.
+    const body = document.createElement("div");
+    body.id = "detail-properties";
+    body.style.display = "contents";
     if (item.type === "note" && !inTrash) {
       const expireRow = document.createElement("div");
       expireRow.id = "expire-row";
@@ -3259,7 +3308,6 @@
         if (item.folderId) item.order = Date.now();
         item.updatedAt = Date.now();
         await saveItem(item);
-        renderFoldersList();
         const folder = item.folderId && folderById(item.folderId);
         showToast(folder ? "Moved to \u201c" + folder.name + "\u201d" : "Removed from folder");
       });
@@ -3282,8 +3330,7 @@
           item.tags = item.tags.filter((x) => x !== tid);
           item.updatedAt = Date.now();
           await saveItem(item);
-          renderTagsList();
-          openDetail(item.id);
+          redrawDetail("properties");
           showToast("Removed tag \u201c" + t.name + "\u201d");
         });
         chip.appendChild(removeBtn);
@@ -3308,7 +3355,7 @@
         item.color = null;
         item.updatedAt = Date.now();
         await saveItem(item);
-        openDetail(item.id);
+        redrawDetail("properties");
         showToast("Color removed");
       });
       colorRow.appendChild(noneSwatch);
@@ -3320,7 +3367,7 @@
           item.color = color;
           item.updatedAt = Date.now();
           await saveItem(item);
-          openDetail(item.id);
+          redrawDetail("properties");
           showToast("Color set");
         });
         colorRow.appendChild(sw);
@@ -3328,16 +3375,20 @@
       body.appendChild(colorRow);
     }
 
+    return body;
+  }
+
+  function buildDetailFooter(ed) {
+    const { item, inTrash, titleInput, textarea } = ed;
     const footer = document.createElement("div");
     footer.id = "detail-footer";
     const meta = document.createElement("div");
     meta.id = "detail-meta";
     meta.textContent = "Added " + formatFullDate(item.createdAt) + (inTrash ? " \u00b7 Deleted " + formatFullDate(item.deletedAt) : "");
-    let autosaveStatusEl = null;
     if (!inTrash) {
-      autosaveStatusEl = document.createElement("span");
-      autosaveStatusEl.id = "autosave-status";
-      meta.appendChild(autosaveStatusEl);
+      ed.statusEl = document.createElement("span");
+      ed.statusEl.id = "autosave-status";
+      meta.appendChild(ed.statusEl);
     }
     const actions = document.createElement("div");
     actions.id = "detail-actions";
@@ -3352,7 +3403,6 @@
         item.updatedAt = Date.now();
         await saveItem(item);
         closeDetail();
-        renderAllViews();
         showToast("Restored");
       });
       const forgetBtn = document.createElement("button");
@@ -3363,7 +3413,6 @@
         await animateRowOut(item.id);
         await deleteItems([item.id]);
         closeDetail();
-        renderAllViews();
         showToast("Deleted permanently");
       });
       actions.appendChild(restoreBtn);
@@ -3379,7 +3428,6 @@
         item.updatedAt = Date.now();
         await saveItem(item);
         closeDetail();
-        renderAllViews();
         showTrashUndo([item], "Moved to Trash");
       });
       const copyBtn = document.createElement("button");
@@ -3399,6 +3447,7 @@
         try {
           if (!navigator.clipboard || !navigator.clipboard.read) throw new Error("Clipboard read API unavailable");
           const clipboardItems = await navigator.clipboard.read();
+          ed.flush();
           for (const ci of clipboardItems) {
             const imageType = ci.types.find((t) => t.startsWith("image/"));
             if (imageType) {
@@ -3408,7 +3457,7 @@
               item.images.push(dataUrl);
               item.updatedAt = Date.now();
               await saveItem(item);
-              openDetail(item.id);
+              openDetail(item.id); // show the new photo
               showToast("Image pasted into this item");
               return;
             }
@@ -3447,8 +3496,7 @@
         if (justLocked) item.locked = true;
         item.updatedAt = Date.now();
         await saveItem(item);
-        if (justLocked) { renderAllViews(); openDetail(item.id); }
-        else renderAllViews();
+        if (justLocked) openDetail(item.id);
         showToast("Saved");
       });
       actions.appendChild(delBtn);
@@ -3459,9 +3507,7 @@
 
     footer.appendChild(meta);
     footer.appendChild(actions);
-    detailPane.appendChild(header);
-    detailPane.appendChild(body);
-    detailPane.appendChild(footer);
+    return footer;
   }
 
   async function closeDetail() {
@@ -3658,8 +3704,7 @@
         item.updatedAt = Date.now();
         await saveItem(item);
         closeAnyPopover();
-        renderTagsList();
-        openDetail(item.id);
+        if (currentId === item.id) redrawDetail("properties");
         showToast((had ? "Removed tag \u201c" : "Tagged \u201c") + tag.name + "\u201d");
       });
       list.appendChild(row);
