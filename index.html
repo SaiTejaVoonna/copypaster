@@ -319,6 +319,29 @@
   }
   .settings-subtitle { font-weight: 600; font-size: 12px; margin-top: 4px; }
   .settings-hint { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+  #vault-settings-body, #profile-list { display: flex; flex-direction: column; gap: 10px; }
+  #vault-settings-body .settings-hint { margin-top: 2px; }
+  .settings-row-actions button.settings-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); font-weight: 600; padding: 7px 14px; }
+  .settings-row-actions button.settings-primary:hover { filter: brightness(1.08); }
+  #check-updates-btn:disabled { opacity: 0.6; cursor: default; }
+  #update-status { display: flex; flex-direction: column; gap: 6px; }
+  #update-status.hidden { display: none; }
+  .update-bar { height: 3px; border-radius: 2px; background: var(--panel-2); overflow: hidden; position: relative; }
+  .update-bar::after {
+    content: ""; position: absolute; top: 0; bottom: 0; width: 35%; border-radius: 2px; background: var(--accent);
+    animation: update-slide 1s ease-in-out infinite;
+  }
+  @keyframes update-slide { from { left: -35%; } to { left: 100%; } }
+  @media (prefers-reduced-motion: reduce) { .update-bar::after { animation: none; width: 100%; opacity: 0.5; } }
+  #update-status:not(.checking) .update-bar { display: none; }
+  .update-text { font-size: 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .update-text[data-kind="latest"] { color: #3fb27f; }
+  .update-text[data-kind="update"] { color: var(--accent); font-weight: 600; }
+  .update-text[data-kind="problem"] { color: var(--text-dim); }
+  .update-text button {
+    background: var(--accent); color: var(--accent-text); border: none; border-radius: var(--radius-sm);
+    padding: 5px 12px; font-size: 12px; cursor: pointer; font-weight: 600;
+  }
   .settings-check { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; }
   .cleanup-rule { display: flex; align-items: center; gap: 6px; }
   .cleanup-rule input {
@@ -730,7 +753,7 @@
 
   /* Toasts stack upward from the bottom; newest at the bottom. */
   #toast {
-    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100;
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 320; /* above Settings and dialogs */
     display: flex; flex-direction: column; align-items: center; gap: 8px;
     pointer-events: none; width: max-content; max-width: calc(100vw - 32px);
   }
@@ -1073,6 +1096,7 @@
     <div class="settings-section" id="install-section">
       <div class="settings-section-title">App</div>
       <div class="settings-line"><span id="app-version"></span><button id="check-updates-btn" type="button">Check for updates</button></div>
+      <div id="update-status" class="hidden" aria-live="polite"><div class="update-bar"></div><div class="update-text"></div></div>
       <div class="settings-hint" id="install-hint"></div>
       <div class="settings-row-actions"><button id="install-btn" type="button" hidden>⬇ Install app</button></div>
     </div>
@@ -5400,35 +5424,67 @@
       action: { label: "Reload", onClick: async () => { await saveOpenDraft(); location.reload(); } }
     });
   }
-  // `manual`: from the Settings button, so always say what happened.
-  async function checkForUpdate(manual = false) {
-    if (!location.protocol.startsWith("http")) { if (manual) showToast("Updates are checked on the live site"); return; }
-    if (updateOffered) { if (manual) offerReload(); return; }
-    if (!navigator.onLine) { if (manual) showToast("You're offline \u2014 try again when you're connected"); return; }
+  // Returns "latest", "update", "offline", "error" or "unsupported".
+  async function checkForUpdate() {
+    if (!location.protocol.startsWith("http")) return "unsupported";
+    if (updateOffered) return "update";
+    if (!navigator.onLine) return "offline";
     lastUpdateCheck = Date.now();
     try {
       const now = await fetchPageFingerprint();
-      if (!now) throw new Error("No page");
+      if (!now) return "error";
       if (!pageFingerprint) pageFingerprint = now;
-      if (now !== pageFingerprint) {
-        updateOffered = true;
-        offerReload();
-      } else if (manual) {
-        showToast("You're on the latest version (" + APP_VERSION + ")");
-      }
+      if (now === pageFingerprint) return "latest";
+      updateOffered = true;
+      return "update";
     } catch {
-      if (manual) showToast("Couldn't check for updates \u2014 try again later");
+      return "error";
     }
   }
-  document.getElementById("check-updates-btn").addEventListener("click", () => checkForUpdate(true));
+  async function autoCheckForUpdate() {
+    const already = updateOffered;
+    if ((await checkForUpdate()) === "update" && !already) offerReload();
+  }
+
+  // The Settings button: a loading line while it checks, then the answer
+  // right there under the version.
+  document.getElementById("check-updates-btn").addEventListener("click", async () => {
+    const btn = document.getElementById("check-updates-btn");
+    const status = document.getElementById("update-status");
+    const text = status.querySelector(".update-text");
+    btn.disabled = true;
+    btn.textContent = "Checking\u2026";
+    status.classList.remove("hidden");
+    status.classList.add("checking");
+    text.textContent = "Looking for a newer version\u2026";
+    text.dataset.kind = "";
+    // Long enough to see that something happened, even on fast connections.
+    const [result] = await Promise.all([checkForUpdate(), wait(700)]);
+    status.classList.remove("checking");
+    btn.disabled = false;
+    btn.textContent = "Check for updates";
+    text.innerHTML = "";
+    const say = (kind, message) => { text.dataset.kind = kind; text.appendChild(document.createTextNode(message)); };
+    if (result === "latest") say("latest", "\u2713 You're on the latest version");
+    else if (result === "update") {
+      say("update", "A new version is ready");
+      const reload = document.createElement("button");
+      reload.type = "button";
+      reload.textContent = "Reload";
+      reload.addEventListener("click", async () => { await saveOpenDraft(); location.reload(); });
+      text.appendChild(reload);
+    } else if (result === "offline") say("problem", "You're offline \u2014 try again when you're connected.");
+    else if (result === "unsupported") say("problem", "Updates are checked on the live site.");
+    else say("problem", "Couldn't check right now \u2014 try again later.");
+  });
   document.getElementById("app-version").textContent = "Version " + APP_VERSION;
   document.getElementById("settings-footer").textContent = "CopyPaster v" + APP_VERSION + " \u00b7 local-first, no account";
 
   function startUpdateChecks() {
-    checkForUpdate();
-    setInterval(() => checkForUpdate(), 60 * 60 * 1000);
+    autoCheckForUpdate();
+    setInterval(autoCheckForUpdate, 60 * 60 * 1000);
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "visible" && Date.now() - lastUpdateCheck > 10 * 60 * 1000) checkForUpdate();
+      if (document.visibilityState === "visible" && Date.now() - lastUpdateCheck > 10 * 60 * 1000) autoCheckForUpdate();
     });
   }
 
@@ -5959,7 +6015,7 @@
 
     if (!isVaultSetUp()) {
       hint("Keep passwords, API keys and private notes encrypted with a password only you know. Nothing is sent anywhere.");
-      button(actionsRow(), "vault-setup-btn", "Set up Vault", () => startVaultSetup());
+      button(actionsRow(), "vault-setup-btn", "Set up Vault", () => startVaultSetup(), "settings-primary");
       return;
     }
 

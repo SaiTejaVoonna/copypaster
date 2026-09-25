@@ -87,14 +87,18 @@ test("each profile has its own Vault", async ({ page }) => {
   await expect(page.locator("#vault-setup-btn")).toBeVisible();
 });
 
-test("Check for updates says when you're up to date, and when there's a new version", async ({ page }) => {
+test("Check for updates shows a loading line, then says you're up to date or offers Reload", async ({ page }) => {
   await page.click("#settings-btn");
   await expect(page.locator("#app-version")).toHaveText(/^Version \d/);
   await page.click("#check-updates-btn");
-  await expect(lastToast(page)).toContainText("latest version");
+  await expect(page.locator("#update-status")).toHaveClass(/checking/);
+  await expect(page.locator("#check-updates-btn")).toHaveText("Checking\u2026");
+  await expect(page.locator("#update-status .update-text")).toHaveText(/latest version/);
+  await expect(page.locator("#check-updates-btn")).toBeEnabled();
 
   // Pretend the site changed.
   await page.route(/update-check=/, (route) => route.fulfill({ status: 200, contentType: "text/html", body: "<html>newer</html>" }));
   await page.click("#check-updates-btn");
-  await expect(lastToast(page)).toContainText("new version of CopyPaster is ready");
+  await expect(page.locator("#update-status .update-text")).toContainText("A new version is ready");
+  await expect(page.locator("#update-status .update-text button")).toHaveText("Reload");
 });
