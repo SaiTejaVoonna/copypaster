@@ -491,13 +491,24 @@
   .image-lightbox-btn:hover { background: #3a3e47; }
   .image-lightbox-btn.danger:hover { background: var(--danger); }
 
+  /* Toasts stack upward from the bottom; newest at the bottom. */
   #toast {
-    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(10px);
-    background: var(--panel-2); border: 1px solid var(--border); color: var(--text); padding: 8px 16px;
-    border-radius: var(--radius-sm); font-size: 12px; opacity: 0; pointer-events: none;
-    transition: opacity 0.15s, transform 0.15s; z-index: 100; box-shadow: 0 4px 16px var(--shadow);
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100;
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    pointer-events: none; width: max-content; max-width: calc(100vw - 32px);
   }
-  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast-item {
+    position: relative; overflow: hidden; display: flex; align-items: center; gap: 12px;
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text); padding: 8px 16px;
+    border-radius: var(--radius-sm); font-size: 12px; box-shadow: 0 4px 16px var(--shadow);
+    opacity: 0; transform: translateY(10px); transition: opacity 0.15s, transform 0.15s; pointer-events: auto;
+  }
+  .toast-item.show { opacity: 1; transform: none; }
+  .toast-item button {
+    background: transparent; border: none; color: var(--accent); font-weight: 700; font-size: 12px;
+    cursor: pointer; padding: 2px 4px; white-space: nowrap;
+  }
+  .toast-progress { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--accent); width: 0; transition: width 0.1s linear; }
 
   /* ---------- Mobile ---------- */
   /* Hidden by default; must come before the media queries below so they can show it. */
@@ -965,12 +976,61 @@
   // ---------- Toast ----------
 
   const toastEl = document.getElementById("toast");
-  let toastTimer = null;
-  function showToast(msg) {
-    toastEl.textContent = msg;
-    toastEl.classList.add("show");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => toastEl.classList.remove("show"), 1500);
+  const MAX_TOASTS = 3;
+
+  // showToast("Saved") for a quick message. Options:
+  //   action: { label, onClick }  adds a button (e.g. Undo) and stays 5 s
+  //   sticky: true                stays until handle.close() (e.g. progress)
+  // Returns a handle: { update(msg), progress(0..1), close() }.
+  function showToast(msg, opts = {}) {
+    const el = document.createElement("div");
+    el.className = "toast-item";
+    el.setAttribute("role", "status");
+    const text = document.createElement("span");
+    text.textContent = msg;
+    el.appendChild(text);
+    let bar = null;
+    let timer = null;
+    const close = () => {
+      clearTimeout(timer);
+      el.classList.remove("show");
+      setTimeout(() => el.remove(), motionOK() ? 160 : 0);
+    };
+    if (opts.action) {
+      const btn = document.createElement("button");
+      btn.textContent = opts.action.label;
+      btn.addEventListener("click", () => { close(); opts.action.onClick(); });
+      el.appendChild(btn);
+    }
+    toastEl.appendChild(el);
+    while (toastEl.children.length > MAX_TOASTS) toastEl.firstChild.remove();
+    requestAnimationFrame(() => el.classList.add("show"));
+    if (!opts.sticky) timer = setTimeout(close, opts.action ? 5000 : 1800);
+    return {
+      update(newMsg) { text.textContent = newMsg; },
+      progress(fraction) {
+        if (!bar) { bar = document.createElement("div"); bar.className = "toast-progress"; el.appendChild(bar); }
+        bar.style.width = Math.round(Math.max(0, Math.min(1, fraction)) * 100) + "%";
+      },
+      close
+    };
+  }
+
+  // Undo for "Moved to Trash": puts the items back where they were.
+  function showTrashUndo(items, msg) {
+    showToast(msg, {
+      action: {
+        label: "Undo",
+        onClick: async () => {
+          for (const item of items) {
+            item.deletedAt = null;
+            await put(ITEMS_STORE, item);
+          }
+          renderAllViews();
+          showToast(items.length > 1 ? items.length + " items restored" : "Restored");
+        }
+      }
+    });
   }
 
   // ---------- Clipboard ----------
@@ -2523,7 +2583,7 @@
         await put(ITEMS_STORE, item);
         closeDetail();
         renderAllViews();
-        showToast("Moved to Trash");
+        showTrashUndo([item], "Moved to Trash");
       });
       const copyBtn = document.createElement("button");
       copyBtn.className = "action";
@@ -2812,7 +2872,15 @@
         tagCache.push(tag);
         addedTags++;
       }
-      for (const item of (data.items || [])) {
+      const incoming = data.items || [];
+      const progress = incoming.length > 20 ? showToast("Importing\u2026", { sticky: true }) : null;
+      let processed = 0;
+      for (const item of incoming) {
+        processed++;
+        if (progress && processed % 10 === 0) {
+          progress.update("Importing " + processed + " of " + incoming.length + "\u2026");
+          progress.progress(processed / incoming.length);
+        }
         if (!item.id || existingItemIds.has(item.id)) continue;
         const normalized = normalize(item);
         convertStandaloneImageToGallery(normalized);
@@ -2823,6 +2891,7 @@
         addedItems++;
       }
 
+      if (progress) progress.close();
       renderAllViews();
       showToast("Imported " + addedItems + " items" + (addedTags || addedFolders ? " (+tags/folders)" : "") + (addedItems ? " \u2014 new ones are marked unread" : ""));
     } catch (err) {
@@ -2976,14 +3045,16 @@
   document.getElementById("bulk-delete-btn").addEventListener("click", async () => {
     if (!confirm("Move " + selectedIds.size + " item(s) to Trash?")) return;
     await Promise.all([...selectedIds].map(animateRowOut));
+    const trashed = [];
     for (const id of selectedIds) {
       const item = cache.find((i) => i.id === id);
       if (!item) continue;
       item.deletedAt = Date.now();
       item.updatedAt = Date.now();
       await put(ITEMS_STORE, item);
+      trashed.push(item);
     }
-    showToast("Moved " + selectedIds.size + " items to Trash");
+    showTrashUndo(trashed, "Moved " + trashed.length + " items to Trash");
     selectedIds.clear();
     renderAllViews();
     updateBulkBar();
