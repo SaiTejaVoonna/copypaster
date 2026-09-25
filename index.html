@@ -582,25 +582,44 @@
   .popover-footer-btn { width: 100%; background: var(--accent); color: var(--accent-text); border: none; border-radius: var(--radius-sm); padding: 6px; font-size: 12px; cursor: pointer; }
 
   #image-lightbox {
-    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); z-index: 300;
-    display: flex; align-items: center; justify-content: center; cursor: zoom-out;
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.9); z-index: 300;
+    display: flex; align-items: center; justify-content: center; overflow: hidden;
+    touch-action: none; user-select: none; -webkit-user-select: none;
   }
-  #image-lightbox img { max-width: 92vw; max-height: 92vh; object-fit: contain; border-radius: var(--radius-sm); cursor: default; }
-  #image-lightbox-close {
-    position: absolute; top: 20px; right: 24px; background: rgba(255, 255, 255, 0.12); border: none;
-    color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 15px; cursor: pointer;
+  #image-lightbox img {
+    max-width: calc(100vw - 48px); max-height: calc(100dvh - 120px); object-fit: contain;
+    border-radius: var(--radius-sm); cursor: zoom-in; transform-origin: center center;
+    transition: transform 0.18s ease; will-change: transform; -webkit-user-drag: none;
   }
-  #image-lightbox-close:hover { background: rgba(255, 255, 255, 0.22); }
-  #image-lightbox-actions {
-    position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%);
-    display: flex; gap: 10px;
+  #image-lightbox.zoomed img { cursor: grab; }
+  #image-lightbox.dragging img { cursor: grabbing; transition: none; }
+  /* One toolbar in the top-right: zoom, then image actions, then close. */
+  #image-lightbox-bar {
+    position: absolute; top: calc(14px + env(safe-area-inset-top, 0px)); right: calc(14px + env(safe-area-inset-right, 0px));
+    display: flex; align-items: center; gap: 2px; padding: 4px;
+    background: rgba(28, 30, 36, 0.82); border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 999px; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
   }
-  .image-lightbox-btn {
-    display: flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 999px;
-    background: #2a2d34; color: #fff; border: none; font-size: 14px; cursor: pointer;
+  .lb-btn {
+    display: flex; align-items: center; justify-content: center; width: 36px; height: 36px;
+    border-radius: 50%; border: none; background: transparent; color: #e8eaee; cursor: pointer; padding: 0;
   }
-  .image-lightbox-btn:hover { background: #3a3e47; }
-  .image-lightbox-btn.danger:hover { background: var(--danger); }
+  .lb-btn .icon { width: 18px; height: 18px; }
+  .lb-btn:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+  .lb-btn:disabled { opacity: 0.35; cursor: default; background: transparent; }
+  .lb-btn.danger:hover { background: rgba(229, 72, 77, 0.2); color: #ff6b6f; }
+  .lb-zoom-label {
+    min-width: 48px; height: 36px; border: none; background: transparent; color: #c9ccd3;
+    font-size: 12px; font-variant-numeric: tabular-nums; border-radius: 999px; cursor: pointer; padding: 0 6px;
+  }
+  .lb-zoom-label:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+  .lb-sep { width: 1px; height: 20px; background: rgba(255, 255, 255, 0.14); margin: 0 4px; }
+  @media (max-width: 600px) {
+    #image-lightbox-bar { left: 50%; right: auto; transform: translateX(-50%); }
+    .lb-btn { width: 40px; height: 40px; }
+    #image-lightbox img { max-width: 100vw; border-radius: 0; }
+  }
 
   /* Toasts stack upward from the bottom; newest at the bottom. */
   #toast {
@@ -758,6 +777,15 @@
       <path d="M3 8l2-5h14l2 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
       <rect x="3" y="8" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
       <path d="M9.5 13h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="icon-zoom-in" viewBox="0 0 24 24">
+      <path d="M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM20 20l-4.8-4.8M10.5 7.8v5.4M7.8 10.5h5.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="icon-zoom-out" viewBox="0 0 24 24">
+      <path d="M10.5 17a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13zM20 20l-4.8-4.8M7.8 10.5h5.4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="icon-close" viewBox="0 0 24 24">
+      <path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
     </symbol>
     <symbol id="icon-download" viewBox="0 0 24 24">
       <path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
@@ -3926,39 +3954,146 @@
   // save those edits first instead of silently discarding them.
   // ---------- Image lightbox ----------
 
+  const LB_MIN = 1, LB_MAX = 8;
+
   function openImageLightbox(src, item, idx) {
     closeImageLightbox();
     const overlay = document.createElement("div");
     overlay.id = "image-lightbox";
     const img = document.createElement("img");
     img.src = src;
-    const closeBtn = document.createElement("button");
-    closeBtn.id = "image-lightbox-close";
-    closeBtn.textContent = "✕";
-    closeBtn.title = "Close";
-    closeBtn.addEventListener("click", closeImageLightbox);
-    overlay.addEventListener("click", (e) => { if (e.target === overlay) closeImageLightbox(); });
+    img.alt = "";
+    img.draggable = false;
     overlay.appendChild(img);
-    overlay.appendChild(closeBtn);
 
-    const actions = document.createElement("div");
-    actions.id = "image-lightbox-actions";
-    const downloadBtn = document.createElement("button");
-    downloadBtn.className = "image-lightbox-btn";
-    downloadBtn.innerHTML = icon("download") + " Download";
-    downloadBtn.addEventListener("click", () => downloadImage(src, item, idx));
-    actions.appendChild(downloadBtn);
+    const bar = document.createElement("div");
+    bar.id = "image-lightbox-bar";
+    const barBtn = (iconName, label, onClick, extraClass) => {
+      const b = document.createElement("button");
+      b.className = "lb-btn" + (extraClass ? " " + extraClass : "");
+      b.innerHTML = icon(iconName);
+      b.title = label;
+      b.setAttribute("aria-label", label);
+      b.addEventListener("click", (e) => { e.stopPropagation(); onClick(); });
+      bar.appendChild(b);
+      return b;
+    };
+    const sep = () => { const d = document.createElement("span"); d.className = "lb-sep"; bar.appendChild(d); };
+
+    // Zoom state: scale plus a pan offset, applied as one transform.
+    let scale = 1, tx = 0, ty = 0;
+    const zoomOutBtn = barBtn("zoom-out", "Zoom out (−)", () => zoomBy(1 / 1.5));
+    const zoomLabel = document.createElement("button");
+    zoomLabel.className = "lb-zoom-label";
+    zoomLabel.title = "Reset zoom (0)";
+    zoomLabel.addEventListener("click", (e) => { e.stopPropagation(); setZoom(1); });
+    bar.appendChild(zoomLabel);
+    const zoomInBtn = barBtn("zoom-in", "Zoom in (+)", () => zoomBy(1.5));
+    sep();
+    barBtn("download", "Download", () => downloadImage(src, item, idx));
     if (item && !item.deletedAt) {
-      const deleteBtn = document.createElement("button");
-      deleteBtn.className = "image-lightbox-btn danger";
-      deleteBtn.innerHTML = icon("trash") + " Delete";
-      deleteBtn.addEventListener("click", async () => {
+      barBtn("trash", "Delete image", async () => {
         if (await deleteAttachedImage(item, idx)) closeImageLightbox();
-      });
-      actions.appendChild(deleteBtn);
+      }, "danger");
     }
-    overlay.appendChild(actions);
+    sep();
+    barBtn("close", "Close (Esc)", closeImageLightbox);
+    overlay.appendChild(bar);
+
+    function clampPan() {
+      const maxX = Math.max(0, (img.offsetWidth * scale - window.innerWidth) / 2);
+      const maxY = Math.max(0, (img.offsetHeight * scale - window.innerHeight) / 2);
+      tx = Math.min(maxX, Math.max(-maxX, tx));
+      ty = Math.min(maxY, Math.max(-maxY, ty));
+    }
+    function apply() {
+      if (scale <= 1.001) { scale = 1; tx = 0; ty = 0; }
+      clampPan();
+      img.style.transform = "translate(" + tx + "px," + ty + "px) scale(" + scale + ")";
+      overlay.classList.toggle("zoomed", scale > 1);
+      zoomLabel.textContent = Math.round(scale * 100) + "%";
+      zoomOutBtn.disabled = scale <= LB_MIN;
+      zoomInBtn.disabled = scale >= LB_MAX;
+    }
+    // Zoom so the image point under (px, py) stays under it.
+    function setZoom(next, px, py) {
+      next = Math.min(LB_MAX, Math.max(LB_MIN, next));
+      const r = overlay.getBoundingClientRect();
+      const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      if (px == null) { px = cx; py = cy; }
+      const k = next / scale;
+      tx = (px - cx) - ((px - cx) - tx) * k;
+      ty = (py - cy) - ((py - cy) - ty) * k;
+      scale = next;
+      apply();
+    }
+    function zoomBy(factor, px, py) { setZoom(scale * factor, px, py); }
+    overlay._lbZoom = { zoomBy, reset: () => setZoom(1) };
+
+    overlay.addEventListener("wheel", (e) => {
+      e.preventDefault();
+      img.style.transition = "none";
+      zoomBy(Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0022)), e.clientX, e.clientY);
+      requestAnimationFrame(() => { img.style.transition = ""; });
+    }, { passive: false });
+
+    // Pointer handling: one pointer pans (when zoomed), two pinch-zoom,
+    // double-tap/double-click toggles zoom, a plain tap on the dark area closes.
+    const pointers = new Map();
+    let moved = false, pinchStart = null, lastTap = 0, start = null;
+    overlay.addEventListener("pointerdown", (e) => {
+      if (bar.contains(e.target)) return;
+      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      overlay.setPointerCapture(e.pointerId);
+      if (pointers.size === 1) { moved = false; start = { x: e.clientX, y: e.clientY }; }
+      if (pointers.size === 2) {
+        const [p1, p2] = [...pointers.values()];
+        pinchStart = { dist: Math.hypot(p1.x - p2.x, p1.y - p2.y), scale };
+        moved = true;
+      }
+      overlay.classList.add("dragging");
+    });
+    overlay.addEventListener("pointermove", (e) => {
+      const prev = pointers.get(e.pointerId);
+      if (!prev) return;
+      const cur = { x: e.clientX, y: e.clientY };
+      pointers.set(e.pointerId, cur);
+      if (pointers.size === 2 && pinchStart) {
+        const [p1, p2] = [...pointers.values()];
+        const dist = Math.hypot(p1.x - p2.x, p1.y - p2.y);
+        setZoom(pinchStart.scale * dist / pinchStart.dist, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+        return;
+      }
+      const dx = cur.x - prev.x, dy = cur.y - prev.y;
+      if (!moved && start && Math.hypot(cur.x - start.x, cur.y - start.y) < 6) return;
+      moved = true;
+      if (scale > 1) { tx += dx; ty += dy; apply(); }
+    });
+    const endPointer = (e) => {
+      if (!pointers.has(e.pointerId)) return;
+      pointers.delete(e.pointerId);
+      if (pointers.size < 2) pinchStart = null;
+      if (pointers.size) return;
+      overlay.classList.remove("dragging");
+      if (moved || e.type === "pointercancel") return;
+      const now = Date.now();
+      if (now - lastTap < 300) {
+        lastTap = 0;
+        clearTimeout(overlay._lbTapTimer);
+        if (scale > 1) setZoom(1); else setZoom(2.5, e.clientX, e.clientY);
+        return;
+      }
+      lastTap = now;
+      // A single tap on the dark background closes (after the double-tap window).
+      if (e.target === overlay && scale === 1) {
+        overlay._lbTapTimer = setTimeout(() => { if (lastTap === now) closeImageLightbox(); }, 300);
+      }
+    };
+    overlay.addEventListener("pointerup", endPointer);
+    overlay.addEventListener("pointercancel", endPointer);
+
     document.body.appendChild(overlay);
+    apply();
   }
 
   function imageFileName(dataUrl, item, idx) {
@@ -4012,7 +4147,7 @@
 
   function closeImageLightbox() {
     const existing = document.getElementById("image-lightbox");
-    if (existing) existing.remove();
+    if (existing) { clearTimeout(existing._lbTapTimer); existing.remove(); }
   }
 
   // Old items created before the gallery model existed are stuck as a single
@@ -4543,6 +4678,12 @@
       return;
     }
 
+    const lightbox = document.getElementById("image-lightbox");
+    if (lightbox && lightbox._lbZoom && !e.ctrlKey && !e.metaKey) {
+      if (e.key === "+" || e.key === "=") { e.preventDefault(); lightbox._lbZoom.zoomBy(1.5); return; }
+      if (e.key === "-" || e.key === "_") { e.preventDefault(); lightbox._lbZoom.zoomBy(1 / 1.5); return; }
+      if (e.key === "0") { e.preventDefault(); lightbox._lbZoom.reset(); return; }
+    }
     if (e.key === "Escape") {
       if (document.getElementById("action-sheet-overlay")) { closeActionSheet(); return; }
       if (sidebarEl.classList.contains("open")) { closeSidebarOnMobile(); return; }
