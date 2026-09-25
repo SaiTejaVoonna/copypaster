@@ -528,7 +528,7 @@
   #placeholder { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 13px; }
 
   /* ---------- Popover ---------- */
-  .popover { position: absolute; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 8px 24px var(--shadow); padding: 10px; z-index: 50; width: 240px; animation: popIn 0.1s ease; }
+  .popover { position: absolute; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 8px 24px var(--shadow); padding: 10px; z-index: 70; width: 240px; animation: popIn 0.1s ease; }
   .popover.has-close { padding-top: 30px; }
   .popover-close-btn {
     position: absolute; top: 6px; right: 6px; background: transparent; border: none;
@@ -620,6 +620,11 @@
     #menu-btn { display: inline-flex; }
   }
   @media (max-width: 720px) {
+    /* Full screen is what a phone already is, so that button is hidden. */
+    .icon-toggle.zen { display: none; }
+    #detail-pane #back-btn {
+      font-size: 22px; color: var(--text); padding: 4px 10px 4px 0; min-width: 36px; min-height: 36px;
+    }
     #app { position: relative; }
     #detail-pane { position: absolute; inset: 0; background: var(--bg); display: none; }
     #detail-pane.open { display: flex; }
@@ -757,6 +762,10 @@
     </symbol>
     <symbol id="icon-unread" viewBox="0 0 24 24">
       <circle cx="12" cy="12" r="5" fill="currentColor"/>
+    </symbol>
+    <symbol id="icon-mail" viewBox="0 0 24 24">
+      <rect x="3" y="5.5" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="M3.5 7l8.5 6 8.5-6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
     </symbol>
     <symbol id="icon-check-all" viewBox="0 0 24 24">
       <path d="M2.5 12.5l4.5 4.5L16 8M11 16.5l.5.5L21 8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1446,6 +1455,11 @@
     cache = rawItems.map(normalize);
     for (const item of needsCorrection) await put(ITEMS_STORE, item);
 
+    // Clean out completely blank items left behind before empty notes were
+    // discarded automatically (they showed up as "Untitled").
+    for (const item of cache.filter((i) => !i.deletedAt && isBlankItem(i))) await remove(ITEMS_STORE, item.id);
+    cache = cache.filter((i) => i.deletedAt || !isBlankItem(i));
+
     // The rigid "whole item is one big image, no text" shape is retired.
     // Convert every remaining old-style image item to the flexible gallery
     // format once, here, rather than waiting for someone to add a 2nd image.
@@ -1806,11 +1820,23 @@
   }
 
   function positionPopover(pop, anchorEl) {
-    const rect = anchorEl.getBoundingClientRect();
-    pop.style.top = Math.min(rect.bottom + 6, window.innerHeight - 260) + "px";
-    pop.style.left = Math.min(rect.left, window.innerWidth - 260) + "px";
-    setTimeout(() => document.addEventListener("click", onOutside, { once: true }), 0);
-    function onOutside(e) { if (!pop.contains(e.target)) closeAnyPopover(); }
+    if (window.matchMedia("(max-width: 600px)").matches) {
+      // Phones: centered near the top, clear of the keyboard and the menu.
+      pop.style.position = "fixed";
+      pop.style.top = "12vh";
+      pop.style.left = Math.max(12, (window.innerWidth - pop.offsetWidth) / 2) + "px";
+    } else {
+      const rect = anchorEl.getBoundingClientRect();
+      pop.style.top = Math.min(rect.bottom + 6, window.innerHeight - 260) + "px";
+      pop.style.left = Math.min(rect.left, window.innerWidth - 260) + "px";
+    }
+    // Close on a tap outside. (It used to listen for one click only, so a
+    // tap inside the box, like on its text field, disabled closing.)
+    const onOutside = (e) => {
+      if (!pop.isConnected) { document.removeEventListener("click", onOutside); return; }
+      if (!pop.contains(e.target)) { closeAnyPopover(); document.removeEventListener("click", onOutside); }
+    };
+    setTimeout(() => document.addEventListener("click", onOutside), 0);
   }
 
   function closeAnyPopover() {
@@ -2591,7 +2617,29 @@
     return galleryRow;
   }
 
+  // A note with nothing in it (no title, text, photos, tags, folder, star or
+  // pin) isn't worth keeping. It's thrown away when you leave it, so tapping
+  // "+ New" and backing out doesn't leave an "Untitled" item behind.
+  function isBlankItem(item) {
+    return !(item.title || "").trim() && !(item.content || "").trim() && !item.images.length &&
+      !item.tags.length && !item.folderId && !item.starred && !item.pinned && !item.runs.length;
+  }
+  function discardIfBlank(id) {
+    const item = id && cache.find((i) => i.id === id);
+    if (!item || item.deletedAt || !isBlankItem(item)) return false;
+    // Text typed in the last moment may not be autosaved yet; check the editor too.
+    if (id === currentId) {
+      const title = document.getElementById("title-input");
+      const content = document.getElementById("content-input");
+      if ((title && title.value.trim()) || (content && content.value.trim())) return false;
+    }
+    cache = cache.filter((i) => i.id !== id);
+    remove(ITEMS_STORE, id).catch((err) => console.error("Discarding empty note failed:", err));
+    return true;
+  }
+
   function openDetail(id) {
+    if (currentId && id !== currentId && discardIfBlank(currentId)) renderNav();
     const isNewItem = id !== lastRenderedDetailId;
     // Opening an item reads it; re-rendering the one already open doesn't,
     // so "Mark as unread" on the open item sticks until it's opened again.
@@ -2699,7 +2747,8 @@
       }
       const unreadBtn = document.createElement("button");
       unreadBtn.className = "icon-toggle unread" + (item.unread ? " on" : "");
-      unreadBtn.innerHTML = icon("unread");
+      unreadBtn.innerHTML = icon("mail");
+      unreadBtn.setAttribute("aria-label", item.unread ? "Mark as read" : "Mark as unread");
       unreadBtn.title = item.unread ? "Mark as read" : "Mark as unread";
       unreadBtn.addEventListener("click", async () => {
         item.unread = !item.unread;
@@ -3138,6 +3187,7 @@
 
   async function closeDetail(fromPopState = false) {
     await saveOpenDraft();
+    if (discardIfBlank(currentId)) renderNav();
     if (detailPane.classList.contains("open") && motionOK() && window.matchMedia("(max-width: 720px)").matches) {
       detailPane.classList.add("closing");
       await wait(150);
