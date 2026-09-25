@@ -507,6 +507,28 @@
     #detail-pane.open { display: flex; }
     #back-btn { display: inline-flex; }
   }
+
+  /* ---------- Motion ---------- */
+  /* Everything that moves is in here, so "reduce motion" turns it all off. */
+  @media (prefers-reduced-motion: no-preference) {
+    @media (min-width: 901px) {
+      #sidebar { transition: width 0.18s ease, min-width 0.18s ease; }
+    }
+    body.resizing #sidebar, body.resizing #list-pane { transition: none; }
+    .detail-enter { animation: detail-in 0.16s ease-out; }
+    @keyframes detail-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    @media (max-width: 720px) {
+      #detail-pane.open { animation: pane-in 0.2s ease-out; }
+      #detail-pane.closing { animation: pane-out 0.16s ease-in forwards; }
+    }
+    @keyframes pane-in { from { opacity: 0.4; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+    @keyframes pane-out { to { opacity: 0; transform: translateX(28px); } }
+    .item-row.leaving {
+      transition: opacity 0.18s ease-in, transform 0.18s ease-in, max-height 0.18s ease-in, padding 0.18s ease-in;
+      opacity: 0; transform: translateX(-14px); max-height: 0 !important;
+      padding-top: 0 !important; padding-bottom: 0 !important; overflow: hidden;
+    }
+  }
 </style>
 </head>
 <body>
@@ -895,6 +917,7 @@
       startX = e.clientX;
       startWidth = panelEl.getBoundingClientRect().width;
       handle.classList.add("dragging");
+      document.body.classList.add("resizing");
       document.body.style.cursor = "col-resize";
       e.preventDefault();
     });
@@ -907,6 +930,7 @@
       if (!dragging) return;
       dragging = false;
       handle.classList.remove("dragging");
+      document.body.classList.remove("resizing");
       document.body.style.cursor = "";
       localStorage.setItem(storageKey, Math.round(panelEl.getBoundingClientRect().width));
     });
@@ -914,6 +938,22 @@
 
   makeResizable("resize-sidebar", document.getElementById("sidebar"), "copypaster-sidebar-width", 190, 400);
   makeResizable("resize-list", document.getElementById("list-pane"), "copypaster-list-width", 260, 640);
+
+  // ---------- Motion helpers ----------
+
+  const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  function motionOK() { return !reducedMotionQuery.matches; }
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // Slides a list row out before the list re-renders without it.
+  async function animateRowOut(id) {
+    const row = document.querySelector('.item-row[data-id="' + CSS.escape(id) + '"]');
+    if (!row || !motionOK()) return;
+    row.style.maxHeight = row.offsetHeight + "px";
+    void row.offsetHeight; // commit the starting height so it can shrink from it
+    row.classList.add("leaving");
+    await wait(190);
+  }
 
   // ---------- Toast ----------
 
@@ -1779,6 +1819,7 @@
 
     for (const item of filtered) {
       const row = document.createElement("div");
+      row.dataset.id = item.id;
       row.className = "item-row" + (item.id === currentId ? " selected" : "") + (item.id === keyboardHighlightId ? " kbd-highlight" : "") + (item.unread ? " unread" : "");
       if (item.color) row.style.borderLeft = "3px solid " + item.color;
 
@@ -2017,6 +2058,11 @@
     lastRenderedDetailId = id;
     currentId = id;
     const opened = cache.find((i) => i.id === id);
+    if (isNewItem && motionOK()) {
+      detailPane.classList.remove("detail-enter");
+      void detailPane.offsetWidth; // restart the animation
+      detailPane.classList.add("detail-enter");
+    }
     if (isOpening && opened && opened.unread) {
       opened.unread = false;
       put(ITEMS_STORE, opened).catch((err) => console.error("Mark read failed:", err));
@@ -2401,6 +2447,7 @@
       restoreBtn.className = "action primary";
       restoreBtn.textContent = "Restore";
       restoreBtn.addEventListener("click", async () => {
+        await animateRowOut(item.id);
         item.deletedAt = null;
         item.updatedAt = Date.now();
         await put(ITEMS_STORE, item);
@@ -2413,6 +2460,7 @@
       forgetBtn.textContent = "Delete forever";
       forgetBtn.addEventListener("click", async () => {
         if (!confirm("Delete this item forever? This can't be undone.")) return;
+        await animateRowOut(item.id);
         await remove(ITEMS_STORE, item.id);
         cache = cache.filter((i) => i.id !== item.id);
         closeDetail();
@@ -2427,6 +2475,7 @@
       delBtn.innerHTML = icon("trash") + " Delete";
       delBtn.title = "Move to Trash (not permanent)";
       delBtn.addEventListener("click", async () => {
+        await animateRowOut(item.id);
         item.deletedAt = Date.now();
         item.updatedAt = Date.now();
         await put(ITEMS_STORE, item);
@@ -2518,6 +2567,11 @@
 
   async function closeDetail(fromPopState = false) {
     await saveOpenDraft();
+    if (detailPane.classList.contains("open") && motionOK() && window.matchMedia("(max-width: 720px)").matches) {
+      detailPane.classList.add("closing");
+      await wait(150);
+      detailPane.classList.remove("closing");
+    }
     currentId = null;
     detailPane.classList.remove("open");
     detailPane.innerHTML = '<div id="placeholder">Select an item, or create a new one</div>';
@@ -2879,6 +2933,7 @@
 
   document.getElementById("bulk-delete-btn").addEventListener("click", async () => {
     if (!confirm("Move " + selectedIds.size + " item(s) to Trash?")) return;
+    await Promise.all([...selectedIds].map(animateRowOut));
     for (const id of selectedIds) {
       const item = cache.find((i) => i.id === id);
       if (!item) continue;
