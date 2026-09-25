@@ -51,6 +51,7 @@ test("an older version open in another tab: says so, then opens once it's closed
   await oldTab.close();
   await expect(page.locator("#main-nav .nav-item").first()).toBeVisible();
   await page.click("#new-btn");
+  await page.click('#new-menu [data-new="note"]');
   await expect(page.locator("#content-input")).toBeVisible();
 });
 

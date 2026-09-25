@@ -5,6 +5,7 @@ test.beforeEach(async ({ page }) => { await openApp(page); });
 
 async function setUpVault(page) {
   await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="vault"]');
   await page.click("#vault-setup-btn");
   await page.fill("#dialog-password", "vault pass 123");
   await page.fill("#dialog-confirm", "vault pass 123");
@@ -17,7 +18,7 @@ async function setUpVault(page) {
 async function newPassword(page) {
   await nav(page, "Vault").click();
   await page.click("#new-btn");
-  await page.locator("#new-menu .popover-list-item", { hasText: "Password" }).click();
+  await page.locator(`#new-menu [data-new="password"]`).click();
   await expect(page.locator("#login-fields")).toBeVisible();
 }
 
@@ -40,9 +41,9 @@ test("a Password item: fields, show, copy, generate, and it's encrypted", async 
   const dump = JSON.stringify(await storedItems(page));
   for (const secret of ["Sup3r-Pw!x", "me@example.com", "Gmail", "mail.google.com"]) expect(dump).not.toContain(secret);
 
-  // The list shows the name and username.
+  // The list shows the name, then the username and website.
   await expect(page.locator(".item-row .item-text")).toHaveText("Gmail");
-  await expect(page.locator(".item-row .item-subtext")).toHaveText("me@example.com");
+  await expect(page.locator(".item-row .item-subtext")).toHaveText("me@example.com · mail.google.com");
 
   await page.locator(".login-row", { hasText: "Password" }).getByRole("button", { name: "Show password" }).click();
   await expect(page.locator("#login-password")).toHaveAttribute("type", "text");

@@ -50,6 +50,7 @@ test("profiles can't share a name; rename and delete from Settings", async ({ pa
   await page.keyboard.press("Escape");
 
   await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="profiles"]');
   const row = page.locator('.profile-row[data-profile]', { hasText: "Work" });
   await expect(row.locator(".profile-current")).toHaveText("In use");
   await expect(row.locator("button", { hasText: "Delete" })).toBeDisabled();
@@ -61,6 +62,7 @@ test("profiles can't share a name; rename and delete from Settings", async ({ pa
   await page.locator(".profile-row", { hasText: "Personal" }).locator("button", { hasText: "Switch" }).click();
   await page.waitForLoadState("load");
   await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="profiles"]');
   await page.locator(".profile-row", { hasText: "Office" }).locator("button", { hasText: "Delete" }).click();
   await page.fill("#dialog-confirm", "office");
   await page.locator("#dialog button[type=submit]").click();
@@ -73,6 +75,7 @@ test("profiles can't share a name; rename and delete from Settings", async ({ pa
 test("each profile has its own Vault", async ({ page }) => {
   await createProfile(page, "Work");
   await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="vault"]');
   await page.click("#vault-setup-btn");
   await page.fill("#dialog-password", "work vault pass");
   await page.fill("#dialog-confirm", "work vault pass");
@@ -84,11 +87,13 @@ test("each profile has its own Vault", async ({ page }) => {
 
   await switchTo(page, "Personal");
   await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="vault"]');
   await expect(page.locator("#vault-setup-btn")).toBeVisible();
 });
 
 test("Check for updates shows a loading line, then says you're up to date or offers Reload", async ({ page }) => {
   await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="about"]');
   await expect(page.locator("#app-version")).toHaveText(/^Version \d/);
   await page.click("#check-updates-btn");
   await expect(page.locator("#update-status")).toHaveClass(/checking/);

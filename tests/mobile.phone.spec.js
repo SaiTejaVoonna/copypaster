@@ -105,15 +105,18 @@ test("back button closes the open item before leaving", async ({ page }) => {
 
 test("text fields are 16px so iPhone does not zoom in", async ({ page }) => {
   const size = (sel) => page.$eval(sel, (e) => getComputedStyle(e).fontSize);
-  expect(await size("#search-input")).toBe("16px");
+  const px = async (sel) => parseFloat(await size(sel));
+  expect(await px("#search-input")).toBeGreaterThanOrEqual(16);
   await page.tap("#new-btn");
+  await page.tap('#new-menu [data-new="note"]');
   await expect(page.locator("#content-input")).toBeVisible();
-  expect(await size("#title-input")).toBe("16px");
-  expect(await size("#content-input")).toBe("16px");
+  expect(await px("#title-input")).toBeGreaterThanOrEqual(16);
+  expect(await px("#content-input")).toBeGreaterThanOrEqual(16);
 });
 
 test("Save on a phone says Saved and goes back to the list", async ({ page }) => {
   await page.tap("#new-btn");
+  await page.tap('#new-menu [data-new="note"]');
   await page.fill("#content-input", "saved from phone");
   await page.locator("#detail-pane button.action", { hasText: "Save" }).tap();
   await expect(lastToast(page)).toContainText("Saved");
@@ -130,4 +133,20 @@ test("profile switcher opens as a sheet on phones", async ({ page }) => {
   await page.locator("#dialog button[type=submit]").tap();
   await page.waitForLoadState("load");
   await expect(page.locator("#profile-name")).toHaveText("Work");
+});
+
+test("tab bar switches views; Settings goes list → section → back", async ({ page }) => {
+  await page.tap('.tab-btn[data-tab="commands"]');
+  await expect(page.locator("#list-title")).toHaveText("Commands");
+  await expect(page.locator('.tab-btn[data-tab="commands"]')).toHaveClass(/active/);
+  await page.tap('.tab-btn[data-tab="more"]');
+  await expect(page.locator("#sidebar")).toHaveClass(/open/);
+  await page.tap("#settings-btn");
+  await expect(page.locator('.settings-nav-item[data-page="vault"]')).toBeVisible();
+  await page.tap('.settings-nav-item[data-page="vault"]');
+  await expect(page.locator("#vault-setup-btn")).toBeVisible();
+  await expect(page.locator("#settings-title")).toHaveText("Vault");
+  await page.tap("#settings-back-btn");
+  await expect(page.locator("#vault-setup-btn")).toBeHidden();
+  await expect(page.locator('.settings-nav-item[data-page="profiles"]')).toBeVisible();
 });

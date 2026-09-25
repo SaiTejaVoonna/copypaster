@@ -65,6 +65,7 @@ test("pasting the same text twice offers the existing item", async ({ page }) =>
 
 test("paste clean-up settings apply to pasted text and are remembered", async ({ page }) => {
   await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="cleanup"]');
   await page.check('[data-cleanup="quotes"]');
   await page.click("#cleanup-add-rule");
   await page.locator(".cleanup-rule input").nth(0).fill("prod");
@@ -82,12 +83,14 @@ test("export then import into an empty app restores everything", async ({ page, 
   await newNote(page, "backup me", { title: "Backup" });
   await page.click("#detail-pane .icon-toggle.star");
   await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="data"]');
   const [download] = await Promise.all([page.waitForEvent("download"), page.click("#export-btn")]);
   const file = await download.path();
 
   const fresh = await browser.newPage();
   await openApp(fresh);
   await fresh.click("#settings-btn");
+  await fresh.click('.settings-nav-item[data-page="data"]');
   await fresh.setInputFiles("#import-file", file);
   await expect(fresh.locator(".item-row", { hasText: "Backup" })).toBeVisible();
   const [item] = await storedItems(fresh);
@@ -100,6 +103,7 @@ test("importing a large backup saves every item and marks them unread", async ({
   const backup = { cpsVersion: 1, tags: [], folders: [],
     items: Array.from({ length: 120 }, (_, n) => ({ id: "b" + n, type: "note", content: "note " + n, createdAt: now - n, updatedAt: now - n })) };
   await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="data"]');
   await page.setInputFiles("#import-file", { name: "big.cps", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(backup)) });
   await expect(lastToast(page)).toContainText("Imported 120 items");
   const items = await storedItems(page);

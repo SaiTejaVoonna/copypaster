@@ -13,6 +13,8 @@ test("typing a note autosaves it and it survives a reload", async ({ page }) => 
 test("an empty new note is thrown away, not saved as Untitled", async ({ page }) => {
   await newNote(page, "keep me");
   await page.click("#new-btn");
+  await page.keyboard.press("Enter"); // the New menu starts on Note
+  await expect(page.locator("#content-input")).toBeFocused();
   await page.keyboard.press("Escape");
   await page.locator(".item-row", { hasText: "keep me" }).click();
   await expect.poll(() => rowTexts(page)).toEqual(["keep me"]);

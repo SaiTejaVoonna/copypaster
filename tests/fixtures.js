@@ -50,6 +50,7 @@ async function storedItems(page) {
 // Creates a note by typing, and waits for autosave (700 ms debounce).
 async function newNote(page, text, { title } = {}) {
   await page.click("#new-btn");
+  await page.click('#new-menu [data-new="note"]');
   await expect(page.locator("#content-input")).toBeFocused();
   if (title) await page.fill("#title-input", title);
   await page.fill("#content-input", text);

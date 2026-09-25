@@ -9,6 +9,7 @@ const SECRET = "hunter2-the-real-secret";
 
 async function setUpVault(page, password = PASSWORD) {
   await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="vault"]');
   await page.click("#vault-setup-btn");
   await page.fill("#dialog-password", password);
   await page.fill("#dialog-confirm", password);
@@ -35,7 +36,7 @@ async function unlock(page, password = PASSWORD) {
 async function vaultNote(page, text) {
   await nav(page, "Vault").click();
   await page.click("#new-btn");
-  await page.locator("#new-menu .popover-list-item", { hasText: "Note" }).click(); // in the Vault, + New asks what to make
+  await page.locator(`#new-menu [data-new="note"]`).click();
   await page.fill("#content-input", text);
   await page.dispatchEvent("#content-input", "input");
   await expect.poll(async () => (await storedItems(page)).some((r) => r.vaulted && r.enc), { timeout: 5000 }).toBe(true);
@@ -99,6 +100,7 @@ test("change password: the old one stops working, the new one opens it", async (
   await setUpVault(page);
   await vaultNote(page, SECRET);
   await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="vault"]');
   await page.click("#vault-change-password");
   await page.fill("#dialog-current", "not it at all");
   await page.fill("#dialog-password", "a brand new password");
@@ -144,6 +146,7 @@ test("backups keep Vault items encrypted and open with the same password on a ne
   await setUpVault(page);
   await vaultNote(page, SECRET);
   await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="data"]');
   const [download] = await Promise.all([page.waitForEvent("download"), page.click("#export-btn")]);
   const file = await download.path();
   const text = fs.readFileSync(file, "utf8");
@@ -153,6 +156,7 @@ test("backups keep Vault items encrypted and open with the same password on a ne
   const fresh = await browser.newPage();
   await openApp(fresh);
   await fresh.click("#settings-btn");
+  await fresh.click('.settings-nav-item[data-page="data"]');
   await fresh.setInputFiles("#import-file", file);
   await expect(lastToast(fresh)).toContainText("Imported 1 items");
   await fresh.click("#settings-close-btn");
@@ -185,6 +189,7 @@ test("locks itself after the chosen idle time", async ({ page }) => {
   await setUpVault(page);
   await vaultNote(page, SECRET);
   await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="vault"]');
   await page.selectOption("#vault-autolock", "1");
   await page.click("#settings-close-btn");
   await page.clock.runFor(30000);
@@ -230,6 +235,7 @@ test("Face ID / fingerprint unlock with a passkey", async ({ page }) => {
   await setUpVault(page);
   await vaultNote(page, SECRET);
   await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="vault"]');
   await page.click("#vault-passkey-btn");
   await expect(lastToast(page)).toContainText("unlock is on");
   await page.click("#settings-close-btn");
@@ -248,6 +254,7 @@ test("importing items from a different Vault re-encrypts them into this one", as
   await setUpVault(other, "the other password");
   await vaultNote(other, "from the other vault");
   await other.click("#settings-btn");
+  await other.click('.settings-nav-item[data-page="data"]');
   const [download] = await Promise.all([other.waitForEvent("download"), other.click("#export-btn")]);
   const file = test.info().outputPath("other-vault.cps");
   await download.saveAs(file);
@@ -255,6 +262,7 @@ test("importing items from a different Vault re-encrypts them into this one", as
 
   await setUpVault(page);
   await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="data"]');
   await page.setInputFiles("#import-file", file);
   await expect(page.locator("#dialog")).toContainText("different password");
   await page.fill("#dialog-secret", "the other password");
@@ -277,6 +285,7 @@ test("deleting the Vault removes its items and lets you start again", async ({ p
   await nav(page, "All Items").click();
   await newNote(page, "an ordinary note");
   await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="vault"]');
   await page.click("#vault-delete-btn");
   await page.fill("#dialog-confirm", "nope");
   await page.locator("#dialog button[type=submit]").click();
