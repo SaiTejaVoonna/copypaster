@@ -913,6 +913,11 @@
         <input id="import-file" type="file" accept=".cps,.json" hidden>
       </div>
     </div>
+    <div class="settings-section" id="install-section">
+      <div class="settings-section-title">App</div>
+      <div class="settings-hint" id="install-hint"></div>
+      <div class="settings-row-actions"><button id="install-btn" type="button" hidden>⬇ Install app</button></div>
+    </div>
     <div class="settings-section" id="cleanup-settings">
       <div class="settings-section-title">Paste clean-up</div>
       <div class="settings-hint">Applied automatically to text you paste as a new note. Any note can also be cleaned up from its editor with “Clean up”.</div>
@@ -1579,6 +1584,13 @@
       nav.appendChild(el);
     }
     const unreadCount = countForNav("unread");
+    // Installed app: show the unread count on its home-screen icon.
+    try {
+      if (navigator.setAppBadge) {
+        if (unreadCount) navigator.setAppBadge(unreadCount).catch(() => {});
+        else navigator.clearAppBadge().catch(() => {});
+      }
+    } catch {}
     const markReadBtn = document.getElementById("mark-read-btn");
     markReadBtn.classList.toggle("hidden", unreadCount === 0);
     markReadBtn.title = "Mark all read (" + unreadCount + ")";
@@ -2301,10 +2313,12 @@
     ];
   }
 
-  function openActionSheet(item) {
+  function openActionSheet(item, fromTouch = false) {
     closeActionSheet();
     haptic(12);
-    const openedAt = Date.now();
+    // After a long-press, the finger lifting can land a click on the sheet;
+    // ignore clicks for a moment. (Not needed for a mouse right-click.)
+    const openedAt = fromTouch ? Date.now() : 0;
     const overlay = document.createElement("div");
     overlay.id = "action-sheet-overlay";
     const sheet = document.createElement("div");
@@ -2333,8 +2347,6 @@
     cancel.addEventListener("click", closeActionSheet);
     sheet.appendChild(cancel);
     overlay.appendChild(sheet);
-    // Lifting the finger that did the long-press can land a click on the dim
-    // background; ignore clicks for a moment so the sheet doesn't close itself.
     overlay.addEventListener("click", (e) => {
       if (Date.now() - openedAt < 450) { e.stopPropagation(); return; }
       if (e.target === overlay) closeActionSheet();
@@ -2468,7 +2480,7 @@
         mode = "longpress";
         lastLongPress = Date.now();
         swallowNextClick();
-        openActionSheet(item);
+        openActionSheet(item, true);
       }, 500);
     }, { passive: true });
     row.addEventListener("touchmove", (e) => {
@@ -2556,7 +2568,7 @@
         e.preventDefault();
         // Android also fires this on long-press; our own timer already handled it.
         if (Date.now() - lastLongPress < 1000 || selectMode) return;
-        if (e.pointerType === "touch" || window.matchMedia("(max-width: 720px)").matches) { openActionSheet(item); return; }
+        if (e.pointerType === "touch" || window.matchMedia("(max-width: 720px)").matches) { openActionSheet(item, e.pointerType === "touch"); return; }
         showContextMenu(e.clientX, e.clientY, itemQuickActions(item).map((a) => ({ label: a.label, danger: a.danger, onClick: a.run })));
         const menu = document.querySelector(".context-menu");
         if (menu) menu.style.width = "200px";
@@ -4216,7 +4228,7 @@
       showToast("Already saved \u2014 moved to the top", {
         action: { label: "Keep a copy", onClick: () => addTextItem(text, "Saved a separate copy", true) }
       });
-      return;
+      return existing;
     }
     const item = normalize({ id: uuid(), type: "note", content: text, createdAt: Date.now(), updatedAt: Date.now() });
     await put(ITEMS_STORE, item);
@@ -4242,9 +4254,10 @@
           }
         }
       });
-      return;
+      return item;
     }
     showToast(toastMsg || "Pasted as new note");
+    return item;
   }
 
   document.addEventListener("paste", async (e) => {
@@ -4593,6 +4606,109 @@
     });
   }
 
+  // ---------- Installed-app extras ----------
+
+  // Opened from a home-screen shortcut (long-press the app icon) or from
+  // another app's Share menu (Android): act on it, then tidy the address.
+  async function handleLaunchParams() {
+    const params = new URLSearchParams(location.search);
+    if (![...params.keys()].length) return;
+    const action = params.get("action");
+    const sharedTitle = (params.get("share-title") || "").trim();
+    const sharedText = (params.get("share-text") || "").trim();
+    const sharedUrl = (params.get("share-url") || "").trim();
+    history.replaceState(history.state, "", location.pathname);
+    if (sharedText || sharedUrl) {
+      // Some apps put the link inside the text, some send it separately.
+      const content = sharedUrl && !sharedText.includes(sharedUrl) ? [sharedText, sharedUrl].filter(Boolean).join("\n") : sharedText;
+      const item = await addTextItem(content, "Saved from share");
+      if (item && sharedTitle && !item.title) {
+        item.title = sharedTitle;
+        await put(ITEMS_STORE, item);
+        renderAllViews();
+        openDetail(item.id);
+      }
+    } else if (action === "new-note") {
+      newItem("note");
+    } else if (action === "new-command") {
+      newItem("command");
+    }
+  }
+
+  // "New version available": the installed app can stay open for days, so
+  // now and then (and whenever it comes back to the screen) check whether
+  // the page on the server changed, and offer a reload instead of forcing one.
+  let pageFingerprint = null;
+  let lastUpdateCheck = 0;
+  let updateOffered = false;
+  async function fetchPageFingerprint() {
+    const res = await fetch(location.pathname + "?update-check=" + Date.now(), { cache: "no-store" });
+    if (!res.ok) return null;
+    const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(await res.text()));
+    return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  async function checkForUpdate() {
+    if (updateOffered || !navigator.onLine || !location.protocol.startsWith("http")) return;
+    lastUpdateCheck = Date.now();
+    try {
+      const now = await fetchPageFingerprint();
+      if (!now) return;
+      if (!pageFingerprint) { pageFingerprint = now; return; }
+      if (now !== pageFingerprint) {
+        updateOffered = true;
+        showToast("A new version of CopyPaster is ready", {
+          sticky: true,
+          action: { label: "Reload", onClick: async () => { await saveOpenDraft(); location.reload(); } }
+        });
+      }
+    } catch { /* offline or blocked: try again later */ }
+  }
+  function startUpdateChecks() {
+    checkForUpdate();
+    setInterval(checkForUpdate, 60 * 60 * 1000);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible" && Date.now() - lastUpdateCheck > 10 * 60 * 1000) checkForUpdate();
+    });
+  }
+
+  // Install: a real button where the browser allows one (Android, desktop
+  // Chrome/Edge), the Share → Add to Home Screen steps on iPhone/iPad.
+  let deferredInstallPrompt = null;
+  function renderInstallSection() {
+    const hint = document.getElementById("install-hint");
+    const btn = document.getElementById("install-btn");
+    const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    btn.hidden = true;
+    if (isStandalone()) {
+      hint.textContent = "Installed \u2713 CopyPaster runs as its own app and works offline.";
+    } else if (deferredInstallPrompt) {
+      hint.textContent = "Install CopyPaster as an app: its own icon, full screen, works offline.";
+      btn.hidden = false;
+    } else if (isiOS) {
+      hint.textContent = "To install on iPhone or iPad: open this page in Safari, tap Share (the square with an arrow), then \u201cAdd to Home Screen\u201d.";
+    } else {
+      hint.textContent = "To install, use your browser\u2019s menu \u2192 \u201cInstall app\u201d or \u201cAdd to Home screen\u201d.";
+    }
+  }
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault(); // show our own button instead of the browser's banner
+    deferredInstallPrompt = e;
+    renderInstallSection();
+  });
+  window.addEventListener("appinstalled", () => {
+    deferredInstallPrompt = null;
+    renderInstallSection();
+    showToast("Installed \u2014 find CopyPaster on your home screen");
+  });
+  document.getElementById("install-btn").addEventListener("click", async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice.catch(() => {});
+    deferredInstallPrompt = null;
+    renderInstallSection();
+  });
+  renderInstallSection();
+
   // Ask the browser to treat saved data as important, so it isn't cleared
   // under storage pressure or by Safari's 7-day rule for unused sites.
   // Browsers decide silently (Chrome grants it to engaged or installed
@@ -4610,6 +4726,8 @@
       await refresh();
       await sweepExpired();
       setInterval(sweepExpired, 60 * 1000);
+      await handleLaunchParams();
+      startUpdateChecks();
     })
     .catch((err) => {
       itemsEl.innerHTML = "";
