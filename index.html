@@ -342,12 +342,24 @@
     max-width: 140px; max-height: 100px; border-radius: var(--radius-sm);
     border: 1px solid var(--border); cursor: zoom-in; display: block; object-fit: cover;
   }
-  .attached-image-remove {
-    position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 50%;
-    background: rgba(0,0,0,0.6); color: #fff; border: none; cursor: pointer; font-size: 12px;
-    line-height: 1; opacity: 0; transition: opacity 0.12s;
+  .attached-image-actions {
+    position: absolute; top: 4px; right: 4px; display: flex; gap: 4px;
+    opacity: 0; transition: opacity 0.12s; pointer-events: none;
   }
-  .attached-image-wrap:hover .attached-image-remove { opacity: 1; }
+  .attached-image-action { pointer-events: auto; }
+  .attached-image-wrap:hover .attached-image-actions,
+  .attached-image-wrap:focus-within .attached-image-actions { opacity: 1; }
+  .attached-image-action {
+    width: 26px; height: 26px; border-radius: 50%; padding: 0;
+    background: rgba(0,0,0,0.65); color: #fff; border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .attached-image-action:hover { background: rgba(0,0,0,0.85); }
+  .attached-image-action.danger:hover { background: var(--danger); }
+  @media (hover: none) {
+    .attached-image-actions { opacity: 1; }
+    .attached-image-action { width: 30px; height: 30px; }
+  }
   .row-image-badge { font-size: 10px; margin-left: 2px; }
   .row-lang-badge {
     font-size: 9px; color: var(--command); border: 1px solid var(--command); border-radius: 4px;
@@ -441,6 +453,16 @@
     color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 15px; cursor: pointer;
   }
   #image-lightbox-close:hover { background: rgba(255, 255, 255, 0.22); }
+  #image-lightbox-actions {
+    position: absolute; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); left: 50%; transform: translateX(-50%);
+    display: flex; gap: 10px;
+  }
+  .image-lightbox-btn {
+    display: flex; align-items: center; gap: 6px; padding: 10px 16px; border-radius: 999px;
+    background: #2a2d34; color: #fff; border: none; font-size: 14px; cursor: pointer;
+  }
+  .image-lightbox-btn:hover { background: #3a3e47; }
+  .image-lightbox-btn.danger:hover { background: var(--danger); }
 
   #toast {
     position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(10px);
@@ -510,6 +532,9 @@
       <path d="M3 8l2-5h14l2 5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
       <rect x="3" y="8" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
       <path d="M9.5 13h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="icon-download" viewBox="0 0 24 24">
+      <path d="M12 4v11M7 10.5l5 5 5-5M5 19.5h14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
     </symbol>
     <symbol id="icon-trash" viewBox="0 0 24 24">
       <path d="M4 7h16M9 7V4.5A1 1 0 0110 3.5h4a1 1 0 011 1V7" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
@@ -1817,20 +1842,31 @@
       thumb.src = dataUrl;
       thumb.className = "attached-image";
       thumb.title = "Click to view full size";
-      thumb.addEventListener("click", () => openImageLightbox(dataUrl));
-      const removeBtn = document.createElement("button");
-      removeBtn.className = "attached-image-remove";
-      removeBtn.textContent = "🗑";
-      removeBtn.title = "Remove image";
-      removeBtn.addEventListener("click", async (e) => {
+      thumb.addEventListener("click", () => openImageLightbox(dataUrl, item, idx));
+      const actions = document.createElement("div");
+      actions.className = "attached-image-actions";
+      const downloadBtn = document.createElement("button");
+      downloadBtn.className = "attached-image-action";
+      downloadBtn.innerHTML = icon("download", "icon-sm");
+      downloadBtn.title = "Download image";
+      downloadBtn.setAttribute("aria-label", "Download image");
+      downloadBtn.addEventListener("click", (e) => {
         e.stopPropagation();
-        item.images.splice(idx, 1);
-        item.updatedAt = Date.now();
-        await put(ITEMS_STORE, item);
-        openDetail(item.id);
+        downloadImage(dataUrl, item, idx);
       });
+      const removeBtn = document.createElement("button");
+      removeBtn.className = "attached-image-action danger";
+      removeBtn.innerHTML = icon("trash", "icon-sm");
+      removeBtn.title = "Delete image";
+      removeBtn.setAttribute("aria-label", "Delete image");
+      removeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        deleteAttachedImage(item, idx);
+      });
+      actions.appendChild(downloadBtn);
+      actions.appendChild(removeBtn);
       thumbWrap.appendChild(thumb);
-      thumbWrap.appendChild(removeBtn);
+      thumbWrap.appendChild(actions);
       galleryRow.appendChild(thumbWrap);
     });
 
@@ -2720,7 +2756,7 @@
   // save those edits first instead of silently discarding them.
   // ---------- Image lightbox ----------
 
-  function openImageLightbox(src) {
+  function openImageLightbox(src, item, idx) {
     closeImageLightbox();
     const overlay = document.createElement("div");
     overlay.id = "image-lightbox";
@@ -2734,7 +2770,62 @@
     overlay.addEventListener("click", (e) => { if (e.target === overlay) closeImageLightbox(); });
     overlay.appendChild(img);
     overlay.appendChild(closeBtn);
+
+    const actions = document.createElement("div");
+    actions.id = "image-lightbox-actions";
+    const downloadBtn = document.createElement("button");
+    downloadBtn.className = "image-lightbox-btn";
+    downloadBtn.innerHTML = icon("download") + " Download";
+    downloadBtn.addEventListener("click", () => downloadImage(src, item, idx));
+    actions.appendChild(downloadBtn);
+    if (item && !item.deletedAt) {
+      const deleteBtn = document.createElement("button");
+      deleteBtn.className = "image-lightbox-btn danger";
+      deleteBtn.innerHTML = icon("trash") + " Delete";
+      deleteBtn.addEventListener("click", async () => {
+        if (await deleteAttachedImage(item, idx)) closeImageLightbox();
+      });
+      actions.appendChild(deleteBtn);
+    }
+    overlay.appendChild(actions);
     document.body.appendChild(overlay);
+  }
+
+  function imageFileName(dataUrl, item, idx) {
+    const mime = (dataUrl.match(/^data:([^;,]+)/) || [])[1] || "image/png";
+    const ext = { "image/jpeg": "jpg", "image/svg+xml": "svg" }[mime] || mime.split("/")[1] || "png";
+    const base = ((item && item.title) || "copypaster-image").trim().replace(/[\\/:*?"<>|]+/g, "").replace(/\s+/g, "-").slice(0, 60) || "copypaster-image";
+    const suffix = item && item.images && item.images.length > 1 ? "-" + (idx + 1) : "";
+    return base + suffix + "." + ext;
+  }
+
+  async function downloadImage(dataUrl, item, idx) {
+    const fileName = imageFileName(dataUrl, item, idx);
+    try {
+      const blob = await (await fetch(dataUrl)).blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
+      showToast("Downloading " + fileName);
+    } catch (err) {
+      console.error("Image download failed:", err);
+      showToast("Couldn't download \u2014 long-press the image to save it");
+    }
+  }
+
+  async function deleteAttachedImage(item, idx) {
+    if (!confirm("Delete this image? This can't be undone.")) return false;
+    item.images.splice(idx, 1);
+    item.updatedAt = Date.now();
+    await put(ITEMS_STORE, item);
+    openDetail(item.id);
+    showToast("Image deleted");
+    return true;
   }
 
   function closeImageLightbox() {
