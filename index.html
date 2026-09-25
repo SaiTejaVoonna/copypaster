@@ -1054,6 +1054,57 @@
     });
   }
 
+  // ---------- Item store ----------
+  // Every change to an item goes through saveItem / saveItems / deleteItems.
+  // They write to IndexedDB, keep `cache` in step, and tell listeners, so the
+  // sidebar and list redraw themselves even if the caller forgets to. This is
+  // also the one place where the Vault (encrypt before writing) and Sync
+  // (remember what changed) will plug in.
+  const itemListeners = [];
+  function onItemsChanged(fn) { itemListeners.push(fn); }
+  function emitItemsChanged(kind, items) {
+    for (const fn of itemListeners) {
+      try { fn(kind, items); } catch (err) { console.error("Item listener failed:", err); }
+    }
+  }
+
+  function writeItems(apply) {
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(ITEMS_STORE, "readwrite");
+      apply(tx.objectStore(ITEMS_STORE));
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error);
+    });
+  }
+
+  async function saveItems(items) {
+    if (!items.length) return items;
+    await writeItems((store) => items.forEach((item) => store.put(item)));
+    for (const item of items) {
+      const i = cache.findIndex((c) => c.id === item.id);
+      if (i === -1) cache.push(item);
+      else cache[i] = item;
+    }
+    emitItemsChanged("save", items);
+    return items;
+  }
+
+  async function saveItem(item) {
+    await saveItems([item]);
+    return item;
+  }
+
+  // Permanent removal (Delete forever, Trash clean-up, discarding blank notes).
+  // Moving to Trash is just a save with deletedAt set.
+  async function deleteItems(ids) {
+    if (!ids.length) return;
+    const gone = new Set(ids);
+    cache = cache.filter((i) => !gone.has(i.id));
+    await writeItems((store) => ids.forEach((id) => store.delete(id)));
+    emitItemsChanged("delete", ids);
+  }
+
   function uuid() {
     if (crypto.randomUUID) return crypto.randomUUID();
     return "id-" + Date.now() + "-" + Math.random().toString(16).slice(2);
@@ -1259,7 +1310,7 @@
         onClick: async () => {
           for (const item of items) {
             item.deletedAt = null;
-            await put(ITEMS_STORE, item);
+            await saveItem(item);
           }
           renderAllViews();
           showToast(items.length > 1 ? items.length + " items restored" : "Restored");
@@ -1425,7 +1476,7 @@
     item.runs.unshift({ at: Date.now(), values: values || null, note: "" });
     item.runs.length = Math.min(item.runs.length, MAX_RUNS);
     // Not an edit, so updatedAt stays put and the list doesn't reorder.
-    put(ITEMS_STORE, item).catch((err) => console.error("Saving run history failed:", err));
+    saveItem(item).catch((err) => console.error("Saving run history failed:", err));
     const section = document.getElementById("run-history");
     if (section && currentId === item.id) section.replaceWith(renderRunHistory(item));
   }
@@ -1475,7 +1526,7 @@
       note.value = run.note || "";
       note.addEventListener("change", async () => {
         run.note = note.value.trim();
-        await put(ITEMS_STORE, item);
+        await saveItem(item);
       });
       row.appendChild(note);
       list.appendChild(row);
@@ -1487,7 +1538,7 @@
     clear.addEventListener("click", async () => {
       if (!confirm("Clear this command's run history? This can't be undone.")) return;
       item.runs = [];
-      await put(ITEMS_STORE, item);
+      await saveItem(item);
       el.replaceWith(renderRunHistory(item));
     });
     list.appendChild(clear);
@@ -1499,22 +1550,12 @@
 
   async function sweepExpired() {
     const now = Date.now();
-    const purgedIds = [];
-    let changed = false;
-    for (const item of cache) {
-      if (item.autoExpireAt && !item.deletedAt && item.autoExpireAt <= now) {
-        item.deletedAt = now; item.updatedAt = now;
-        await put(ITEMS_STORE, item);
-        changed = true;
-      }
-      if (item.deletedAt && (now - item.deletedAt) > TRASH_RETENTION_MS) {
-        await remove(ITEMS_STORE, item.id);
-        purgedIds.push(item.id);
-        changed = true;
-      }
-    }
-    if (purgedIds.length) cache = cache.filter((i) => !purgedIds.includes(i.id));
-    if (changed) renderAllViews();
+    const expired = cache.filter((i) => i.autoExpireAt && !i.deletedAt && i.autoExpireAt <= now);
+    expired.forEach((item) => { item.deletedAt = now; item.updatedAt = now; });
+    const purgedIds = cache.filter((i) => i.deletedAt && (now - i.deletedAt) > TRASH_RETENTION_MS).map((i) => i.id);
+    await saveItems(expired);
+    await deleteItems(purgedIds);
+    if (expired.length || purgedIds.length) renderAllViews();
   }
 
   // ---------- Data refresh ----------
@@ -1528,12 +1569,11 @@
       !ITEM_TYPES.includes(raw.type) ||
       (raw.type === "command" && (raw.contentType === "image" || raw.autoExpireAt)));
     cache = rawItems.map(normalize);
-    for (const item of needsCorrection) await put(ITEMS_STORE, item);
+    await saveItems(needsCorrection);
 
     // Clean out completely blank items left behind before empty notes were
     // discarded automatically (they showed up as "Untitled").
-    for (const item of cache.filter((i) => !i.deletedAt && isBlankItem(i))) await remove(ITEMS_STORE, item.id);
-    cache = cache.filter((i) => i.deletedAt || !isBlankItem(i));
+    await deleteItems(cache.filter((i) => !i.deletedAt && isBlankItem(i)).map((i) => i.id));
 
     // The rigid "whole item is one big image, no text" shape is retired.
     // Convert every remaining old-style image item to the flexible gallery
@@ -1541,7 +1581,7 @@
     const needsGalleryConversion = cache.filter((item) => item.contentType === "image");
     for (const item of needsGalleryConversion) {
       convertStandaloneImageToGallery(item);
-      await put(ITEMS_STORE, item);
+      await saveItem(item);
     }
 
     cache.sort((a, b) => b.updatedAt - a.updatedAt);
@@ -1560,7 +1600,23 @@
   // Use this after any mutation where the changed object is already sitting
   // in cache/tagCache/folderCache by reference \u2014 which is every mutation in
   // this app. A full refresh() (DB refetch) is only needed at boot.
+  // Redraw the sidebar and list after any item change, once per frame, unless
+  // the code that made the change already redrew them.
+  let renderGeneration = 0;
+  let renderQueued = false;
+  let genAtLastChange = 0;
+  onItemsChanged(() => {
+    genAtLastChange = renderGeneration;
+    if (renderQueued) return;
+    renderQueued = true;
+    requestAnimationFrame(() => {
+      renderQueued = false;
+      if (renderGeneration === genAtLastChange) renderAllViews();
+    });
+  });
+
   function renderAllViews() {
+    renderGeneration++;
     cache.sort((a, b) => b.updatedAt - a.updatedAt);
     renderNav();
     renderFoldersList();
@@ -1629,7 +1685,7 @@
     // Reading never changes updatedAt, so nothing reorders.
     for (const item of cache.filter((i) => i.unread)) {
       item.unread = false;
-      await put(ITEMS_STORE, item);
+      await saveItem(item);
     }
     renderAllViews();
     showToast("All marked as read");
@@ -1742,7 +1798,7 @@
     for (const item of cache) {
       if (allIds.includes(item.folderId)) {
         item.folderId = null;
-        await put(ITEMS_STORE, item);
+        await saveItem(item);
       }
     }
     for (const id of allIds) await remove(FOLDERS_STORE, id);
@@ -1762,7 +1818,7 @@
     item.folderId = folderId;
     item.order = Date.now();
     item.updatedAt = Date.now();
-    await put(ITEMS_STORE, item);
+    await saveItem(item);
     renderAllViews();
     showToast("Moved to \u201c" + (folderById(folderId) || {}).name + "\u201d");
   }
@@ -1885,7 +1941,7 @@
     for (const item of cache) {
       if (item.tags.includes(tagId)) {
         item.tags = item.tags.filter((x) => x !== tagId);
-        await put(ITEMS_STORE, item);
+        await saveItem(item);
       }
     }
     await remove(TAGS_STORE, tagId);
@@ -2305,8 +2361,7 @@
         { label: "Restore", run: () => restoreFromTrash(item) },
         { label: "Delete forever", danger: true, run: async () => {
           if (!confirm("Delete this item forever? This can't be undone.")) return;
-          await remove(ITEMS_STORE, item.id);
-          cache = cache.filter((i) => i.id !== item.id);
+          await deleteItems([item.id]);
           if (currentId === item.id) closeDetail();
           renderAllViews();
           showToast("Deleted permanently");
@@ -2318,7 +2373,7 @@
       { label: "Copy", run: () => copyItemSmart(item) },
       { label: item.unread ? "Mark as read" : "Mark as unread", run: async () => {
         item.unread = !item.unread;
-        await put(ITEMS_STORE, item);
+        await saveItem(item);
         refresh();
         showToast(item.unread ? "Marked unread" : "Marked read");
       } },
@@ -2326,7 +2381,7 @@
       { label: item.pinned ? "Unpin" : "Pin to top", run: async () => {
         item.pinned = !item.pinned;
         item.updatedAt = Date.now();
-        await put(ITEMS_STORE, item);
+        await saveItem(item);
         refresh();
         showToast(item.pinned ? "Pinned to top" : "Unpinned");
       } },
@@ -2353,7 +2408,7 @@
       item.folderId = folderId;
       if (folderId) item.order = Date.now();
       item.updatedAt = Date.now();
-      await put(ITEMS_STORE, item);
+      await saveItem(item);
       renderAllViews();
       if (currentId === item.id) openDetail(item.id);
       const folder = folderId && folderById(folderId);
@@ -2431,7 +2486,7 @@
   async function trashWithUndo(item) {
     item.deletedAt = Date.now();
     item.updatedAt = Date.now();
-    await put(ITEMS_STORE, item);
+    await saveItem(item);
     if (currentId === item.id) closeDetail();
     renderAllViews();
     showTrashUndo([item], "Moved to Trash");
@@ -2439,17 +2494,17 @@
   async function toggleArchiveWithUndo(item) {
     const before = item.archivedAt;
     item.archivedAt = before ? null : Date.now();
-    await put(ITEMS_STORE, item);
+    await saveItem(item);
     renderAllViews();
     showToast(before ? "Unarchived" : "Archived", { action: { label: "Undo", onClick: async () => {
       item.archivedAt = before;
-      await put(ITEMS_STORE, item);
+      await saveItem(item);
       renderAllViews();
     } } });
   }
   async function restoreFromTrash(item) {
     item.deletedAt = null;
-    await put(ITEMS_STORE, item);
+    await saveItem(item);
     renderAllViews();
     showToast("Restored");
   }
@@ -2783,7 +2838,7 @@
     list.splice(toIdx, 0, moved);
     for (let idx = 0; idx < list.length; idx++) {
       list[idx].order = idx * 10;
-      await put(ITEMS_STORE, list[idx]);
+      await saveItem(list[idx]);
     }
     renderList();
   }
@@ -2860,8 +2915,7 @@
       const content = document.getElementById("content-input");
       if ((title && title.value.trim()) || (content && content.value.trim())) return false;
     }
-    cache = cache.filter((i) => i.id !== id);
-    remove(ITEMS_STORE, id).catch((err) => console.error("Discarding empty note failed:", err));
+    deleteItems([id]).catch((err) => console.error("Discarding empty note failed:", err));
     return true;
   }
 
@@ -2882,7 +2936,7 @@
     }
     if (isOpening && opened && opened.unread) {
       opened.unread = false;
-      put(ITEMS_STORE, opened).catch((err) => console.error("Mark read failed:", err));
+      saveItem(opened).catch((err) => console.error("Mark read failed:", err));
       renderNav();
     }
     renderList();
@@ -2924,7 +2978,7 @@
           if (becomingCommand && item.content && item.content.trim()) item.locked = true;
           if (becomingCommand) item.autoExpireAt = null;
           item.updatedAt = Date.now();
-          await put(ITEMS_STORE, item);
+          await saveItem(item);
           renderNav(); renderFoldersList(); renderTagsList();
           openDetail(item.id);
           showToast("Changed to " + (t === "command" ? "Command" + (item.locked ? " \u00b7 locked" : "") : "Note"));
@@ -2964,7 +3018,7 @@
         lockBtn.addEventListener("click", async () => {
           item.locked = !item.locked;
           item.updatedAt = Date.now();
-          await put(ITEMS_STORE, item);
+          await saveItem(item);
           openDetail(item.id);
           showToast(item.locked ? "Locked" : "Unlocked \u2014 you can edit it now");
         });
@@ -2978,7 +3032,7 @@
       unreadBtn.title = item.unread ? "Mark as read" : "Mark as unread";
       unreadBtn.addEventListener("click", async () => {
         item.unread = !item.unread;
-        await put(ITEMS_STORE, item);
+        await saveItem(item);
         renderAllViews();
         openDetail(item.id);
         showToast(item.unread ? "Marked unread" : "Marked read");
@@ -2991,7 +3045,7 @@
       pinBtn.addEventListener("click", async () => {
         item.pinned = !item.pinned;
         item.updatedAt = Date.now();
-        await put(ITEMS_STORE, item);
+        await saveItem(item);
         renderNav();
         openDetail(item.id);
         showToast(item.pinned ? "Pinned to top" : "Unpinned");
@@ -3015,7 +3069,7 @@
       archiveBtn.addEventListener("click", async () => {
         item.archivedAt = item.archivedAt ? null : Date.now();
         item.updatedAt = Date.now();
-        await put(ITEMS_STORE, item);
+        await saveItem(item);
         renderAllViews();
         openDetail(item.id);
         showToast(item.archivedAt ? "Archived" : "Unarchived");
@@ -3086,7 +3140,7 @@
       langSelect.addEventListener("change", async () => {
         item.language = langSelect.value || null;
         item.updatedAt = Date.now();
-        await put(ITEMS_STORE, item);
+        await saveItem(item);
         renderAllViews();
         openDetail(item.id);
         showToast(item.language ? "Language: " + langSelect.selectedOptions[0].textContent : "Language cleared");
@@ -3157,7 +3211,7 @@
         item.title = newTitle;
         item.content = newContent;
         item.updatedAt = Date.now();
-        await put(ITEMS_STORE, item);
+        await saveItem(item);
         renderAllViews();
         if (autosaveStatusEl) {
           autosaveStatusEl.textContent = "\u00b7 Saved";
@@ -3204,7 +3258,7 @@
         item.folderId = folderSelect.value || null;
         if (item.folderId) item.order = Date.now();
         item.updatedAt = Date.now();
-        await put(ITEMS_STORE, item);
+        await saveItem(item);
         renderFoldersList();
         const folder = item.folderId && folderById(item.folderId);
         showToast(folder ? "Moved to \u201c" + folder.name + "\u201d" : "Removed from folder");
@@ -3227,7 +3281,7 @@
         removeBtn.addEventListener("click", async () => {
           item.tags = item.tags.filter((x) => x !== tid);
           item.updatedAt = Date.now();
-          await put(ITEMS_STORE, item);
+          await saveItem(item);
           renderTagsList();
           openDetail(item.id);
           showToast("Removed tag \u201c" + t.name + "\u201d");
@@ -3253,7 +3307,7 @@
       noneSwatch.addEventListener("click", async () => {
         item.color = null;
         item.updatedAt = Date.now();
-        await put(ITEMS_STORE, item);
+        await saveItem(item);
         openDetail(item.id);
         showToast("Color removed");
       });
@@ -3265,7 +3319,7 @@
         sw.addEventListener("click", async () => {
           item.color = color;
           item.updatedAt = Date.now();
-          await put(ITEMS_STORE, item);
+          await saveItem(item);
           openDetail(item.id);
           showToast("Color set");
         });
@@ -3296,7 +3350,7 @@
         await animateRowOut(item.id);
         item.deletedAt = null;
         item.updatedAt = Date.now();
-        await put(ITEMS_STORE, item);
+        await saveItem(item);
         closeDetail();
         renderAllViews();
         showToast("Restored");
@@ -3307,8 +3361,7 @@
       forgetBtn.addEventListener("click", async () => {
         if (!confirm("Delete this item forever? This can't be undone.")) return;
         await animateRowOut(item.id);
-        await remove(ITEMS_STORE, item.id);
-        cache = cache.filter((i) => i.id !== item.id);
+        await deleteItems([item.id]);
         closeDetail();
         renderAllViews();
         showToast("Deleted permanently");
@@ -3324,7 +3377,7 @@
         await animateRowOut(item.id);
         item.deletedAt = Date.now();
         item.updatedAt = Date.now();
-        await put(ITEMS_STORE, item);
+        await saveItem(item);
         closeDetail();
         renderAllViews();
         showTrashUndo([item], "Moved to Trash");
@@ -3354,7 +3407,7 @@
               convertStandaloneImageToGallery(item);
               item.images.push(dataUrl);
               item.updatedAt = Date.now();
-              await put(ITEMS_STORE, item);
+              await saveItem(item);
               openDetail(item.id);
               showToast("Image pasted into this item");
               return;
@@ -3393,7 +3446,7 @@
         const justLocked = item.type === "command" && !item.locked && item.content && item.content.trim();
         if (justLocked) item.locked = true;
         item.updatedAt = Date.now();
-        await put(ITEMS_STORE, item);
+        await saveItem(item);
         if (justLocked) { renderAllViews(); openDetail(item.id); }
         else renderAllViews();
         showToast("Saved");
@@ -3436,7 +3489,7 @@
       timerRemoved = true;
     }
     item.updatedAt = Date.now();
-    await put(ITEMS_STORE, item);
+    await saveItem(item);
     showToast(item.starred ? "Added to Favorites" + (timerRemoved ? " \u00b7 timer removed" : "") : "Removed from Favorites");
   }
 
@@ -3457,7 +3510,7 @@
     const setExpiry = async (ts) => {
       item.autoExpireAt = ts;
       item.updatedAt = Date.now();
-      await put(ITEMS_STORE, item);
+      await saveItem(item);
       renderAllViews();
       renderExpireRow(item, row, false);
     };
@@ -3603,7 +3656,7 @@
         const had = item.tags.includes(tag.id);
         item.tags = had ? item.tags.filter((x) => x !== tag.id) : item.tags.concat(tag.id);
         item.updatedAt = Date.now();
-        await put(ITEMS_STORE, item);
+        await saveItem(item);
         closeAnyPopover();
         renderTagsList();
         openDetail(item.id);
@@ -3673,6 +3726,7 @@
       const incoming = data.items || [];
       const progress = incoming.length > 20 ? showToast("Importing\u2026", { sticky: true }) : null;
       let processed = 0;
+      const batch = [];
       for (const item of incoming) {
         processed++;
         if (progress && processed % 10 === 0) {
@@ -3684,10 +3738,11 @@
         convertStandaloneImageToGallery(normalized);
         // New to this device, so flag it until it's been looked at.
         if (!normalized.deletedAt) normalized.unread = true;
-        await put(ITEMS_STORE, normalized);
-        cache.push(normalized);
+        batch.push(normalized);
+        if (batch.length === 50) await saveItems(batch.splice(0));
         addedItems++;
       }
+      await saveItems(batch);
 
       if (progress) progress.close();
       renderAllViews();
@@ -3704,8 +3759,7 @@
   async function newItem(type) {
     await saveOpenDraft();
     const item = normalize({ id: uuid(), type, content: "", createdAt: Date.now(), updatedAt: Date.now() });
-    await put(ITEMS_STORE, item);
-    cache.push(item);
+    await saveItem(item);
     renderAllViews();
     openDetail(item.id);
     const ta = document.getElementById("content-input");
@@ -3819,7 +3873,7 @@
           if (!item.tags.includes(tag.id)) {
             item.tags = item.tags.concat(tag.id);
             item.updatedAt = Date.now();
-            await put(ITEMS_STORE, item);
+            await saveItem(item);
           }
         }
         showToast("Added \u201c" + tag.name + "\u201d to " + selectedIds.size + " items");
@@ -3841,7 +3895,7 @@
       item.folderId = folderId;
       item.order = Date.now();
       item.updatedAt = Date.now();
-      await put(ITEMS_STORE, item);
+      await saveItem(item);
     }
     showToast("Moved " + selectedIds.size + " items");
     selectedIds.clear();
@@ -3859,7 +3913,7 @@
       if (!item) continue;
       item.deletedAt = Date.now();
       item.updatedAt = Date.now();
-      await put(ITEMS_STORE, item);
+      await saveItem(item);
       trashed.push(item);
     }
     showTrashUndo(trashed, "Moved " + trashed.length + " items to Trash");
@@ -3870,14 +3924,16 @@
 
   async function bulkApply(change, message, undoChange) {
     const items = selectedItems();
-    for (const item of items) { change(item); await put(ITEMS_STORE, item); }
+    items.forEach(change);
+    await saveItems(items);
     selectedIds.clear();
     renderAllViews();
     updateBulkBar();
     updateSelectAllRow();
     showToast(message(items.length), undoChange ? {
       action: { label: "Undo", onClick: async () => {
-        for (const item of items) { undoChange(item); await put(ITEMS_STORE, item); }
+        items.forEach(undoChange);
+        await saveItems(items);
         renderAllViews();
       } }
     } : {});
@@ -3944,7 +4000,7 @@
     }
     if (!addedCount) { showToast("Could not read that image"); return; }
     item.updatedAt = Date.now();
-    await put(ITEMS_STORE, item);
+    await saveItem(item);
     openDetail(item.id);
     showToast(addedCount > 1 ? addedCount + " images attached" : "Image attached");
   });
@@ -4139,7 +4195,7 @@
     if (!confirm("Delete this image? This can't be undone.")) return false;
     item.images.splice(idx, 1);
     item.updatedAt = Date.now();
-    await put(ITEMS_STORE, item);
+    await saveItem(item);
     openDetail(item.id);
     showToast("Image deleted");
     return true;
@@ -4180,7 +4236,7 @@
     }
     if (changed) {
       item.updatedAt = Date.now();
-      await put(ITEMS_STORE, item);
+      await saveItem(item);
     }
   }
 
@@ -4188,8 +4244,7 @@
     console.log("[CopyPaster] image data URL length:", dataUrl.length, "chars (~" + Math.round(dataUrl.length * 0.75 / 1024) + "KB)");
     await saveOpenDraft();
     const item = normalize({ id: uuid(), type: "note", content: "", images: [dataUrl], createdAt: Date.now(), updatedAt: Date.now() });
-    await put(ITEMS_STORE, item);
-    cache.push(item);
+    await saveItem(item);
     renderAllViews();
     openDetail(item.id);
     const titleField = document.getElementById("title-input");
@@ -4386,7 +4441,7 @@
     const existing = allowDuplicate ? null : findDuplicate(text);
     if (existing) {
       existing.updatedAt = Date.now();
-      await put(ITEMS_STORE, existing);
+      await saveItem(existing);
       renderAllViews();
       openDetail(existing.id);
       showToast("Already saved \u2014 moved to the top", {
@@ -4395,8 +4450,7 @@
       return existing;
     }
     const item = normalize({ id: uuid(), type: "note", content: text, createdAt: Date.now(), updatedAt: Date.now() });
-    await put(ITEMS_STORE, item);
-    cache.push(item);
+    await saveItem(item);
     renderAllViews();
     openDetail(item.id);
     const contentField = document.getElementById("content-input");
@@ -4412,7 +4466,7 @@
             item.language = code.language;
             item.locked = true;
             item.autoExpireAt = null;
-            await put(ITEMS_STORE, item);
+            await saveItem(item);
             renderAllViews();
             openDetail(item.id);
           }
@@ -4457,7 +4511,7 @@
         convertStandaloneImageToGallery(openItem);
         openItem.images.push(dataUrl);
         openItem.updatedAt = Date.now();
-        await put(ITEMS_STORE, openItem);
+        await saveItem(openItem);
         openDetail(openItem.id);
         showToast("Image attached to this item");
         return;
@@ -4504,7 +4558,7 @@
             convertStandaloneImageToGallery(openItem);
             openItem.images.push(dataUrl);
             openItem.updatedAt = Date.now();
-            await put(ITEMS_STORE, openItem);
+            await saveItem(openItem);
             openDetail(openItem.id);
             showToast("Image attached to this item");
             return;
@@ -4794,7 +4848,7 @@
       const item = await addTextItem(content, "Saved from share");
       if (item && sharedTitle && !item.title) {
         item.title = sharedTitle;
-        await put(ITEMS_STORE, item);
+        await saveItem(item);
         renderAllViews();
         openDetail(item.id);
       }

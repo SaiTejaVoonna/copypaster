@@ -94,3 +94,16 @@ test("export then import into an empty app restores everything", async ({ page, 
   expect(item).toMatchObject({ title: "Backup", content: "backup me", starred: true });
   await fresh.close();
 });
+
+test("importing a large backup saves every item and marks them unread", async ({ page }) => {
+  const now = Date.now();
+  const backup = { cpsVersion: 1, tags: [], folders: [],
+    items: Array.from({ length: 120 }, (_, n) => ({ id: "b" + n, type: "note", content: "note " + n, createdAt: now - n, updatedAt: now - n })) };
+  await page.click("#settings-btn");
+  await page.setInputFiles("#import-file", { name: "big.cps", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(backup)) });
+  await expect(lastToast(page)).toContainText("Imported 120 items");
+  const items = await storedItems(page);
+  expect(items.length).toBe(120);
+  expect(items.every((i) => i.unread)).toBe(true);
+  await expect(page.locator(".item-row")).toHaveCount(120);
+});
