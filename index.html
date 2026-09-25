@@ -1079,7 +1079,7 @@
 
   const NAV_ITEMS = [
     { key: "all", label: "All Items", icon: "grid" },
-    { key: "saved", label: "Saved", icon: "star" },
+    { key: "saved", label: "Favorites", icon: "star" },
     { key: "recent", label: "Recent", icon: "clock" },
     { key: "pinned", label: "Pinned", icon: "pin" },
     { key: "notes", label: "Notes", icon: "note" },
@@ -1779,7 +1779,7 @@
       const starBtn = document.createElement("button");
       starBtn.className = "row-icon-btn" + (item.starred ? " starred" : "");
       starBtn.innerHTML = icon("star", "icon-sm");
-      starBtn.title = "Toggle saved";
+      starBtn.title = item.starred ? "Remove from Favorites" : "Add to Favorites";
       starBtn.addEventListener("click", async (e) => {
         e.stopPropagation();
         item.starred = !item.starred;
@@ -1983,7 +1983,7 @@
       const starBtn = document.createElement("button");
       starBtn.className = "icon-toggle star" + (item.starred ? " on" : "");
       starBtn.innerHTML = icon("star");
-      starBtn.title = "Save";
+      starBtn.title = item.starred ? "Remove from Favorites" : "Add to Favorites";
       starBtn.addEventListener("click", async () => {
         item.starred = !item.starred;
         item.updatedAt = Date.now();
