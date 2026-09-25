@@ -35,6 +35,7 @@ async function unlock(page, password = PASSWORD) {
 async function vaultNote(page, text) {
   await nav(page, "Vault").click();
   await page.click("#new-btn");
+  await page.locator("#new-menu .popover-list-item", { hasText: "Note" }).click(); // in the Vault, + New asks what to make
   await page.fill("#content-input", text);
   await page.dispatchEvent("#content-input", "input");
   await expect.poll(async () => (await storedItems(page)).some((r) => r.vaulted && r.enc), { timeout: 5000 }).toBe(true);

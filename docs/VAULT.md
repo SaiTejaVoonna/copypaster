@@ -32,6 +32,10 @@ The readable fields let Trash, restore, auto-delete and the 30-day clean-up work
   - a device with the same Vault: the items import as they are.
   - a device with a different Vault: asks for the other Vault's password or recovery key, then re-encrypts the items with this Vault's key (or skips them).
 
+## Password items
+
+A third item type, **Password**, that only exists in the Vault. It has a name, website, username, password (Show / Copy / Generate, with a strength hint) and notes. They're stored in `item.login = { url, username, password }`, inside the encrypted part like everything else. Copying clears the clipboard after 30 s. A Password item can't be moved out of the Vault; change it to a Note first. The generator makes 20 characters with every kind (upper, lower, digit, symbol), using `crypto.getRandomValues` with rejection sampling.
+
 ## Known limits
 
 - Lost password and lost recovery key means the items are gone. That's the design.

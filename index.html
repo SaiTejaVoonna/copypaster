@@ -219,6 +219,30 @@
   .dialog-row button { flex: 1; }
   .dialog-check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 
+  /* Password items */
+  #login-fields { display: flex; flex-direction: column; gap: 10px; }
+  .login-row { display: flex; flex-direction: column; gap: 4px; }
+  .login-row > span { font-size: 11px; color: var(--text-dim); }
+  .login-input { display: flex; gap: 6px; align-items: center; }
+  .login-input input {
+    flex: 1; min-width: 0; background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: var(--radius-sm); padding: 9px 11px; font-size: 14px;
+  }
+  .login-input input:focus { outline: none; border-color: var(--accent); }
+  #login-password { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.02em; }
+  .login-input button {
+    flex-shrink: 0; background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: var(--radius-sm); padding: 8px 10px; font-size: 12px; cursor: pointer; white-space: nowrap;
+  }
+  .login-input button:hover { border-color: var(--accent); }
+  .login-strength { font-size: 11px; color: var(--text-dim); min-height: 14px; }
+  .login-strength[data-level="0"] { color: var(--danger); }
+  .login-strength[data-level="1"] { color: #d9a441; }
+  .login-strength[data-level="3"] { color: #3fb27f; }
+  .type-btn.password.active { color: var(--accent); border-color: var(--accent); }
+  .type-dot.password { color: var(--accent); }
+  #content-input.login-notes { flex: 0 0 auto; min-height: 90px; height: 120px; font-family: inherit; font-size: 14px; }
+
   /* Profiles */
   #profile-btn {
     margin: 0 10px 8px; display: flex; align-items: center; gap: 8px; padding: 6px 8px;
@@ -908,6 +932,10 @@
       <rect x="3" y="8" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
       <path d="M9.5 13h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
     </symbol>
+    <symbol id="icon-key" viewBox="0 0 24 24">
+      <circle cx="8" cy="15" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="M11 12l8-8M16 7l2.5 2.5M14 9l2 2" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </symbol>
     <symbol id="icon-user" viewBox="0 0 24 24">
       <circle cx="12" cy="8.5" r="3.8" fill="none" stroke="currentColor" stroke-width="1.8"/>
       <path d="M4.5 20c.8-3.6 3.8-5.8 7.5-5.8s6.7 2.2 7.5 5.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
@@ -1163,9 +1191,10 @@
   function icon(name, extraClass) {
     return '<svg class="icon' + (extraClass ? " " + extraClass : "") + '"><use href="#icon-' + name + '"></use></svg>';
   }
-  const ITEM_TYPES = ["note", "command"];
-  const TYPE_ICONS = { note: "note", command: "command" };
+  const ITEM_TYPES = ["note", "command", "password"]; // Password items only live in the Vault
+  const TYPE_ICONS = { note: "note", command: "command", password: "key" };
   const TYPE_DESCRIPTIONS = {
+    password: "A login: website, username and password. Always encrypted in the Vault.",
     note: "Anything you keep \u2014 pasted text, images, snippets, writing. Can auto-expire.",
     command: "A script or command you run repeatedly. Locks read-only after saving so you don't fat-finger it."
   };
@@ -1570,6 +1599,7 @@
     item.archivedAt = item.archivedAt || null;
     item.autoExpireAt = item.autoExpireAt || null;
     item.folderId = item.folderId || null;
+    if (item.type === "password") item.login = { url: "", username: "", password: "", ...(item.login || {}) };
     item.order = (typeof item.order === "number") ? item.order : item.createdAt || Date.now();
     migrateItem(item);
     // A whole-image item can't be a Command \u2014 Commands need text content.
@@ -1902,6 +1932,7 @@
   // Copy that's aware of {{placeholders}} in Snippets/Commands \u2014 prompts
   // for values before copying instead of copying the raw template.
   function copyItemSmart(item, liveContent) {
+    if (item.type === "password") { copyLoginPart(item, "password"); return; }
     if (item.contentType === "image") { copyImageToClipboard(item.content); return; }
     const content = liveContent !== undefined ? liveContent : item.content;
     const placeholders = extractPlaceholders(content);
@@ -2612,7 +2643,8 @@
 
   function itemSearchScore(item) {
     if (!searchQuery) return 0;
-    const contentScore = fuzzyScore(searchQuery, item.content || "");
+    const searchable = (item.content || "") + (item.login ? " " + item.login.username + " " + item.login.url : "");
+    const contentScore = fuzzyScore(searchQuery, searchable);
     const titleScore = fuzzyScore(searchQuery, item.title || "") + 50; // title matches rank slightly higher
     const tagNames = item.tags.map((tid) => tagById(tid)).filter(Boolean).map((t) => t.name);
     const tagScore = Math.max(-1, ...tagNames.map((n) => fuzzyScore(searchQuery, n)));
@@ -2659,7 +2691,7 @@
       const count = countForNav("vault");
       if (!isVaultSetUp()) return { icon: "\ud83d\udd10", title: "Keep secrets locked", hint: "Passwords, API keys and private notes go here, encrypted with a password only you know. No account needed.", action: "Set up Vault", onAction: () => startVaultSetup() };
       if (!isVaultUnlocked() && count) return { icon: "\ud83d\udd12", title: "Vault is locked", hint: "Unlock to see your " + count + (count === 1 ? " item." : " items."), action: "Unlock", onAction: () => promptUnlock() };
-      return { icon: "\ud83d\udd10", title: "Vault is empty", hint: "Paste here or tap + New: anything made in the Vault is encrypted from the start. You can also move any item in from its menu." + (isVaultUnlocked() ? "" : " (Unlock first.)"), action: "New note" };
+      return { icon: "\ud83d\udd10", title: "Vault is empty", hint: "Tap + New for a password or a note, or paste here: anything made in the Vault is encrypted from the start. You can also move any item in from its menu." + (isVaultUnlocked() ? "" : " (Unlock first.)"), action: "New" };
     }
     if (cache.filter((i) => !i.vaulted && !i.deletedAt).length === 0 && currentView !== "trash") {
       return { icon: "\ud83d\udccb", title: "Your clipboard is empty", hint: "Paste anywhere (Ctrl/Cmd+V) to save something, or start a note.", action: "New note" };
@@ -2832,7 +2864,9 @@
     }
     return [
       { label: "Open", run: () => openDetail(item.id) },
-      { label: "Copy", run: () => copyItemSmart(item) },
+      ...(item.type === "password"
+        ? [{ label: "Copy password", run: () => copyLoginPart(item, "password") }, { label: "Copy username", run: () => copyLoginPart(item, "username") }]
+        : [{ label: "Copy", run: () => copyItemSmart(item) }]),
       { label: item.unread ? "Mark as read" : "Mark as unread", run: async () => {
         item.unread = !item.unread;
         await saveItem(item);
@@ -3213,7 +3247,9 @@
       preview.className = "item-preview";
       const text = document.createElement("div");
       text.className = "item-text";
-      const primaryText = item.title ? item.title : (item.contentType === "image" ? "Image" : firstLine(item.content));
+      const isLogin = item.type === "password";
+      const primaryText = isLogin ? (item.title || hostOf(item.login.url) || "Password")
+        : item.title ? item.title : (item.contentType === "image" ? "Image" : firstLine(item.content));
       if (!primaryText) {
         text.textContent = "Untitled";
         text.classList.add("untitled");
@@ -3221,10 +3257,11 @@
         text.textContent = primaryText;
       }
       preview.appendChild(text);
-      if (item.title) {
+      const subText = isLogin ? item.login.username : (item.title ? firstLine(item.content) : "");
+      if (subText) {
         const sub = document.createElement("div");
         sub.className = "item-subtext";
-        sub.textContent = firstLine(item.content);
+        sub.textContent = subText;
         preview.appendChild(sub);
       }
       const meta = document.createElement("div");
@@ -3361,6 +3398,7 @@
   // "+ New" and backing out doesn't leave an "Untitled" item behind.
   function isBlankItem(item) {
     if (item._locked) return false; // a locked Vault item's content is just unreadable, not empty
+    if (item.login && (item.login.url || item.login.username || item.login.password)) return false;
     return !(item.title || "").trim() && !(item.content || "").trim() && !item.images.length &&
       !item.tags.length && !item.folderId && !item.starred && !item.pinned && !item.runs.length;
   }
@@ -3461,7 +3499,7 @@
     const typeSelect = document.createElement("div");
     typeSelect.id = "type-select";
     if (!inTrash) {
-      ITEM_TYPES.forEach((t) => {
+      ITEM_TYPES.filter((t) => t !== "password" || item.vaulted || item.type === "password").forEach((t) => {
         const btn = document.createElement("button");
         const disabledForImage = item.contentType === "image" && t === "command";
         btn.className = "type-btn " + t + (item.type === t ? " active" : "");
@@ -3477,7 +3515,7 @@
           item.updatedAt = Date.now();
           await saveItem(item);
           openDetail(item.id);
-          showToast("Changed to " + (t === "command" ? "Command" + (item.locked ? " \u00b7 locked" : "") : "Note"));
+          showToast("Changed to " + (t === "command" ? "Command" + (item.locked ? " \u00b7 locked" : "") : t === "password" ? "Password" : "Note"));
         });
         typeSelect.appendChild(btn);
       });
@@ -3592,7 +3630,7 @@
     const titleInput = document.createElement("input");
     titleInput.id = "title-input";
     titleInput.type = "text";
-    titleInput.placeholder = "Title (optional)";
+    titleInput.placeholder = item.type === "password" ? "Name (e.g. Gmail, Bank)" : "Title (optional)";
     titleInput.value = item.title || "";
     titleInput.disabled = inTrash;
     body.appendChild(titleInput);
@@ -3600,12 +3638,15 @@
     const textarea = document.createElement("textarea");
     textarea.id = "content-input";
     textarea.value = item.content;
-    textarea.placeholder = "Type or paste content here...";
+    textarea.placeholder = item.type === "password" ? "Notes (optional): security questions, PINs, recovery codes\u2026" : "Type or paste content here...";
     textarea.disabled = inTrash || (item.type === "command" && item.locked);
     textarea.classList.toggle("prose", item.type === "note");
     textarea.classList.toggle("terminal", item.type === "command");
+    textarea.classList.toggle("login-notes", item.type === "password");
 
-    if (!textarea.disabled) {
+    const readLogin = item.type === "password" ? buildLoginFields(ed, body, () => scheduleAutosave()) : null;
+
+    if (!textarea.disabled && item.type !== "password") {
       const editToolbar = document.createElement("div");
       editToolbar.id = "edit-toolbar";
       const undoBtn = document.createElement("button");
@@ -3691,8 +3732,12 @@
         vars.map((v) => '<span class="var-chip" title="' + escapeHtml(v.options.length ? "Choices: " + v.options.join(", ") : "Free text") + '">{{' + escapeHtml(v.name) + (v.options.length ? " \u25be" : "") + '}}</span>').join("") +
         '<span class="vars-row-hint">Tip: {{env: dev | prod}} gives a dropdown</span>';
     }
-    updateVarsRow();
-    textarea.addEventListener("input", updateVarsRow);
+    if (item.type !== "password") {
+      updateVarsRow();
+      textarea.addEventListener("input", updateVarsRow);
+    } else {
+      varsRow.classList.add("hidden");
+    }
     body.appendChild(varsRow);
     if (item.type === "command" && !inTrash) body.appendChild(renderRunHistory(item));
 
@@ -3710,12 +3755,8 @@
       clearTimeout(autosaveTimer);
       if (ed.statusEl) ed.statusEl.textContent = "";
       autosaveTimer = setTimeout(async () => {
-        const newTitle = titleInput.value.trim();
-        const newContent = textarea.value;
-        if (newTitle === (item.title || "") && newContent === item.content) return;
-        item.title = newTitle;
-        item.content = newContent;
-        item.updatedAt = Date.now();
+        autosaveTimer = null;
+        if (!applyTyped()) return;
         await saveItem(item);
         if (ed.statusEl) {
           ed.statusEl.textContent = "\u00b7 Saved";
@@ -3731,13 +3772,20 @@
       if (!autosaveTimer) return;
       clearTimeout(autosaveTimer);
       autosaveTimer = null;
+      if (applyTyped()) saveItem(item).catch((err) => console.error("Saving typed text failed:", err));
+    };
+    // Copies what's in the fields into the item; true if anything changed.
+    function applyTyped() {
       const newTitle = titleInput.value.trim();
-      if (newTitle === (item.title || "") && textarea.value === item.content) return;
+      const newLogin = readLogin ? readLogin() : null;
+      const loginChanged = !!newLogin && JSON.stringify(newLogin) !== JSON.stringify(item.login);
+      if (newTitle === (item.title || "") && textarea.value === item.content && !loginChanged) return false;
       item.title = newTitle;
       item.content = textarea.value;
+      if (newLogin) item.login = newLogin;
       item.updatedAt = Date.now();
-      saveItem(item).catch((err) => console.error("Saving typed text failed:", err));
-    };
+      return true;
+    }
     if (!titleInput.disabled) titleInput.addEventListener("input", scheduleAutosave);
     if (!textarea.disabled) textarea.addEventListener("input", scheduleAutosave);
   }
@@ -3918,6 +3966,7 @@
       copyBtn.innerHTML = icon("copy") + " Copy";
       copyBtn.title = "Copy to clipboard";
       copyBtn.addEventListener("click", () => {
+        ed.flush();
         copyItemSmart(item, textarea ? textarea.value : item.content);
       });
 
@@ -4302,17 +4351,32 @@
 
   // ---------- New item ----------
 
-  document.getElementById("new-btn").addEventListener("click", () => newItem("note"));
+  document.getElementById("new-btn").addEventListener("click", (e) => {
+    if (currentView !== "vault") { newItem("note"); return; }
+    e.stopPropagation();
+    const actions = [
+      { label: "Password", run: () => newItem("password") },
+      { label: "Note", run: () => newItem("note") },
+      { label: "Command", run: () => newItem("command") }
+    ];
+    if (isDrawerMode()) { openSheet("New in the Vault", actions, false); return; }
+    const r = e.currentTarget.getBoundingClientRect();
+    showContextMenu(r.right - 160, r.bottom + 4, actions.map((a) => ({ label: a.label, onClick: a.run })));
+    const menu = document.querySelector(".context-menu");
+    if (menu) menu.id = "new-menu";
+  });
   async function newItem(type) {
-    if (currentView === "vault" && !isVaultUnlocked()) { promptUnlock(() => newItem(type)); return; }
+    const intoVault = currentView === "vault" || type === "password";
+    if (intoVault && !isVaultUnlocked()) { promptUnlock(() => newItem(type)); return; }
     await saveOpenDraft();
+    if (type === "password" && currentView !== "vault") { currentView = "vault"; renderAllViews(); }
     const item = normalize({ id: uuid(), type, content: "", createdAt: Date.now(), updatedAt: Date.now() });
-    if (currentView === "vault") item.vaulted = true; // encrypted from the first save
+    if (intoVault) item.vaulted = true; // encrypted from the first save
     await saveItem(item);
     renderAllViews();
     openDetail(item.id);
-    const ta = document.getElementById("content-input");
-    if (ta) ta.focus();
+    const first = document.getElementById(type === "password" ? "title-input" : "content-input");
+    if (first) first.focus();
   }
 
   // ---------- Search ----------
@@ -4783,6 +4847,15 @@
       item.content = contentField.value;
       changed = true;
     }
+    const loginFields = item.type === "password" && document.getElementById("login-fields");
+    if (loginFields) {
+      const login = {
+        url: document.getElementById("login-url").value.trim(),
+        username: document.getElementById("login-username").value,
+        password: document.getElementById("login-password").value
+      };
+      if (JSON.stringify(login) !== JSON.stringify(item.login)) { item.login = login; changed = true; }
+    }
     if (changed) {
       item.updatedAt = Date.now();
       await saveItem(item);
@@ -5153,6 +5226,7 @@
     const actions = [
       { label: "New note", icon: "note", run: () => newItem("note") },
       { label: "New command", icon: "command", run: () => newItem("command") },
+      { label: "New password", icon: "key", run: () => newItem("password") },
       { label: "Paste from clipboard", icon: "paste", run: click("paste-btn") },
       ...NAV_ITEMS.filter((n) => !n.hideWhenEmpty || countForNav(n.key) > 0)
         .map((n) => ({ label: "Go to " + n.label, icon: n.icon, run: () => switchView(n.key) })),
@@ -5197,7 +5271,7 @@
     scored.sort((a, b) => b.score - a.score || b.item.updatedAt - a.item.updatedAt);
     return scored.slice(0, 8).map(({ item }) => ({
       label: item.title || firstLine(item.content) || (item.images.length ? "Image" : "Untitled"),
-      hint: item.archivedAt ? "Archived" : (item.type === "command" ? "Command" : "Note"),
+      hint: item.archivedAt ? "Archived" : (item.type === "command" ? "Command" : item.type === "password" ? "Password" : "Note"),
       icon: TYPE_ICONS[item.type] || "note",
       run: () => openDetail(item.id)
     }));
@@ -5944,6 +6018,7 @@
   }
 
   async function moveOutOfVault(item, isUndo = false) {
+    if (item.type === "password") { showToast("Passwords stay in the Vault \u2014 change it to a Note first to move it out"); return; }
     if (item._locked || !isVaultUnlocked()) { promptUnlock(() => moveOutOfVault(cache.find((i) => i.id === item.id) || item, isUndo)); return; }
     if (currentId === item.id && editor) editor.flush();
     item.vaulted = false;
@@ -6301,6 +6376,135 @@
     return vaultStub(record);
   }
 
+
+  // ---------- Password items ----------
+  function hostOf(url) {
+    if (!url) return "";
+    try { return new URL(/^[a-z][a-z0-9+.-]*:/i.test(url) ? url : "https://" + url).hostname.replace(/^www\./, ""); }
+    catch { return url; }
+  }
+
+  // Copies the password or username; like any Vault copy, the clipboard is
+  // cleared after 30 seconds (if that setting is on).
+  function copyLoginPart(item, part) {
+    const value = item.login && item.login[part];
+    const label = part === "password" ? "Password" : "Username";
+    if (!value) { showToast("No " + label.toLowerCase() + " saved yet"); return; }
+    if (vaultPrefs.clearClipboard) {
+      scheduleClipboardClear();
+      copyToClipboard(value, label + " copied · clears in 30 s");
+    } else {
+      copyToClipboard(value, label + " copied");
+    }
+  }
+
+  // A random password with letters, digits and symbols, using the browser's
+  // secure random numbers (no modulo bias).
+  const PASSWORD_SETS = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnopqrstuvwxyz", "23456789", "!@#$%^&*-_=+?"];
+  function randomIndex(n) {
+    const limit = 256 - (256 % n);
+    const buf = new Uint8Array(1);
+    do crypto.getRandomValues(buf); while (buf[0] >= limit);
+    return buf[0] % n;
+  }
+  function generatePassword(length = 20) {
+    const all = PASSWORD_SETS.join("");
+    const chars = PASSWORD_SETS.map((set) => set[randomIndex(set.length)]); // at least one of each kind
+    while (chars.length < length) chars.push(all[randomIndex(all.length)]);
+    for (let i = chars.length - 1; i > 0; i--) { const j = randomIndex(i + 1); [chars[i], chars[j]] = [chars[j], chars[i]]; }
+    return chars.join("");
+  }
+
+  // The Website / Username / Password rows of a Password item. Returns a
+  // function that reads the current values (for autosave).
+  function buildLoginFields(ed, body, onChange) {
+    const { item, inTrash } = ed;
+    const wrap = document.createElement("div");
+    wrap.id = "login-fields";
+
+    const row = (labelText, input, buttons) => {
+      const r = document.createElement("div");
+      r.className = "login-row";
+      const label = document.createElement("span");
+      label.textContent = labelText;
+      const line = document.createElement("div");
+      line.className = "login-input";
+      line.appendChild(input);
+      buttons.forEach((b) => line.appendChild(b));
+      r.append(label, line);
+      wrap.appendChild(r);
+      return r;
+    };
+    const field = (id, type, value, placeholder) => {
+      const input = document.createElement("input");
+      input.id = id;
+      input.type = type;
+      input.value = value || "";
+      input.placeholder = placeholder;
+      input.disabled = inTrash;
+      // Keep the browser's own password manager out of it: these belong to other sites.
+      input.autocomplete = "off";
+      input.setAttribute("data-lpignore", "true");
+      input.setAttribute("data-1p-ignore", "");
+      input.spellcheck = false;
+      input.setAttribute("autocapitalize", "off");
+      input.addEventListener("input", onChange);
+      return input;
+    };
+    const button = (text, title, onClick) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = text;
+      b.title = title;
+      b.setAttribute("aria-label", title);
+      b.addEventListener("click", onClick);
+      return b;
+    };
+    const read = () => ({ url: urlInput.value.trim(), username: userInput.value, password: pwInput.value });
+    const copyNow = (part) => { ed.flush(); copyLoginPart(item, part); };
+
+    const urlInput = field("login-url", "url", item.login.url, "example.com");
+    const openBtn = button("Open", "Open the website", () => {
+      const url = urlInput.value.trim();
+      if (!url) { showToast("Add the website first"); return; }
+      window.open(/^[a-z][a-z0-9+.-]*:/i.test(url) ? url : "https://" + url, "_blank", "noopener");
+    });
+    row("Website", urlInput, [openBtn]);
+
+    const userInput = field("login-username", "text", item.login.username, "Email or username");
+    row("Username", userInput, [button("Copy", "Copy username", () => copyNow("username"))]);
+
+    const pwInput = field("login-password", "password", item.login.password, "Password");
+    const showBtn = button("Show", "Show password", () => {
+      const hidden = pwInput.type === "password";
+      pwInput.type = hidden ? "text" : "password";
+      showBtn.textContent = hidden ? "Hide" : "Show";
+      showBtn.title = hidden ? "Hide password" : "Show password";
+    });
+    const genBtn = button("Generate", "Generate a strong password", () => {
+      if (pwInput.value && !confirm("Replace the current password with a new one?")) return;
+      pwInput.value = generatePassword();
+      pwInput.type = "text";
+      showBtn.textContent = "Hide";
+      pwInput.dispatchEvent(new Event("input", { bubbles: true }));
+      showToast("Strong password generated — remember to change it on the website too");
+    });
+    const pwRow = row("Password", pwInput, inTrash ? [showBtn] : [showBtn, button("Copy", "Copy password", () => copyNow("password")), genBtn]);
+    const strength = document.createElement("div");
+    strength.className = "login-strength";
+    const updateStrength = () => {
+      if (!pwInput.value) { strength.textContent = ""; return; }
+      const st = passwordStrength(pwInput.value);
+      strength.textContent = st.level === 0 ? "Short password" : st.label;
+      strength.dataset.level = st.level;
+    };
+    pwInput.addEventListener("input", updateStrength);
+    updateStrength();
+    pwRow.appendChild(strength);
+
+    body.appendChild(wrap);
+    return read;
+  }
 
   // ---------- Profiles: screens ----------
   const profileInitial = (pr) => (pr.name.trim()[0] || "?").toUpperCase();
