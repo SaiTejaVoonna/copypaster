@@ -244,6 +244,7 @@
   .item-text { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 13px; }
   .item-text.untitled { color: var(--text-dim); font-style: italic; }
   .item-meta { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+  .row-expire { font-size: 11px; cursor: help; }
   .mini-tag { width: 6px; height: 6px; border-radius: 50%; }
 
   .row-icons { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
@@ -1833,6 +1834,13 @@
       const meta = document.createElement("div");
       meta.className = "item-meta";
       meta.textContent = timeAgo(item.updatedAt);
+      if (item.autoExpireAt && !item.deletedAt) {
+        const expireEl = document.createElement("span");
+        expireEl.className = "row-expire";
+        expireEl.textContent = "\u23f3";
+        expireEl.title = "Auto-deletes " + timeLeft(item.autoExpireAt) + " (" + formatExpiry(item.autoExpireAt) + ")";
+        meta.appendChild(expireEl);
+      }
       for (const tid of item.tags.slice(0, 4)) {
         const t = tagById(tid);
         if (!t) continue;
