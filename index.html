@@ -196,6 +196,23 @@
     border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; cursor: pointer;
   }
   .settings-row-actions button:hover, .settings-row #theme-toggle:hover { border-color: var(--accent); }
+  #settings-panel { max-height: 88vh; overflow-y: auto; }
+  .settings-section { padding: 14px 18px; border-top: 1px solid var(--border); font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
+  .settings-section-title { font-weight: 600; }
+  .settings-subtitle { font-weight: 600; font-size: 12px; margin-top: 4px; }
+  .settings-hint { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
+  .settings-check { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; }
+  .cleanup-rule { display: flex; align-items: center; gap: 6px; }
+  .cleanup-rule input {
+    flex: 1; min-width: 0; background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: var(--radius-sm); padding: 5px 8px; font-size: 12px; font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  .cleanup-rule span { color: var(--text-dim); }
+  .cleanup-rule button, #cleanup-add-rule {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text-dim);
+    border-radius: var(--radius-sm); padding: 4px 9px; font-size: 12px; cursor: pointer;
+  }
+  #cleanup-add-rule { align-self: flex-start; }
 
   /* ---------- List pane ---------- */
   #list-pane { width: 380px; min-width: 260px; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
@@ -797,6 +814,16 @@
         <button id="import-btn">⬆ Import</button>
         <input id="import-file" type="file" accept=".cps,.json" hidden>
       </div>
+    </div>
+    <div class="settings-section" id="cleanup-settings">
+      <div class="settings-section-title">Paste clean-up</div>
+      <div class="settings-hint">Applied automatically to text you paste as a new note. Any note can also be cleaned up from its editor with “Clean up”.</div>
+      <label class="settings-check"><input type="checkbox" data-cleanup="tidy"> Remove invisible characters and trailing spaces</label>
+      <label class="settings-check"><input type="checkbox" data-cleanup="quotes"> Turn curly “quotes” into straight "quotes"</label>
+      <label class="settings-check"><input type="checkbox" data-cleanup="blank"> Collapse runs of blank lines</label>
+      <div class="settings-subtitle">Find and replace</div>
+      <div id="cleanup-rules"></div>
+      <button id="cleanup-add-rule" type="button">+ Add rule</button>
     </div>
   </div>
 </div>
@@ -2551,8 +2578,13 @@
       redoBtn.textContent = "↻ Redo";
       redoBtn.title = "Redo (Ctrl+Y also works)";
       redoBtn.addEventListener("click", () => { textarea.focus(); document.execCommand("redo"); });
+      const cleanBtn = document.createElement("button");
+      cleanBtn.textContent = "\u2728 Clean up \u25be";
+      cleanBtn.title = "Clean up the selection (or all text): spaces, quotes, case, your find & replace rules";
+      cleanBtn.addEventListener("click", (e) => { e.stopPropagation(); openCleanupMenu(cleanBtn, textarea); });
       editToolbar.appendChild(undoBtn);
       editToolbar.appendChild(redoBtn);
+      editToolbar.appendChild(cleanBtn);
       body.appendChild(editToolbar);
     }
 
@@ -3463,6 +3495,138 @@
     showToast(toastMsg || "Pasted as new note \u2014 paste again to add more images");
   }
 
+  // ---------- Paste clean-up ----------
+  // Text transforms, used automatically on paste (per the Settings) and on
+  // demand from the editor's "Clean up" menu. Settings are per device.
+  const CLEANUP_KEY = "copypaster-paste-cleanup";
+  const CLEANUP_DEFAULTS = { tidy: true, quotes: false, blank: false, rules: [] };
+
+  function loadCleanupSettings() {
+    try { return { ...CLEANUP_DEFAULTS, ...JSON.parse(localStorage.getItem(CLEANUP_KEY) || "{}") }; }
+    catch { return { ...CLEANUP_DEFAULTS }; }
+  }
+  function saveCleanupSettings(settings) { localStorage.setItem(CLEANUP_KEY, JSON.stringify(settings)); }
+
+  const TRANSFORMS = {
+    tidy: (t) => t.replace(/\r\n?/g, "\n").replace(/[\u200B-\u200D\u2060\uFEFF]/g, "").replace(/\u00A0/g, " ")
+      .replace(/[ \t]+$/gm, "").replace(/^\n+|\n+$/g, ""),
+    quotes: (t) => t.replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'").replace(/[\u201C\u201D\u201E\u201F\u2033]/g, '"'),
+    blank: (t) => t.replace(/\n{3,}/g, "\n\n"),
+    upper: (t) => t.toUpperCase(),
+    lower: (t) => t.toLowerCase(),
+    title: (t) => t.toLowerCase().replace(/(^|[\s(\[{"'-])(\p{L})/gu, (m, pre, ch) => pre + ch.toUpperCase()),
+    sentence: (t) => t.toLowerCase().replace(/(^\s*|[.!?]\s+|\n\s*)(\p{L})/gu, (m, pre, ch) => pre + ch.toUpperCase()),
+    rules: (t, rules) => (rules || []).reduce((acc, r) => (r.find ? acc.split(r.find).join(r.replace || "") : acc), t)
+  };
+
+  function cleanPastedText(text) {
+    const s = loadCleanupSettings();
+    let out = text;
+    if (s.tidy) out = TRANSFORMS.tidy(out);
+    if (s.quotes) out = TRANSFORMS.quotes(out);
+    if (s.blank) out = TRANSFORMS.blank(out);
+    out = TRANSFORMS.rules(out, s.rules);
+    return out;
+  }
+
+  function initCleanupSettings() {
+    const section = document.getElementById("cleanup-settings");
+    const rulesEl = document.getElementById("cleanup-rules");
+    const s = loadCleanupSettings();
+    section.querySelectorAll("[data-cleanup]").forEach((box) => {
+      box.checked = !!s[box.dataset.cleanup];
+      box.addEventListener("change", () => {
+        const now = loadCleanupSettings();
+        now[box.dataset.cleanup] = box.checked;
+        saveCleanupSettings(now);
+      });
+    });
+    const renderRules = () => {
+      const now = loadCleanupSettings();
+      rulesEl.innerHTML = "";
+      if (!now.rules.length) {
+        rulesEl.innerHTML = '<div class="settings-hint">No rules yet. Example: replace \u201cprod\u201d with \u201ctest\u201d.</div>';
+      }
+      now.rules.forEach((rule, i) => {
+        const row = document.createElement("div");
+        row.className = "cleanup-rule";
+        const find = document.createElement("input");
+        find.placeholder = "Find";
+        find.value = rule.find || "";
+        const replace = document.createElement("input");
+        replace.placeholder = "Replace with";
+        replace.value = rule.replace || "";
+        const save = () => {
+          const latest = loadCleanupSettings();
+          latest.rules[i] = { find: find.value, replace: replace.value };
+          saveCleanupSettings(latest);
+        };
+        find.addEventListener("change", save);
+        replace.addEventListener("change", save);
+        const arrow = document.createElement("span");
+        arrow.textContent = "\u2192";
+        const del = document.createElement("button");
+        del.type = "button";
+        del.textContent = "\u2715";
+        del.title = "Remove rule";
+        del.addEventListener("click", () => {
+          const latest = loadCleanupSettings();
+          latest.rules.splice(i, 1);
+          saveCleanupSettings(latest);
+          renderRules();
+        });
+        row.append(find, arrow, replace, del);
+        rulesEl.appendChild(row);
+      });
+    };
+    document.getElementById("cleanup-add-rule").addEventListener("click", () => {
+      const latest = loadCleanupSettings();
+      latest.rules.push({ find: "", replace: "" });
+      saveCleanupSettings(latest);
+      renderRules();
+      const inputs = rulesEl.querySelectorAll(".cleanup-rule input");
+      if (inputs.length) inputs[inputs.length - 2].focus();
+    });
+    renderRules();
+  }
+  initCleanupSettings();
+
+  // Replaces the selection (or everything) through the browser's own editing,
+  // so Undo / Ctrl+Z reverts it and autosave picks it up.
+  function applyTransformToEditor(textarea, fn) {
+    const hasSelection = textarea.selectionStart !== textarea.selectionEnd;
+    if (!hasSelection) textarea.select();
+    const start = textarea.selectionStart, end = textarea.selectionEnd;
+    const before = textarea.value.slice(start, end);
+    const after = fn(before);
+    if (after === before) { showToast("Nothing to clean up"); return; }
+    textarea.focus();
+    if (!document.execCommand("insertText", false, after)) {
+      textarea.setRangeText(after, start, end, "select");
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    if (hasSelection) textarea.setSelectionRange(start, start + after.length);
+  }
+
+  function openCleanupMenu(anchor, textarea) {
+    const rules = loadCleanupSettings().rules.filter((r) => r.find);
+    const run = (fn) => () => applyTransformToEditor(textarea, fn);
+    const actions = [
+      { label: "Tidy spaces & invisible characters", onClick: run(TRANSFORMS.tidy) },
+      { label: "Straight quotes", onClick: run(TRANSFORMS.quotes) },
+      { label: "Collapse blank lines", onClick: run(TRANSFORMS.blank) },
+      { label: "UPPERCASE", onClick: run(TRANSFORMS.upper) },
+      { label: "lowercase", onClick: run(TRANSFORMS.lower) },
+      { label: "Title Case", onClick: run(TRANSFORMS.title) },
+      { label: "Sentence case", onClick: run(TRANSFORMS.sentence) }
+    ];
+    if (rules.length) actions.push({ label: "Apply my find & replace (" + rules.length + ")", onClick: run((t) => TRANSFORMS.rules(t, rules)) });
+    const r = anchor.getBoundingClientRect();
+    showContextMenu(r.left, r.bottom + 4, actions);
+    const menu = document.querySelector(".context-menu");
+    if (menu) menu.style.width = "250px";
+  }
+
   // ---------- Code detection ----------
   // Guesses whether pasted text is code, and which of the Command languages.
   // Deliberately cautious: it only ever suggests, and prose, links and
@@ -3513,7 +3677,9 @@
     return cache.find((i) => !i.deletedAt && !i.archivedAt && !i.images.length && (i.content || "").trim() === key);
   }
 
-  async function addTextItem(text, toastMsg, allowDuplicate = false) {
+  async function addTextItem(rawText, toastMsg, allowDuplicate = false) {
+    const text = allowDuplicate ? rawText : cleanPastedText(rawText);
+    if (!text.trim()) { showToast("Nothing left after clean-up"); return; }
     await saveOpenDraft();
     const existing = allowDuplicate ? null : findDuplicate(text);
     if (existing) {
