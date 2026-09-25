@@ -2803,7 +2803,6 @@
     detailPane.innerHTML = "";
     detailPane.classList.add("open");
     detailPane.classList.toggle("anim", isNewItem);
-    pushDetailHistory();
 
     const header = document.createElement("div");
     header.id = "detail-header";
@@ -3322,7 +3321,7 @@
     detailPane.appendChild(footer);
   }
 
-  async function closeDetail(fromPopState = false) {
+  async function closeDetail() {
     await saveOpenDraft();
     if (discardIfBlank(currentId)) renderNav();
     if (detailPane.classList.contains("open") && motionOK() && window.matchMedia("(max-width: 720px)").matches) {
@@ -3334,13 +3333,6 @@
     detailPane.classList.remove("open");
     detailPane.innerHTML = '<div id="placeholder">Select an item, or create a new one</div>';
     renderList();
-    // Closed by the UI (← button, Escape, delete...) rather than the phone's
-    // back button: pop our history entry so the next back press leaves
-    // nothing stale behind.
-    if (!fromPopState && history.state && history.state.cpDetail) {
-      ignoreNextPopState = true;
-      history.back();
-    }
   }
 
   // Favoriting a Note that has an auto-delete timer offers to remove the
@@ -3412,34 +3404,89 @@
   }
 
   // ---------- Mobile back button ----------
-  // On phones the detail pane covers the list, so the hardware/gesture back
-  // button should close it instead of leaving the app. Opening the pane
-  // pushes one history entry (only one, however many items get opened in a
-  // row); popstate closes the pane.
-  const mobileLayout = window.matchMedia("(max-width: 720px)");
-  let ignoreNextPopState = false;
+  // The phone's back button (and back gesture) steps back through whatever
+  // is open, top first: sheet, command box, dialogs, photo, Settings, popups,
+  // a revealed swipe button, the menu, select mode, the open item, full
+  // screen, a search, then the current view back to All Items. Only at that
+  // point does back leave, and in the installed app it asks for a second
+  // press first.
+  //
+  // How: one extra "guard" history entry sits on top of the page. Back pops
+  // it (popstate); we close one thing and put the guard back. UI buttons that
+  // close things never touch history, so nothing can get out of sync.
+  const backGuardWanted = () =>
+    window.matchMedia("(max-width: 900px)").matches || window.matchMedia("(display-mode: standalone)").matches;
+  const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  let exitArmedUntil = 0;
+  let guardRestoreTimer = null;
 
-  function pushDetailHistory() {
-    if (!mobileLayout.matches) return;
-    if (history.state && history.state.cpDetail) return;
-    history.pushState({ cpDetail: true }, "");
+  function pushBackGuard() {
+    if (!backGuardWanted() || (history.state && history.state.cpGuard)) return;
+    history.pushState({ cpGuard: true }, "");
+  }
+
+  // Closes the top-most open thing. Returns false when there's nothing left.
+  function stepBack() {
+    if (document.getElementById("action-sheet-overlay")) { closeActionSheet(); return true; }
+    if (document.getElementById("palette-overlay")) { closePalette(); return true; }
+    const placeholderModal = document.getElementById("placeholder-modal-overlay");
+    if (placeholderModal) { placeholderModal.remove(); return true; }
+    if (document.getElementById("image-lightbox")) { closeImageLightbox(); return true; }
+    const settings = document.getElementById("settings-overlay");
+    if (!settings.classList.contains("hidden")) { settings.classList.add("hidden"); return true; }
+    if (document.querySelector(".popover, .context-menu")) { closeAnyPopover(); return true; }
+    if (openSwipe) { closeOpenSwipe(); return true; }
+    if (sidebarEl.classList.contains("open")) { closeSidebarOnMobile(); return true; }
+    if (selectMode) { document.getElementById("select-mode-btn").click(); return true; }
+    if (document.body.classList.contains("zen-mode")) { document.body.classList.remove("zen-mode"); return true; }
+    if (currentId) { closeDetail(); return true; }
+    if (searchQuery) {
+      const search = document.getElementById("search-input");
+      search.value = "";
+      searchQuery = "";
+      search.blur();
+      renderList();
+      return true;
+    }
+    if (currentView !== "all") { switchView("all"); return true; }
+    return false;
   }
 
   window.addEventListener("popstate", () => {
-    if (ignoreNextPopState) {
-      ignoreNextPopState = false;
-      // Something reopened the pane before our own history.back() landed.
-      if (detailPane.classList.contains("open")) pushDetailHistory();
+    if (history.state && history.state.cpGuard) return; // moved forward onto the guard
+    clearTimeout(guardRestoreTimer);
+    if (stepBack()) { pushBackGuard(); return; }
+    // Nothing left to close.
+    if (isStandalone() && Date.now() > exitArmedUntil) {
+      // Installed app: the next back would close it, so ask for a second one.
+      exitArmedUntil = Date.now() + 2000;
+      showToast("Press back again to exit");
+      // If they don't, restore the guard so a later back asks again.
+      guardRestoreTimer = setTimeout(pushBackGuard, 2000);
       return;
     }
-    if (!detailPane.classList.contains("open")) return;
-    const placeholderModal = document.getElementById("placeholder-modal-overlay");
-    if (placeholderModal) placeholderModal.remove();
-    if (document.getElementById("image-lightbox")) closeImageLightbox();
-    closeAnyPopover();
-    document.body.classList.remove("zen-mode");
-    closeDetail(true);
+    // In a browser tab (or the second press), let this back go through.
+    history.back();
   });
+
+  // Installed on iPhone there's no browser back, so a swipe in from the left
+  // edge does the same job (and opens the menu when nothing else is open).
+  let edgeStart = null;
+  document.addEventListener("touchstart", (e) => {
+    edgeStart = (navigator.standalone === true && e.touches.length === 1 && e.touches[0].clientX < 22)
+      ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+  }, { passive: true });
+  document.addEventListener("touchend", (e) => {
+    if (!edgeStart) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - edgeStart.x, dy = Math.abs(t.clientY - edgeStart.y);
+    edgeStart = null;
+    if (dx < 70 || dy > 60) return;
+    if (!stepBack() && isDrawerMode()) openSidebarDrawer();
+  }, { passive: true });
+
+  pushBackGuard();
+  window.matchMedia("(max-width: 900px)").addEventListener("change", pushBackGuard);
 
   function openTagAssignPopover(anchorEvent, item) {
     closeAnyPopover();
