@@ -191,14 +191,23 @@
   }
   .settings-row:last-child { border-bottom: none; }
   .settings-row-actions { display: flex; gap: 8px; }
-  .settings-row-actions button, .settings-row #theme-toggle {
+  .settings-line { display: flex; align-items: center; justify-content: space-between; }
+  .settings-row-actions button, .settings-line #theme-toggle {
     background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
     border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; cursor: pointer;
   }
-  .settings-row-actions button:hover, .settings-row #theme-toggle:hover { border-color: var(--accent); }
+  .settings-row-actions button:hover, .settings-line #theme-toggle:hover { border-color: var(--accent); }
   #settings-panel { max-height: 88vh; overflow-y: auto; }
-  .settings-section { padding: 14px 18px; border-top: 1px solid var(--border); font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
-  .settings-section-title { font-weight: 600; }
+  .settings-section { padding: 14px 18px; border-bottom: 1px solid var(--border); font-size: 13px; display: flex; flex-direction: column; gap: 8px; }
+  .settings-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); }
+  #settings-header { position: sticky; top: 0; background: var(--panel); z-index: 1; }
+  #settings-footer { padding: 12px 18px; font-size: 11px; color: var(--text-dim); text-align: center; }
+  /* Phones: a full-width sheet from the bottom, easy to reach and close. */
+  @media (max-width: 600px) {
+    #settings-overlay { align-items: flex-end; }
+    #settings-panel { width: 100%; max-width: 100%; max-height: 90vh; border-radius: var(--radius) var(--radius) 0 0; border-bottom: none; }
+    #settings-close-btn { font-size: 18px; padding: 4px 8px; }
+  }
   .settings-subtitle { font-weight: 600; font-size: 12px; margin-top: 4px; }
   .settings-hint { font-size: 11px; color: var(--text-dim); line-height: 1.5; }
   .settings-check { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; }
@@ -573,9 +582,19 @@
   /* ---------- Mobile ---------- */
   /* Hidden by default; must come before the media queries below so they can show it. */
   #back-btn, #menu-btn { display: none; background: transparent; border: none; color: var(--text-dim); font-size: 18px; cursor: pointer; padding: 0 4px; align-items: center; }
+  #sidebar-backdrop { display: none; }
   @media (max-width: 900px) {
-    #sidebar { position: absolute; inset: 0; z-index: 40; transform: translateX(-100%); transition: transform 0.18s; }
+    /* A slide-out drawer. The width is fixed here (!important beats the
+       desktop drag-to-resize width, which is stored inline). */
+    #sidebar {
+      position: fixed; top: 0; bottom: 0; left: 0; z-index: 60;
+      width: min(300px, 85vw) !important; min-width: 0;
+      transform: translateX(-100%); transition: transform 0.2s ease; box-shadow: 4px 0 24px var(--shadow);
+    }
     #sidebar.open { transform: translateX(0); }
+    #sidebar-backdrop { position: fixed; inset: 0; z-index: 59; background: rgba(0, 0, 0, 0.45); }
+    body.sidebar-open #sidebar-backdrop { display: block; }
+    #resize-sidebar { display: none; }
     #list-pane { width: 100%; min-width: 0; }
     #menu-btn { display: inline-flex; }
   }
@@ -729,6 +748,7 @@
 
 
 <div id="app">
+  <div id="sidebar-backdrop"></div>
   <div id="sidebar">
     <div id="brand"><span id="brand-dot"></span><span id="brand-label">CopyPaster</span>
       <button id="sidebar-collapse-btn" title="Collapse sidebar">&laquo;</button>
@@ -803,12 +823,16 @@
       <span>Settings</span>
       <button id="settings-close-btn">✕</button>
     </div>
-    <div class="settings-row">
-      <span>Theme</span>
-      <button id="theme-toggle" title="Toggle theme">☾ Dark</button>
+    <div class="settings-section">
+      <div class="settings-section-title">Appearance</div>
+      <div class="settings-line">
+        <span>Theme</span>
+        <button id="theme-toggle" title="Toggle theme">☾ Dark</button>
+      </div>
     </div>
-    <div class="settings-row">
-      <span>Backup</span>
+    <div class="settings-section">
+      <div class="settings-section-title">Your data</div>
+      <div class="settings-hint">Everything is saved only in this browser, on this device. Export now and then to keep a backup file.</div>
       <div class="settings-row-actions">
         <button id="export-btn">⬇ Export</button>
         <button id="import-btn">⬆ Import</button>
@@ -825,6 +849,7 @@
       <div id="cleanup-rules"></div>
       <button id="cleanup-add-rule" type="button">+ Add rule</button>
     </div>
+    <div id="settings-footer">CopyPaster v1.5 · local-first, no account</div>
   </div>
 </div>
 
@@ -997,6 +1022,8 @@
   const sidebarEl = document.getElementById("sidebar");
   if (localStorage.getItem(SIDEBAR_COLLAPSE_KEY) === "1") sidebarEl.classList.add("collapsed");
   document.getElementById("sidebar-collapse-btn").addEventListener("click", () => {
+    // On phones and tablets the same button closes the drawer instead.
+    if (window.matchMedia("(max-width: 900px)").matches) { closeSidebarOnMobile(); return; }
     const collapsed = sidebarEl.classList.toggle("collapsed");
     localStorage.setItem(SIDEBAR_COLLAPSE_KEY, collapsed ? "1" : "0");
   });
@@ -1005,6 +1032,7 @@
 
   const settingsOverlay = document.getElementById("settings-overlay");
   document.getElementById("settings-btn").addEventListener("click", () => {
+    closeSidebarOnMobile();
     settingsOverlay.classList.remove("hidden");
   });
   document.getElementById("settings-close-btn").addEventListener("click", () => {
@@ -2396,6 +2424,7 @@
     const isOpening = id !== currentId;
     lastRenderedDetailId = id;
     currentId = id;
+    closeSidebarOnMobile();
     const opened = cache.find((i) => i.id === id);
     if (isNewItem && motionOK()) {
       detailPane.classList.remove("detail-enter");
@@ -3976,6 +4005,9 @@
     }
 
     if (e.key === "Escape") {
+      if (sidebarEl.classList.contains("open")) { closeSidebarOnMobile(); return; }
+      const settingsOpen = !document.getElementById("settings-overlay").classList.contains("hidden");
+      if (settingsOpen) { document.getElementById("settings-overlay").classList.add("hidden"); return; }
       const placeholderModal = document.getElementById("placeholder-modal-overlay");
       if (placeholderModal) { placeholderModal.remove(); return; }
       if (document.getElementById("image-lightbox")) { closeImageLightbox(); return; }
@@ -4021,10 +4053,37 @@
 
   // ---------- Mobile sidebar ----------
 
+  // On tablets and phones the sidebar is a drawer. It closes by tapping the
+  // dimmed area, the « button, swiping it left, Escape, or picking a view.
+  const isDrawerMode = () => window.matchMedia("(max-width: 900px)").matches;
+  function openSidebarDrawer() {
+    sidebarEl.classList.add("open");
+    document.body.classList.add("sidebar-open");
+  }
+  function closeSidebarOnMobile() {
+    sidebarEl.classList.remove("open");
+    document.body.classList.remove("sidebar-open");
+  }
   document.getElementById("menu-btn").addEventListener("click", () => {
-    document.getElementById("sidebar").classList.toggle("open");
+    if (sidebarEl.classList.contains("open")) closeSidebarOnMobile();
+    else openSidebarDrawer();
   });
-  function closeSidebarOnMobile() { document.getElementById("sidebar").classList.remove("open"); }
+  document.getElementById("sidebar-backdrop").addEventListener("click", closeSidebarOnMobile);
+  let drawerTouchX = null, drawerTouchY = null;
+  sidebarEl.addEventListener("touchstart", (e) => {
+    drawerTouchX = e.touches[0].clientX;
+    drawerTouchY = e.touches[0].clientY;
+  }, { passive: true });
+  sidebarEl.addEventListener("touchend", (e) => {
+    if (drawerTouchX === null || !isDrawerMode()) return;
+    const dx = e.changedTouches[0].clientX - drawerTouchX;
+    const dy = e.changedTouches[0].clientY - drawerTouchY;
+    if (dx < -60 && Math.abs(dx) > Math.abs(dy)) closeSidebarOnMobile();
+    drawerTouchX = null;
+  });
+  // Leaving drawer size (rotating a tablet, resizing a window) shouldn't
+  // leave the page dimmed.
+  window.matchMedia("(max-width: 900px)").addEventListener("change", (e) => { if (!e.matches) closeSidebarOnMobile(); });
 
   // ---------- Boot ----------
 
