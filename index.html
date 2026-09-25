@@ -4,6 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CopyPaster</title>
+<meta name="description" content="Your private clipboard, notes and commands. Local-first, no account.">
+<meta name="theme-color" content="#0b0d11">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="CopyPaster">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <style>
   :root { --radius: 10px; --radius-sm: 6px; }
 
@@ -904,6 +913,8 @@
     document.documentElement.dataset.theme = theme;
     localStorage.setItem(THEME_KEY, theme);
     document.getElementById("theme-toggle").textContent = theme === "dark" ? "☾ Dark" : "☀ Light";
+    // Colors the phone's status bar / browser bar to match the app.
+    document.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "#0b0d11" : "#f5f5f7";
   }
   document.getElementById("theme-toggle").addEventListener("click", () => {
     applyTheme(document.documentElement.dataset.theme === "dark" ? "light" : "dark");
