@@ -267,6 +267,26 @@
   }
   .item-row[data-swipe-dir="left"]::after { left: 100%; background: var(--danger); }
   .item-row[data-swipe-dir="right"]::after { right: 100%; justify-content: flex-end; background: var(--accent); }
+  /* Long-press shouldn't select text or pop up the phone's own menu. */
+  .item-row { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+  #action-sheet-overlay { position: fixed; inset: 0; z-index: 85; background: rgba(0, 0, 0, 0.45); display: flex; align-items: flex-end; justify-content: center; }
+  #action-sheet {
+    width: min(480px, 100%); background: var(--panel); border: 1px solid var(--border); border-bottom: none;
+    border-radius: var(--radius) var(--radius) 0 0; padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    box-shadow: 0 -8px 30px var(--shadow);
+  }
+  #action-sheet .sheet-title { padding: 8px 12px 10px; font-size: 12px; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+  #action-sheet button {
+    display: block; width: 100%; text-align: left; background: transparent; border: none; color: var(--text);
+    font-size: 15px; padding: 13px 12px; border-radius: var(--radius-sm); cursor: pointer;
+  }
+  #action-sheet button:active, #action-sheet button:hover { background: var(--panel-2); }
+  #action-sheet button.danger { color: var(--danger); }
+  #action-sheet button.cancel { text-align: center; color: var(--text-dim); margin-top: 4px; border-top: 1px solid var(--border); border-radius: 0; }
+  @media (prefers-reduced-motion: no-preference) {
+    #action-sheet { animation: sheet-up 0.18s ease-out; }
+    @keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+  }
   .swipe-action {
     position: absolute; top: 0; bottom: 0; width: 96px; border: none; color: #fff;
     font-size: 13px; font-weight: 700; cursor: pointer;
@@ -2212,6 +2232,99 @@
     codeEl.innerHTML = result.value; // highlight.js escapes the source text
   }
 
+  // ---------- Item actions menu (long-press / right-click) ----------
+  // The same list of quick actions for an item: shown as a sheet from the
+  // bottom after a long-press on phones, or at the cursor on right-click.
+
+  function itemQuickActions(item) {
+    const refresh = () => { renderAllViews(); if (currentId === item.id) openDetail(item.id); };
+    if (item.deletedAt) {
+      return [
+        { label: "Restore", run: () => restoreFromTrash(item) },
+        { label: "Delete forever", danger: true, run: async () => {
+          if (!confirm("Delete this item forever? This can't be undone.")) return;
+          await remove(ITEMS_STORE, item.id);
+          cache = cache.filter((i) => i.id !== item.id);
+          if (currentId === item.id) closeDetail();
+          renderAllViews();
+          showToast("Deleted permanently");
+        } }
+      ];
+    }
+    return [
+      { label: "Open", run: () => openDetail(item.id) },
+      { label: "Copy", run: () => copyItemSmart(item) },
+      { label: item.unread ? "Mark as read" : "Mark as unread", run: async () => {
+        item.unread = !item.unread;
+        await put(ITEMS_STORE, item);
+        refresh();
+        showToast(item.unread ? "Marked unread" : "Marked read");
+      } },
+      { label: item.starred ? "Remove from Favorites" : "Add to Favorites", run: async () => { await toggleFavorite(item); refresh(); } },
+      { label: item.pinned ? "Unpin" : "Pin to top", run: async () => {
+        item.pinned = !item.pinned;
+        item.updatedAt = Date.now();
+        await put(ITEMS_STORE, item);
+        refresh();
+        showToast(item.pinned ? "Pinned to top" : "Unpinned");
+      } },
+      { label: item.archivedAt ? "Unarchive" : "Archive", run: () => toggleArchiveWithUndo(item) },
+      { label: "Select\u2026", run: () => {
+        if (!selectMode) document.getElementById("select-mode-btn").click();
+        selectedIds.add(item.id);
+        renderList();
+        updateBulkBar();
+        updateSelectAllRow();
+      } },
+      { label: "Move to Trash", danger: true, run: () => trashWithUndo(item) }
+    ];
+  }
+
+  function openActionSheet(item) {
+    closeActionSheet();
+    haptic(12);
+    const openedAt = Date.now();
+    const overlay = document.createElement("div");
+    overlay.id = "action-sheet-overlay";
+    const sheet = document.createElement("div");
+    sheet.id = "action-sheet";
+    sheet.setAttribute("role", "menu");
+    const title = document.createElement("div");
+    title.className = "sheet-title";
+    title.textContent = item.title || firstLine(item.content) || (item.images.length ? "Image" : "Untitled");
+    sheet.appendChild(title);
+    for (const action of itemQuickActions(item)) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = action.label;
+      if (action.danger) btn.className = "danger";
+      btn.addEventListener("click", () => {
+        if (Date.now() - openedAt < 450) return;
+        closeActionSheet();
+        action.run();
+      });
+      sheet.appendChild(btn);
+    }
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "cancel";
+    cancel.textContent = "Cancel";
+    cancel.addEventListener("click", closeActionSheet);
+    sheet.appendChild(cancel);
+    overlay.appendChild(sheet);
+    // Lifting the finger that did the long-press can land a click on the dim
+    // background; ignore clicks for a moment so the sheet doesn't close itself.
+    overlay.addEventListener("click", (e) => {
+      if (Date.now() - openedAt < 450) { e.stopPropagation(); return; }
+      if (e.target === overlay) closeActionSheet();
+    });
+    document.body.appendChild(overlay);
+  }
+  function closeActionSheet() {
+    const o = document.getElementById("action-sheet-overlay");
+    if (o) o.remove();
+  }
+
   // ---------- Swipe actions (touch) ----------
   // Swipe a row left to move it to Trash, right to archive it (or restore /
   // unarchive in those views). Both show Undo. Vertical scrolling is left to
@@ -2268,6 +2381,8 @@
     setTimeout(() => document.removeEventListener("click", swallow, { capture: true }), 500);
   }, { passive: true, capture: true });
 
+  let lastLongPress = 0;
+
   function attachSwipeActions(row, item) {
     const actions = swipeActionsFor(item);
     let startX = 0, startY = 0, dx = 0, mode = null; // mode: null | "swipe" | "scroll"
@@ -2318,15 +2433,27 @@
       openSwipe = { row, close };
     };
 
+    let pressTimer = null;
+    const cancelPress = () => { clearTimeout(pressTimer); pressTimer = null; };
     row.addEventListener("touchstart", (e) => {
       if (e.touches.length !== 1) return;
       startX = e.touches[0].clientX; startY = e.touches[0].clientY; dx = 0; mode = null; buzzed = false;
       // Tapping a row whose button is showing just closes it.
-      if (base && !e.target.closest(".swipe-action")) { close(); swallowNextClick(); mode = "closing"; }
+      if (base && !e.target.closest(".swipe-action")) { close(); swallowNextClick(); mode = "closing"; return; }
+      // Holding still for half a second opens the actions sheet.
+      cancelPress();
+      pressTimer = setTimeout(() => {
+        pressTimer = null;
+        mode = "longpress";
+        lastLongPress = Date.now();
+        swallowNextClick();
+        openActionSheet(item);
+      }, 500);
     }, { passive: true });
     row.addEventListener("touchmove", (e) => {
-      if (mode === "closing") return;
+      if (mode === "closing" || mode === "longpress") return;
       const x = e.touches[0].clientX - startX, y = e.touches[0].clientY - startY;
+      if (Math.abs(x) > 10 || Math.abs(y) > 10) cancelPress();
       if (mode === null && (Math.abs(x) > 10 || Math.abs(y) > 10)) mode = Math.abs(x) > Math.abs(y) * 1.5 ? "swipe" : "scroll";
       if (mode !== "swipe") return;
       const action = x < 0 ? actions.left : actions.right;
@@ -2342,7 +2469,8 @@
       if (Math.abs(dx) >= SWIPE_OPEN * 0.7 && !buzzed) { haptic(8); buzzed = true; }
     }, { passive: false });
     row.addEventListener("touchend", () => {
-      if (mode === "closing") { mode = null; return; }
+      cancelPress();
+      if (mode === "closing" || mode === "longpress") { mode = null; return; }
       if (mode !== "swipe") return;
       swallowNextClick();
       const action = dx < 0 ? actions.left : actions.right;
@@ -2350,7 +2478,7 @@
       else { clearLabel(); settle(0); }
       mode = null;
     });
-    row.addEventListener("touchcancel", () => { if (!base) { clearLabel(); settle(0); } });
+    row.addEventListener("touchcancel", () => { cancelPress(); if (!base) { clearLabel(); settle(0); } });
   }
 
   // ---------- List rendering ----------
@@ -2403,6 +2531,15 @@
       }
 
       if (!selectMode) attachSwipeActions(row, item);
+      row.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        // Android also fires this on long-press; our own timer already handled it.
+        if (Date.now() - lastLongPress < 1000 || selectMode) return;
+        if (e.pointerType === "touch" || window.matchMedia("(max-width: 720px)").matches) { openActionSheet(item); return; }
+        showContextMenu(e.clientX, e.clientY, itemQuickActions(item).map((a) => ({ label: a.label, danger: a.danger, onClick: a.run })));
+        const menu = document.querySelector(".context-menu");
+        if (menu) menu.style.width = "200px";
+      });
 
       row.draggable = true;
       row.addEventListener("dragstart", (e) => {
@@ -4285,6 +4422,7 @@
     }
 
     if (e.key === "Escape") {
+      if (document.getElementById("action-sheet-overlay")) { closeActionSheet(); return; }
       if (sidebarEl.classList.contains("open")) { closeSidebarOnMobile(); return; }
       const settingsOpen = !document.getElementById("settings-overlay").classList.contains("hidden");
       if (settingsOpen) { document.getElementById("settings-overlay").classList.add("hidden"); return; }
