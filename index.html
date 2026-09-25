@@ -3588,6 +3588,14 @@
 
   // ---------- Boot ----------
 
+  // Offline support and installability. Service workers only run on real
+  // web addresses (http/https), not when the file is opened from disk.
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch((err) => console.warn("[CopyPaster] offline support unavailable:", err));
+    });
+  }
+
   // Ask the browser to treat saved data as important, so it isn't cleared
   // under storage pressure or by Safari's 7-day rule for unused sites.
   // Browsers decide silently (Chrome grants it to engaged or installed
