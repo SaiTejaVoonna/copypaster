@@ -3386,6 +3386,48 @@
     showToast(toastMsg || "Pasted as new note \u2014 paste again to add more images");
   }
 
+  // ---------- Code detection ----------
+  // Guesses whether pasted text is code, and which of the Command languages.
+  // Deliberately cautious: it only ever suggests, and prose, links and
+  // single words return null. Scores are simple line-pattern votes.
+  const CODE_LANGS = { bash: "Bash", powershell: "PowerShell", cmd: "CMD", python: "Python", sql: "SQL", other: "code" };
+  // Tools whose name alone is a strong sign of a shell command...
+  const SHELL_TOOLS = /^\s*(?:\$\s+)?(sudo|git|npm|npx|yarn|pnpm|cd|ls|docker|docker-compose|kubectl|helm|curl|wget|ssh|scp|rsync|apt|apt-get|brew|pip3?|chmod|chown|mkdir|rm|cp|mv|grep|tar|systemctl|journalctl|terraform|aws|gcloud|sed|awk|xargs)(\s|$)/;
+  // ...and ones that are also English words ("find the file"), which only
+  // count when the line also has a flag, path, variable or shell symbol.
+  const SHELL_WORDS = /^\s*(?:\$\s+)?(echo|export|cat|find|make|source|ping|touch|ln|kill|ps|top|df|du|less|tail|head|nano|vim?)(\s|$)/;
+  const SHELLISH = /\s-{1,2}[a-zA-Z]|[\/~.]\w|[|&<>$=`]/;
+
+  function detectCode(text) {
+    const src = (text || "").trim();
+    if (src.length < 4 || /^https?:\/\/\S+$/.test(src)) return null;
+    const lines = src.split("\n").filter((l) => l.trim());
+    const score = { bash: 0, powershell: 0, cmd: 0, python: 0, sql: 0, other: 0 };
+    if (/^#!\/(usr\/)?bin\/(env\s+)?(ba|z)?sh/.test(src)) score.bash += 3;
+    if (/^#!\/(usr\/)?bin\/(env\s+)?python/.test(src)) score.python += 3;
+    for (const line of lines) {
+      if (/^\s*\$\s+\S/.test(line)) score.bash += 2;
+      if (SHELL_TOOLS.test(line) || (SHELL_WORDS.test(line) && SHELLISH.test(line.replace(SHELL_WORDS, "")))) score.bash += 2;
+      if (/\s(&&|\|\|)\s|\s\|\s\w|\s--?[a-z][\w-]*(=|\s|$)/.test(line)) score.bash += 1;
+      if (/\b(Get|Set|New|Remove|Start|Stop|Invoke|Write|Test|Import)-[A-Z]\w+/.test(line)) score.powershell += 3;
+      if (/\$env:\w+|\|\s*(Where|Select|ForEach)-Object/.test(line)) score.powershell += 2;
+      if (/^\s*@?echo off\s*$/i.test(line)) score.cmd += 3;
+      if (/%\w+%/.test(line) || /^\s*(set \w+=|dir\b|xcopy|robocopy|ipconfig|netsh|del \S)/i.test(line)) score.cmd += 2;
+      if (/^\s*(def \w+\(|class \w+.*:\s*$|import \w|from [\w.]+ import |if __name__|print\(|elif |except\b.*:)/.test(line)) score.python += 3;
+      if (/^\s*(SELECT\b.+\bFROM\b|SELECT \*|INSERT\s+INTO|UPDATE \w+ SET|DELETE\s+FROM|CREATE\s+(TABLE|INDEX|VIEW)|ALTER\s+TABLE|DROP\s+TABLE|WITH \w+ AS)/i.test(line)) score.sql += 3;
+      if (/^\s*(WHERE|FROM|JOIN|GROUP BY|ORDER BY|VALUES)\b/i.test(line)) score.sql += 1;
+      if (/[{};]\s*$|=>|^\s*(const|let|var|function|return|import|export)\s|^\s*<\/?[a-z][\w-]*[ >]|^\s*["\w-]+"?\s*:\s*["{[\d]/.test(line)) score.other += 1;
+    }
+    // Prose guard: several sentences of ordinary words is not code.
+    const words = src.split(/\s+/).length;
+    const sentences = (src.match(/[a-z][.!?](\s|$)/g) || []).length;
+    if (sentences >= 2 && words > 12 && score.sql + score.python + score.powershell + score.cmd < 3) return null;
+    const [language, best] = Object.entries(score).sort((a, b) => b[1] - a[1])[0];
+    const needed = language === "other" ? Math.max(2, Math.ceil(lines.length * 0.5)) : 2;
+    if (best < needed) return null;
+    return { language, label: CODE_LANGS[language] };
+  }
+
   // Pasting text you already have moves the existing item to the top instead
   // of saving a second copy. Only active items count: something in Trash or
   // Archive gets a fresh copy. "Keep a copy" in the toast saves one anyway.
@@ -3414,6 +3456,25 @@
     openDetail(item.id);
     const contentField = document.getElementById("content-input");
     if (contentField) contentField.focus();
+    const code = detectCode(text);
+    if (code) {
+      // Suggest only; nothing changes unless the button is pressed.
+      showToast("Looks like " + code.label + ". Make it a Command?", {
+        action: {
+          label: "Make Command",
+          onClick: async () => {
+            item.type = "command";
+            item.language = code.language;
+            item.locked = true;
+            item.autoExpireAt = null;
+            await put(ITEMS_STORE, item);
+            renderAllViews();
+            openDetail(item.id);
+          }
+        }
+      });
+      return;
+    }
     showToast(toastMsg || "Pasted as new note");
   }
 
