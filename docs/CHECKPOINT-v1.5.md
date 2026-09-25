@@ -53,3 +53,15 @@ Pick one:
 - **A. No framework. Do the store, editor split and tests first** *(recommended)*, as a short "v1.5 build" before the Vault.
 - **B. No framework, no restructure.** Go straight to the Vault and accept adding encryption at each save site.
 - **C. Adopt Preact now.** Needs a build step. Largest change, and reintroduces risk to features that work today.
+
+## Decision: A (done 25 Sep 2026)
+
+All three steps are built, in this order: tests first, so they could catch anything the other two broke.
+
+| Step | What changed | Result |
+|---|---|---|
+| **Tests** | 37 Playwright tests in `tests/`, run by `.github/workflows/tests.yml` on every push. Run locally with `npm install` then `npm test`. | Covers notes, trash/undo, commands and placeholders, paste detection and clean-up, auto-delete, migration, export/import (incl. 120 items), Ctrl+K, the photo viewer, phone swipe/long-press/drawer/back button, offline and share target. |
+| **Store** | `saveItem`, `saveItems` and `deleteItems` are now the only code that writes items. They keep `cache` in step and announce the change; the sidebar and list redraw themselves once per frame if the caller didn't. | 51 separate `put()` calls → one store. Bulk actions, the expiry sweep and import write in one transaction. **This is where Vault encryption and Sync's "changed" flag plug in.** |
+| **Editor split** | `openDetail()` (540 lines) → a 41-line coordinator plus four sections: header (130), fields (160), properties (111), footer (131). | Pin, favorite, unread, archive, color and tags redraw only their own section. Fixed a real bug: pressing one of them within 0.7 s of typing made the typed text disappear. 6 new tests fail on the old editor and pass now. |
+
+Next: the Vault.
