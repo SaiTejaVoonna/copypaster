@@ -3386,8 +3386,27 @@
     showToast(toastMsg || "Pasted as new note \u2014 paste again to add more images");
   }
 
-  async function addTextItem(text, toastMsg) {
+  // Pasting text you already have moves the existing item to the top instead
+  // of saving a second copy. Only active items count: something in Trash or
+  // Archive gets a fresh copy. "Keep a copy" in the toast saves one anyway.
+  function findDuplicate(text) {
+    const key = text.trim();
+    return cache.find((i) => !i.deletedAt && !i.archivedAt && !i.images.length && (i.content || "").trim() === key);
+  }
+
+  async function addTextItem(text, toastMsg, allowDuplicate = false) {
     await saveOpenDraft();
+    const existing = allowDuplicate ? null : findDuplicate(text);
+    if (existing) {
+      existing.updatedAt = Date.now();
+      await put(ITEMS_STORE, existing);
+      renderAllViews();
+      openDetail(existing.id);
+      showToast("Already saved \u2014 moved to the top", {
+        action: { label: "Keep a copy", onClick: () => addTextItem(text, "Saved a separate copy", true) }
+      });
+      return;
+    }
     const item = normalize({ id: uuid(), type: "note", content: text, createdAt: Date.now(), updatedAt: Date.now() });
     await put(ITEMS_STORE, item);
     cache.push(item);
