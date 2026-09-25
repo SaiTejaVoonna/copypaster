@@ -111,3 +111,23 @@ test("text fields are 16px so iPhone does not zoom in", async ({ page }) => {
   expect(await size("#title-input")).toBe("16px");
   expect(await size("#content-input")).toBe("16px");
 });
+
+test("Save on a phone says Saved and goes back to the list", async ({ page }) => {
+  await page.tap("#new-btn");
+  await page.fill("#content-input", "saved from phone");
+  await page.locator("#detail-pane button.action", { hasText: "Save" }).tap();
+  await expect(lastToast(page)).toContainText("Saved");
+  await expect(page.locator("#detail-pane")).not.toHaveClass(/open/);
+  await expect(page.locator(".item-row", { hasText: "saved from phone" })).toBeVisible();
+});
+
+test("profile switcher opens as a sheet on phones", async ({ page }) => {
+  await page.tap("#menu-btn");
+  await page.tap("#profile-btn");
+  await expect(page.locator("#action-sheet")).toContainText("Personal");
+  await page.locator("#action-sheet button", { hasText: "New profile" }).tap();
+  await page.fill("#dialog-name", "Work");
+  await page.locator("#dialog button[type=submit]").tap();
+  await page.waitForLoadState("load");
+  await expect(page.locator("#profile-name")).toHaveText("Work");
+});

@@ -13,7 +13,10 @@ async function setUpVault(page, password = PASSWORD) {
   await page.fill("#dialog-password", password);
   await page.fill("#dialog-confirm", password);
   await page.locator("#dialog button[type=submit]").click();
-  const code = (await page.locator("#recovery-code").innerText({ timeout: 15000 })).trim();
+  await expect(page.locator("#recovery-code, #dialog .dialog-error:not(:empty)").first()).toBeVisible({ timeout: 15000 });
+  const setupError = await page.locator("#dialog .dialog-error").textContent().catch(() => "");
+  expect(setupError, "setup dialog error").toBe("");
+  const code = (await page.locator("#recovery-code").innerText()).trim();
   await page.locator("#dialog button[type=submit]").click();
   await expect(page.locator("#dialog")).toContainText("Tick the box"); // must confirm it was saved
   await page.check("#recovery-saved");

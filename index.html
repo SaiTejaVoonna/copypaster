@@ -219,6 +219,39 @@
   .dialog-row button { flex: 1; }
   .dialog-check { display: flex; align-items: center; gap: 8px; font-size: 13px; }
 
+  /* Profiles */
+  #profile-btn {
+    margin: 0 10px 8px; display: flex; align-items: center; gap: 8px; padding: 6px 8px;
+    background: transparent; border: 1px solid var(--border); border-radius: var(--radius-sm);
+    color: var(--text); font-size: 13px; cursor: pointer; text-align: left; min-width: 0;
+  }
+  #profile-btn:hover { background: var(--panel-2); }
+  #profile-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #profile-caret { color: var(--text-dim); font-size: 11px; }
+  .profile-avatar {
+    width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0; display: inline-flex;
+    align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: #fff;
+  }
+  @media (min-width: 901px) {
+    #sidebar.collapsed #profile-btn { justify-content: center; margin: 0 6px 8px; padding: 6px 0; }
+    #sidebar.collapsed #profile-name, #sidebar.collapsed #profile-caret { display: none; }
+  }
+  .profile-row { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .profile-row .profile-row-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .profile-row .profile-current { font-size: 11px; color: var(--accent); }
+  .profile-row button {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: var(--radius-sm); padding: 4px 10px; font-size: 12px; cursor: pointer;
+  }
+  .profile-row button:hover { border-color: var(--accent); }
+  .profile-row button.danger { color: var(--danger); }
+  .profile-row button:disabled { opacity: 0.4; cursor: default; }
+  #check-updates-btn {
+    background: var(--panel-2); border: 1px solid var(--border); color: var(--text);
+    border-radius: var(--radius-sm); padding: 6px 12px; font-size: 12px; cursor: pointer;
+  }
+  #check-updates-btn:hover { border-color: var(--accent); }
+
   /* Vault */
   .item-row.locked-row .item-text { color: var(--text-dim); }
   .type-dot.vault { color: var(--accent); }
@@ -852,6 +885,10 @@
       <rect x="3" y="8" width="18" height="13" rx="2" fill="none" stroke="currentColor" stroke-width="1.7"/>
       <path d="M9.5 13h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
     </symbol>
+    <symbol id="icon-user" viewBox="0 0 24 24">
+      <circle cx="12" cy="8.5" r="3.8" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="M4.5 20c.8-3.6 3.8-5.8 7.5-5.8s6.7 2.2 7.5 5.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    </symbol>
     <symbol id="icon-vault" viewBox="0 0 24 24">
       <path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6L12 3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
       <rect x="9" y="11" width="6" height="5" rx="1" fill="none" stroke="currentColor" stroke-width="1.6"/>
@@ -932,6 +969,7 @@
     <div id="brand"><span id="brand-dot"></span><span id="brand-label">CopyPaster</span>
       <button id="sidebar-collapse-btn" title="Collapse sidebar">&laquo;</button>
     </div>
+    <button id="profile-btn" type="button" title="Switch profile"><span class="profile-avatar" id="profile-avatar"></span><span id="profile-name"></span><span id="profile-caret">▾</span></button>
     <div class="sidebar-section-header" data-section="views">
       <span class="section-title-click"><span class="section-chevron">▾</span>VIEWS</span>
     </div>
@@ -1022,12 +1060,19 @@
         <input id="import-file" type="file" accept=".cps,.json" hidden>
       </div>
     </div>
+    <div class="settings-section" id="profile-settings">
+      <div class="settings-section-title">Profiles</div>
+      <div class="settings-hint">Each profile has its own notes, folders, tags and Vault, for example Work and Personal, or another person. Theme and paste clean-up are shared on this device.</div>
+      <div id="profile-list"></div>
+      <div class="settings-row-actions"><button id="new-profile-btn" type="button">+ New profile</button></div>
+    </div>
     <div class="settings-section" id="vault-settings">
       <div class="settings-section-title">Vault</div>
       <div id="vault-settings-body"></div>
     </div>
     <div class="settings-section" id="install-section">
       <div class="settings-section-title">App</div>
+      <div class="settings-line"><span id="app-version"></span><button id="check-updates-btn" type="button">Check for updates</button></div>
       <div class="settings-hint" id="install-hint"></div>
       <div class="settings-row-actions"><button id="install-btn" type="button" hidden>⬇ Install app</button></div>
     </div>
@@ -1041,7 +1086,7 @@
       <div id="cleanup-rules"></div>
       <button id="cleanup-add-rule" type="button">+ Add rule</button>
     </div>
-    <div id="settings-footer">CopyPaster v1.7 · local-first, no account</div>
+    <div id="settings-footer"></div>
   </div>
 </div>
 
@@ -1053,7 +1098,32 @@
 (function () {
   "use strict";
 
-  const DB_NAME = "copypaster";
+  const APP_VERSION = "1.8";
+
+  // ---------- Profiles ----------
+  // Each profile is its own IndexedDB database, so notes, folders, tags and
+  // the Vault never mix. The first profile uses the original database name,
+  // so data from before profiles existed stays where it is. Which profile is
+  // open is remembered per device.
+  const PROFILES_KEY = "copypaster-profiles";
+  const CURRENT_PROFILE_KEY = "copypaster-current-profile";
+  const PROFILE_COLORS = ["#4f8cff", "#3fb27f", "#e0843a", "#b061e6", "#e5484d", "#2bb3c0", "#d9a441", "#7a8599"];
+  const profileDbName = (id) => (id === "default" ? "copypaster" : "copypaster-" + id);
+  // Per-profile keys for per-device settings that belong to one profile.
+  const profileKey = (key) => (currentProfile.id === "default" ? key : key + ":" + currentProfile.id);
+
+  function loadProfiles() {
+    try {
+      const list = JSON.parse(localStorage.getItem(PROFILES_KEY) || "null");
+      if (Array.isArray(list) && list.length) return list;
+    } catch {}
+    return [{ id: "default", name: "Personal", color: PROFILE_COLORS[0] }];
+  }
+  let profiles = loadProfiles();
+  const currentProfile = profiles.find((pr) => pr.id === localStorage.getItem(CURRENT_PROFILE_KEY)) || profiles[0];
+  const saveProfiles = () => localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+
+  const DB_NAME = profileDbName(currentProfile.id);
   const DB_VERSION = 4;
   const ITEMS_STORE = "items";
   const META_STORE = "meta"; // one record per setting that must live with the data (the Vault's wrapped key)
@@ -3865,8 +3935,10 @@
         if (justLocked) item.locked = true;
         item.updatedAt = Date.now();
         await saveItem(item);
-        if (justLocked) openDetail(item.id);
         showToast("Saved");
+        // On phones the item covers the list, so Save also takes you back.
+        if (window.matchMedia("(max-width: 720px)").matches) { await closeDetail(); return; }
+        if (justLocked) openDetail(item.id);
       });
       actions.appendChild(delBtn);
       actions.appendChild(copyBtn);
@@ -5322,25 +5394,39 @@
     const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(await res.text()));
     return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, "0")).join("");
   }
-  async function checkForUpdate() {
-    if (updateOffered || !navigator.onLine || !location.protocol.startsWith("http")) return;
+  function offerReload() {
+    showToast("A new version of CopyPaster is ready", {
+      sticky: true,
+      action: { label: "Reload", onClick: async () => { await saveOpenDraft(); location.reload(); } }
+    });
+  }
+  // `manual`: from the Settings button, so always say what happened.
+  async function checkForUpdate(manual = false) {
+    if (!location.protocol.startsWith("http")) { if (manual) showToast("Updates are checked on the live site"); return; }
+    if (updateOffered) { if (manual) offerReload(); return; }
+    if (!navigator.onLine) { if (manual) showToast("You're offline \u2014 try again when you're connected"); return; }
     lastUpdateCheck = Date.now();
     try {
       const now = await fetchPageFingerprint();
-      if (!now) return;
-      if (!pageFingerprint) { pageFingerprint = now; return; }
+      if (!now) throw new Error("No page");
+      if (!pageFingerprint) pageFingerprint = now;
       if (now !== pageFingerprint) {
         updateOffered = true;
-        showToast("A new version of CopyPaster is ready", {
-          sticky: true,
-          action: { label: "Reload", onClick: async () => { await saveOpenDraft(); location.reload(); } }
-        });
+        offerReload();
+      } else if (manual) {
+        showToast("You're on the latest version (" + APP_VERSION + ")");
       }
-    } catch { /* offline or blocked: try again later */ }
+    } catch {
+      if (manual) showToast("Couldn't check for updates \u2014 try again later");
+    }
   }
+  document.getElementById("check-updates-btn").addEventListener("click", () => checkForUpdate(true));
+  document.getElementById("app-version").textContent = "Version " + APP_VERSION;
+  document.getElementById("settings-footer").textContent = "CopyPaster v" + APP_VERSION + " \u00b7 local-first, no account";
+
   function startUpdateChecks() {
     checkForUpdate();
-    setInterval(checkForUpdate, 60 * 60 * 1000);
+    setInterval(() => checkForUpdate(), 60 * 60 * 1000);
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState === "visible" && Date.now() - lastUpdateCheck > 10 * 60 * 1000) checkForUpdate();
     });
@@ -5388,8 +5474,8 @@
   // Per-device choices; the Vault itself (keys, items) lives in IndexedDB.
   const VAULT_PREFS_KEY = "copypaster-vault-prefs";
   const vaultPrefs = { autoLockMinutes: 5, clearClipboard: true };
-  try { Object.assign(vaultPrefs, JSON.parse(localStorage.getItem(VAULT_PREFS_KEY) || "{}")); } catch {}
-  const saveVaultPrefs = () => { try { localStorage.setItem(VAULT_PREFS_KEY, JSON.stringify(vaultPrefs)); } catch {} };
+  try { Object.assign(vaultPrefs, JSON.parse(localStorage.getItem(profileKey(VAULT_PREFS_KEY)) || "{}")); } catch {}
+  const saveVaultPrefs = () => { try { localStorage.setItem(profileKey(VAULT_PREFS_KEY), JSON.stringify(vaultPrefs)); } catch {} };
 
   let lastVaultActivity = Date.now();
 
@@ -5404,7 +5490,7 @@
   // onSubmit(values, dialog) returns an error message to show, or nothing to close.
   let currentDialog = null;
 
-  function openDialog({ title, text, fields = [], submitLabel = "OK", cancelLabel = "Cancel", danger = false, persistent = false, extra, onSubmit, onCancel }) {
+  function openDialog({ title, text, fields = [], submitLabel = "OK", cancelLabel = "Cancel", danger = false, persistent = false, iconName = "vault", extra, onSubmit, onCancel }) {
     if (currentDialog) {
       if (currentDialog.busy) currentDialog.remove(); // replaced by a follow-up step
       else currentDialog.cancel();
@@ -5417,7 +5503,7 @@
     form.setAttribute("role", "dialog");
     form.setAttribute("aria-modal", "true");
     const heading = document.createElement("h2");
-    heading.innerHTML = icon("vault") + "<span></span>";
+    heading.innerHTML = icon(iconName) + "<span></span>";
     heading.lastChild.textContent = title;
     form.appendChild(heading);
     if (text) {
@@ -5533,7 +5619,10 @@
     document.body.appendChild(overlay);
     currentDialog = dialog;
     const first = Object.values(inputs)[0];
-    setTimeout(() => (first || submit).focus(), 30);
+    (first || submit).focus();
+    // Some browsers drop focus from an element added in the same moment it
+    // was tapped; try once more, unless you've already clicked into the box.
+    setTimeout(() => { if (!form.contains(document.activeElement)) (first || submit).focus(); }, 30);
     return dialog;
   }
 
@@ -6136,6 +6225,177 @@
     return vaultStub(record);
   }
 
+
+  // ---------- Profiles: screens ----------
+  const profileInitial = (pr) => (pr.name.trim()[0] || "?").toUpperCase();
+
+  function renderProfileButton() {
+    const avatar = document.getElementById("profile-avatar");
+    avatar.textContent = profileInitial(currentProfile);
+    avatar.style.background = currentProfile.color;
+    document.getElementById("profile-name").textContent = currentProfile.name;
+    document.getElementById("profile-btn").title = "Profile: " + currentProfile.name + " — click to switch";
+    document.title = profiles.length > 1 ? "CopyPaster · " + currentProfile.name : "CopyPaster";
+  }
+
+  // Switching reloads the page: the simplest way to be sure nothing from the
+  // other profile (like an unlocked Vault key) stays in memory.
+  async function switchProfile(id) {
+    if (id === currentProfile.id) return;
+    await saveOpenDraft();
+    localStorage.setItem(CURRENT_PROFILE_KEY, id);
+    try { sessionStorage.setItem("copypaster-switched", "1"); } catch {}
+    location.reload();
+  }
+
+  function profileMenuActions() {
+    return [
+      ...profiles.map((pr) => ({ label: (pr.id === currentProfile.id ? "✓ " : " ") + pr.name, run: () => switchProfile(pr.id) })),
+      { label: "+ New profile", run: newProfileDialog },
+      { label: "Manage profiles…", run: () => { closeSidebarOnMobile(); document.getElementById("settings-btn").click(); document.getElementById("profile-settings").scrollIntoView({ block: "start" }); } }
+    ];
+  }
+
+  document.getElementById("profile-btn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    const actions = profileMenuActions();
+    if (isDrawerMode()) { openSheet("Profiles", actions, false); return; }
+    const r = e.currentTarget.getBoundingClientRect();
+    showContextMenu(r.left, r.bottom + 4, actions.map((a) => ({ label: a.label, onClick: a.run })));
+    const menu = document.querySelector(".context-menu");
+    if (menu) { menu.style.width = Math.max(180, r.width) + "px"; menu.id = "profile-menu"; }
+  });
+
+  function profileNameProblem(name, exceptId) {
+    if (!name) return "Give the profile a name.";
+    if (name.length > 40) return "Keep it under 40 characters.";
+    if (profiles.some((pr) => pr.id !== exceptId && pr.name.toLowerCase() === name.toLowerCase())) return "There's already a profile called “" + name + "”.";
+    return null;
+  }
+
+  function newProfileDialog() {
+    openDialog({
+      title: "New profile",
+      iconName: "user",
+      text: "A separate space with its own notes, folders, tags and Vault. You can switch any time from the top of the sidebar.",
+      fields: [{ name: "name", label: "Name", placeholder: "Work, Personal, Alex…" }],
+      submitLabel: "Create and switch",
+      onSubmit: async ({ name }) => {
+        name = name.trim();
+        const problem = profileNameProblem(name);
+        if (problem) return problem;
+        const used = new Set(profiles.map((pr) => pr.color));
+        const color = PROFILE_COLORS.find((c) => !used.has(c)) || PROFILE_COLORS[profiles.length % PROFILE_COLORS.length];
+        const profile = { id: uuid().slice(0, 8), name, color, createdAt: Date.now() };
+        profiles.push(profile);
+        saveProfiles();
+        await switchProfile(profile.id);
+      }
+    });
+  }
+
+  function renameProfileDialog(profile) {
+    openDialog({
+      title: "Rename profile",
+      iconName: "user",
+      fields: [{ name: "name", label: "Name" }],
+      submitLabel: "Rename",
+      onSubmit: async ({ name }) => {
+        name = name.trim();
+        const problem = profileNameProblem(name, profile.id);
+        if (problem) return problem;
+        profile.name = name;
+        saveProfiles();
+        if (profile.id === currentProfile.id) currentProfile.name = name;
+        renderProfileButton();
+        renderProfileSettings();
+        showToast("Renamed to “" + name + "”");
+      }
+    });
+    document.getElementById("dialog-name").value = profile.name;
+  }
+
+  function deleteProfileDialog(profile) {
+    openDialog({
+      title: "Delete “" + profile.name + "”?",
+      iconName: "user",
+      text: "Everything in this profile is deleted from this device forever: notes, folders, tags and its Vault. Export a backup first if you might want it. Type the profile's name to confirm.",
+      fields: [{ name: "confirm", label: "Type " + profile.name }],
+      submitLabel: "Delete forever",
+      danger: true,
+      onSubmit: async ({ confirm }) => {
+        if (confirm.trim().toLowerCase() !== profile.name.toLowerCase()) return "Type the profile's name to confirm.";
+        const result = await new Promise((resolve) => {
+          const req = indexedDB.deleteDatabase(profileDbName(profile.id));
+          req.onsuccess = () => resolve("ok");
+          req.onerror = () => resolve("error");
+          req.onblocked = () => resolve("blocked");
+        });
+        if (result === "blocked") return "It's open in another tab or window. Close that first.";
+        if (result === "error") return "Couldn't delete it. Try again.";
+        profiles = profiles.filter((pr) => pr.id !== profile.id);
+        saveProfiles();
+        try { localStorage.removeItem(VAULT_PREFS_KEY + (profile.id === "default" ? "" : ":" + profile.id)); } catch {}
+        renderProfileButton();
+        renderProfileSettings();
+        showToast("Deleted “" + profile.name + "”");
+      }
+    });
+  }
+
+  function renderProfileSettings() {
+    const list = document.getElementById("profile-list");
+    list.innerHTML = "";
+    for (const pr of profiles) {
+      const row = document.createElement("div");
+      row.className = "profile-row";
+      row.dataset.profile = pr.id;
+      const avatar = document.createElement("span");
+      avatar.className = "profile-avatar";
+      avatar.style.background = pr.color;
+      avatar.textContent = profileInitial(pr);
+      const name = document.createElement("span");
+      name.className = "profile-row-name";
+      name.textContent = pr.name;
+      row.append(avatar, name);
+      const isCurrent = pr.id === currentProfile.id;
+      if (isCurrent) {
+        const tag = document.createElement("span");
+        tag.className = "profile-current";
+        tag.textContent = "In use";
+        row.appendChild(tag);
+      } else {
+        const open = document.createElement("button");
+        open.type = "button";
+        open.textContent = "Switch";
+        open.addEventListener("click", () => switchProfile(pr.id));
+        row.appendChild(open);
+      }
+      const rename = document.createElement("button");
+      rename.type = "button";
+      rename.textContent = "Rename";
+      rename.addEventListener("click", () => renameProfileDialog(pr));
+      const del = document.createElement("button");
+      del.type = "button";
+      del.className = "danger";
+      del.textContent = "Delete";
+      del.disabled = isCurrent;
+      del.title = isCurrent ? "Switch to another profile first" : "Delete this profile and everything in it";
+      del.addEventListener("click", () => deleteProfileDialog(pr));
+      row.append(rename, del);
+      list.appendChild(row);
+    }
+  }
+
+  document.getElementById("new-profile-btn").addEventListener("click", newProfileDialog);
+  renderProfileButton();
+  renderProfileSettings();
+  try {
+    if (sessionStorage.getItem("copypaster-switched")) {
+      sessionStorage.removeItem("copypaster-switched");
+      setTimeout(() => showToast("Switched to “" + currentProfile.name + "”"), 300);
+    }
+  } catch {}
 
   // Ask the browser to treat saved data as important, so it isn't cleared
   // under storage pressure or by Safari's 7-day rule for unused sites.
