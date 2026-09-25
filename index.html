@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>CopyPaster</title>
 <meta name="description" content="Your private clipboard, notes and commands. Local-first, no account.">
 <meta name="theme-color" content="#0b0d11">
@@ -649,6 +649,27 @@
     #detail-pane { position: absolute; inset: 0; background: var(--bg); display: none; }
     #detail-pane.open { display: flex; }
     #back-btn { display: inline-flex; }
+  }
+
+  /* ---------- Phones and the installed app ---------- */
+  /* Keep content clear of the notch, rounded corners and the home bar
+     (all zero on devices without them). */
+  html, body { overscroll-behavior: none; } /* no rubber-band bounce or accidental pull-to-refresh */
+  #app { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+  #list-header { padding-top: calc(14px + env(safe-area-inset-top)); }
+  #brand { padding-top: calc(16px + env(safe-area-inset-top)); }
+  #sidebar-footer { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+  #items { padding-bottom: env(safe-area-inset-bottom); }
+  #detail-footer { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  #toast { bottom: calc(20px + env(safe-area-inset-bottom)); }
+  #settings-footer { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+  @media (max-width: 720px) {
+    #detail-header { padding-top: calc(12px + env(safe-area-inset-top)); }
+  }
+  /* iPhone zooms the page into any text box smaller than 16px when you tap
+     it. On touch screens every text box is at least 16px, so it never does. */
+  @media (pointer: coarse) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="color"]), textarea, select { font-size: 16px !important; }
   }
 
   /* ---------- Command box (Ctrl/Cmd+K) ---------- */
@@ -3911,6 +3932,18 @@
     const fileName = imageFileName(dataUrl, item, idx);
     try {
       const blob = await (await fetch(dataUrl)).blob();
+      // Phones: open the share sheet, which has "Save Image" (iPhone) or
+      // "Save to device". A download link on iPhone only opens the photo.
+      const file = new File([blob], fileName, { type: blob.type });
+      if (window.matchMedia("(pointer: coarse)").matches && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file] });
+          return;
+        } catch (err) {
+          if (err.name === "AbortError") return; // closed the sheet
+          console.warn("Share failed, downloading instead:", err);
+        }
+      }
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
