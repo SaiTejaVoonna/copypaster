@@ -339,6 +339,22 @@
 
   .terminal-wrap { position: relative; flex: 1; display: flex; min-height: 0; }
   .terminal-wrap textarea { flex: 1; }
+  /* Read-only colored view of a locked Command. Matches the terminal editor. */
+  .code-view {
+    flex: 1; margin: 0; overflow: auto; white-space: pre-wrap; word-break: break-word;
+    background: #0d0f13; color: #e6e8ec; border: 1px solid var(--command); border-radius: var(--radius);
+    padding: 14px 14px 14px 50px; font-size: 13px; line-height: 1.55; min-height: 160px;
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+  }
+  html[data-theme="light"] .code-view { background: #1a1a1a; }
+  .code-view .hljs-keyword, .code-view .hljs-built_in, .code-view .hljs-selector-tag { color: #ff7ab2; }
+  .code-view .hljs-string, .code-view .hljs-template-string { color: #9ece6a; }
+  .code-view .hljs-number, .code-view .hljs-literal { color: #ffb86c; }
+  .code-view .hljs-comment, .code-view .hljs-quote { color: #7f8796; font-style: italic; }
+  .code-view .hljs-variable, .code-view .hljs-template-variable, .code-view .hljs-params { color: #7dcfff; }
+  .code-view .hljs-title, .code-view .hljs-function, .code-view .hljs-title.function_ { color: #82aaff; }
+  .code-view .hljs-attr, .code-view .hljs-attribute, .code-view .hljs-property { color: #e0af68; }
+  .code-view .hljs-meta, .code-view .hljs-symbol, .code-view .hljs-type { color: #c099ff; }
   .terminal-prompt {
     position: absolute; top: 14px; left: 12px; color: var(--command); font-family: ui-monospace, "SF Mono", Consolas, monospace;
     font-size: 13px; font-weight: 700; pointer-events: none; z-index: 1; white-space: nowrap;
@@ -2035,6 +2051,55 @@
     return PROMPT_BY_LANGUAGE[language] || "$";
   }
 
+  // ---------- Code colors ----------
+  // highlight.js loads from the CDN only the first time a locked Command is
+  // shown. Each file is pinned with a Subresource Integrity hash, so the
+  // browser refuses it if the CDN ever serves anything different. If it
+  // can't load (offline, blocked), the code simply stays uncolored.
+  const HLJS_BASE = "https://cdn.jsdelivr.net/npm/@highlightjs/cdn-assets@11.9.0/";
+  const HLJS_FILES = [
+    ["highlight.min.js", "sha384-F/bZzf7p3Joyp5psL90p/p89AZJsndkSoGwRpXcZhleCWhd8SnRuoYo4d0yirjJp"],
+    ["languages/powershell.min.js", "sha384-LWJZQx0dgGhEK7snfNYrQs5K+QKD1sOmE02sOQCz4br9UmqSJDvPLoUVFaUyFnjq"],
+    ["languages/dos.min.js", "sha384-6+/BHm9a7L7KFZE/myAKBddEjwfPovVtBzDrEu/6VqocfSqvRMyM+Lf3k9n89yGH"]
+  ];
+  const HLJS_LANGUAGE = { bash: "bash", powershell: "powershell", cmd: "dos", python: "python", sql: "sql" };
+  let highlighterPromise = null;
+
+  function loadScript(src, integrity) {
+    return new Promise((resolve, reject) => {
+      const el = document.createElement("script");
+      el.src = src;
+      el.integrity = integrity;
+      el.crossOrigin = "anonymous";
+      el.onload = resolve;
+      el.onerror = () => reject(new Error("Could not load " + src));
+      document.head.appendChild(el);
+    });
+  }
+
+  function loadHighlighter() {
+    if (!highlighterPromise) {
+      const [core, ...languages] = HLJS_FILES;
+      highlighterPromise = loadScript(HLJS_BASE + core[0], core[1])
+        .then(() => Promise.all(languages.map(([file, hash]) => loadScript(HLJS_BASE + file, hash))))
+        .then(() => window.hljs)
+        .catch((err) => {
+          console.warn("[CopyPaster] code colors unavailable:", err.message);
+          highlighterPromise = null; // try again next time (e.g. back online)
+          return null;
+        });
+    }
+    return highlighterPromise;
+  }
+
+  async function highlightInto(codeEl, text, language) {
+    const hljs = await loadHighlighter();
+    if (!hljs || !codeEl.isConnected) return;
+    const lang = HLJS_LANGUAGE[language];
+    const result = lang && hljs.getLanguage(lang) ? hljs.highlight(text, { language: lang }) : hljs.highlightAuto(text);
+    codeEl.innerHTML = result.value; // highlight.js escapes the source text
+  }
+
   // ---------- List rendering ----------
 
   const itemsEl = document.getElementById("items");
@@ -2524,6 +2589,18 @@
       prompt.textContent = promptForLanguage(item.language);
       terminalWrap.appendChild(prompt);
       terminalWrap.appendChild(textarea);
+      // Locked Commands show a colored, read-only view; unlocking to edit
+      // brings back the plain editor (a textarea can't show colors).
+      if (item.locked && !inTrash && (item.content || "").trim()) {
+        const view = document.createElement("pre");
+        view.className = "code-view";
+        const code = document.createElement("code");
+        code.textContent = item.content;
+        view.appendChild(code);
+        textarea.style.display = "none";
+        terminalWrap.appendChild(view);
+        highlightInto(code, item.content, item.language);
+      }
       body.appendChild(terminalWrap);
     } else {
       body.appendChild(textarea);
