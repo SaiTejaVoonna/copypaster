@@ -31,6 +31,7 @@ test("auto-delete presets and custom date", async ({ page }) => {
   const expiry = async () => (await storedItems(page))[0].autoExpireAt;
   const hoursLeft = async () => ((await expiry()) - Date.now()) / 3600e3;
 
+  await page.locator("#expire-row button", { hasText: "Never" }).click(); // opens the choices
   await page.locator("#expire-row button", { hasText: "1 hour" }).click();
   await expect.poll(hoursLeft).toBeGreaterThan(0.9);
   expect(await hoursLeft()).toBeLessThan(1.1);

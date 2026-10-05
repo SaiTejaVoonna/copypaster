@@ -13,12 +13,12 @@ for (const [name, selector] of [
   ["pin", "#detail-pane .icon-toggle.pin"],
   ["favorite", "#detail-pane .icon-toggle.star"],
   ["unread", "#detail-pane .icon-toggle.unread"],
-  ["color", "#detail-pane .swatch:not(.color-none)"],
+  ["color", ["#detail-pane .prop-color-btn", "#detail-pane .swatch:not(.color-none)"]],
 ]) {
   test(`pressing ${name} right after typing keeps the text`, async ({ page }) => {
     await newNote(page, "start");
     await typeQuickly(page, " and more");
-    await page.click(selector);
+    for (const sel of [].concat(selector)) await page.click(sel);
     await expect(page.locator("#content-input")).toHaveValue("start and more");
     // Typing continues normally afterwards.
     await page.click("#content-input");

@@ -692,31 +692,57 @@
   .attached-image-action.danger:hover { background: var(--danger); }
   @media (hover: none) { .attached-image-actions { opacity: 1; } .attached-image-action { width: 30px; height: 30px; } }
 
-  /* Properties: a quiet card under the text, or an Info column when wide. */
+  /* Details: one line per property (label left, value right), like a
+     settings list. Tapping a value opens its choices underneath. */
   #detail-properties {
-    display: flex; flex-direction: column; gap: 2px; margin: 0 var(--s-8) var(--s-5); padding: var(--s-2) var(--s-4);
+    display: flex; flex-direction: column; margin: 0 var(--s-8) var(--s-5); padding: var(--s-1) var(--s-4) var(--s-2);
     border-radius: var(--r-lg); background: var(--surface-1); border: 1px solid var(--line);
   }
-  .props-title { font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--text-3); padding: 6px 0 4px; }
-  .prop-row { display: grid; grid-template-columns: 92px 1fr; align-items: center; gap: var(--s-2); min-height: 34px; font-size: var(--fs-sm); }
-  .prop-label { color: var(--text-3); display: flex; align-items: center; gap: 6px; }
-  .prop-label .icon { width: 14px; height: 14px; }
-  .prop-value { min-width: 0; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; color: var(--text); }
-  @container detail (min-width: 760px) {
-    .prop-row { grid-template-columns: 1fr; gap: 4px; padding: 6px 0; }
-    .props-title { padding-top: 0; }
+  .props-title { font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--text-3); padding: 10px 0 2px; }
+  .prop-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; column-gap: var(--s-3); row-gap: 6px; min-height: 44px; padding: 5px 0; font-size: var(--fs-md); }
+  .prop-row + .prop-row { border-top: 1px solid var(--line); }
+  .prop-label { color: var(--text-2); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .prop-label .icon { width: 15px; height: 15px; color: var(--text-3); }
+  .prop-value { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; color: var(--text); }
+  .prop-row.expanded .prop-value:has(#expire-row) { flex-basis: 100%; justify-content: flex-start; }
+  .prop-row.expanded { padding-bottom: 10px; }
+  .prop-btn {
+    display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 6px 0 8px; margin-right: -6px; border-radius: var(--r-sm);
+    background: transparent; border: none; color: var(--text-2); font-size: var(--fs-md); cursor: pointer;
   }
-  .props-meta { font-size: var(--fs-xs); color: var(--text-3); line-height: 1.7; padding: 6px 0; }
+  .prop-btn:hover { background: var(--surface-2); color: var(--text); }
+  .prop-btn .icon-sm { width: 12px; height: 12px; color: var(--text-3); transition: transform var(--t-fast); }
+  .prop-row.expanded .prop-btn .icon-sm { transform: rotate(180deg); }
+  .color-dot { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.15); }
+  .color-dot.none { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line-strong); }
+  .prop-picker { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 10px; margin: 2px 0 0; padding: 4px 2px; }
+  .prop-picker[hidden] { display: none; }
+  .prop-picker .swatch { width: 26px; height: 26px; padding: 0; }
+  .prop-picker .swatch.color-none::after { top: 5px; bottom: 5px; }
+  .props-meta { font-size: var(--fs-xs); color: var(--text-3); line-height: 1.6; padding: 8px 0 4px; border-top: 1px solid var(--line); }
+  #detail-properties .field-row select {
+    height: 30px; max-width: 60%; padding: 0 4px; margin-right: -4px; background: transparent; border: none; box-shadow: none;
+    color: var(--text-2); font-size: var(--fs-md); text-align: right; text-align-last: right;
+  }
+  #detail-properties .field-row select:hover { color: var(--text); background: var(--surface-2); }
+  #detail-properties .field-row select:focus { color: var(--text); background: var(--surface-2); box-shadow: 0 0 0 2px var(--accent-ring); }
+  #detail-properties #tags-row { justify-content: flex-end; }
 
-  #expire-row { display: flex; align-items: center; flex-wrap: wrap; gap: 4px; font-size: var(--fs-sm); color: var(--text-2); }
-  #expire-row .expire-label { margin-right: 4px; }
+  #expire-row { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; font-size: var(--fs-md); color: var(--text-2); }
+  .prop-row.expanded #expire-row { justify-content: flex-start; }
+  #expire-row .expire-label { margin-right: 2px; color: var(--text); }
+  .prop-row.expanded #expire-row .expire-label { flex-basis: 100%; color: var(--text-3); font-size: var(--fs-xs); }
   #expire-row .expire-label:empty { display: none; }
   #expire-row button {
-    height: 24px; padding: 0 8px; border-radius: var(--r-full); border: 1px solid var(--line); background: transparent;
-    color: var(--text-2); font-size: var(--fs-xs); font-weight: var(--fw-medium); cursor: pointer;
+    height: 32px; padding: 0 12px; border-radius: var(--r-full); border: 1px solid var(--line); background: transparent;
+    color: var(--text); font-size: var(--fs-sm); font-weight: var(--fw-regular); cursor: pointer;
   }
   #expire-row button:hover { color: var(--text); background: var(--surface-2); border-color: var(--line-strong); }
-  #expire-row input[type="datetime-local"] { height: 28px; font-size: var(--fs-sm); padding: 0 6px; }
+  #expire-row button.prop-btn, #expire-row button.expire-link { height: 30px; border: none; background: transparent; font-size: var(--fs-md); padding: 0 6px; border-radius: var(--r-sm); color: var(--text-2); }
+  #expire-row button.prop-btn { padding: 0 6px 0 8px; margin-right: -6px; }
+  #expire-row button.expire-link { color: var(--accent); }
+  #expire-row button.expire-link:hover, #expire-row button.prop-btn:hover { background: var(--surface-2); }
+  #expire-row input[type="datetime-local"] { height: 32px; font-size: var(--fs-sm); padding: 0 6px; }
 
   .field-row.prop-row select { max-width: 100%; }
   #tags-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
@@ -1650,6 +1676,7 @@
   const SCHEMA_VERSION = 2;
 
   const SWATCHES = ["#0a84ff", "#30d158", "#ffd60a", "#ff9f0a", "#ff453a", "#bf5af2", "#64d2ff", "#8e8e93"];
+  const SWATCH_NAMES = ["Blue", "Green", "Yellow", "Orange", "Red", "Purple", "Teal", "Grey"];
   const EMOJI_OPTIONS = ["🔥","✅","📌","💻","🔑","⚙️","🐞","📊","🎯","📁","⭐","🚀","🧩","🔗","🗂️","📄","💡","⏰","🔒","📝","🚧","✨","📦","🧪"];
   function icon(name, extraClass) {
     return '<svg class="icon' + (extraClass ? " " + extraClass : "") + '"><use href="#icon-' + name + '"></use></svg>';
@@ -4576,40 +4603,59 @@
       const value = propRow("Auto-delete", "timer");
       const expireRow = document.createElement("div");
       expireRow.id = "expire-row";
-      renderExpireRow(item, expireRow, false);
       value.appendChild(expireRow);
+      renderExpireRow(item, expireRow, false);
     }
     if (!inTrash) {
       const value = propRow("Color", "palette");
-      const noneSwatch = document.createElement("div");
-      noneSwatch.className = "swatch color-none" + (!item.color ? " selected" : "");
-      noneSwatch.title = "No color";
-      noneSwatch.addEventListener("click", async () => {
-        item.color = null;
+      const row = value.parentElement;
+      const current = SWATCHES.indexOf(item.color);
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "prop-btn prop-color-btn";
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.innerHTML = '<span class="color-dot' + (item.color ? "" : " none") + '"></span><span></span>' + icon("chevron-down", "icon-sm");
+      if (item.color) toggle.firstChild.style.background = item.color;
+      toggle.children[1].textContent = item.color ? (SWATCH_NAMES[current] || "Custom") : "None";
+      value.appendChild(toggle);
+      const picker = document.createElement("div");
+      picker.className = "swatches prop-picker";
+      picker.hidden = true;
+      toggle.addEventListener("click", () => {
+        picker.hidden = !picker.hidden;
+        row.classList.toggle("expanded", !picker.hidden);
+        toggle.setAttribute("aria-expanded", picker.hidden ? "false" : "true");
+      });
+      const setColor = async (color) => {
+        item.color = color;
         item.updatedAt = Date.now();
         await saveItem(item);
         redrawDetail("properties");
-        showToast("Color removed");
-      });
-      value.appendChild(noneSwatch);
-      SWATCHES.forEach((color) => {
-        const sw = document.createElement("div");
+        showToast(color ? "Color set" : "Color removed");
+      };
+      const noneSwatch = document.createElement("button");
+      noneSwatch.type = "button";
+      noneSwatch.className = "swatch color-none" + (!item.color ? " selected" : "");
+      noneSwatch.title = "No color";
+      noneSwatch.setAttribute("aria-label", "No color");
+      noneSwatch.addEventListener("click", () => setColor(null));
+      picker.appendChild(noneSwatch);
+      SWATCHES.forEach((color, i) => {
+        const sw = document.createElement("button");
+        sw.type = "button";
         sw.className = "swatch" + (item.color === color ? " selected" : "");
         sw.style.background = color;
-        sw.addEventListener("click", async () => {
-          item.color = color;
-          item.updatedAt = Date.now();
-          await saveItem(item);
-          redrawDetail("properties");
-          showToast("Color set");
-        });
-        value.appendChild(sw);
+        sw.title = SWATCH_NAMES[i];
+        sw.setAttribute("aria-label", SWATCH_NAMES[i]);
+        sw.addEventListener("click", () => setColor(color));
+        picker.appendChild(sw);
       });
+      row.appendChild(picker);
     }
     const dates = document.createElement("div");
     dates.className = "props-meta";
-    dates.textContent = "Created " + formatFullDate(item.createdAt) + "\nUpdated " + formatFullDate(item.updatedAt);
-    dates.style.whiteSpace = "pre-line";
+    dates.textContent = "Created " + new Date(item.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) + " \u00b7 Updated " + timeAgo(item.updatedAt);
+    dates.title = "Created " + formatFullDate(item.createdAt) + "\nUpdated " + formatFullDate(item.updatedAt);
     body.appendChild(dates);
     return body;
   }
@@ -4793,6 +4839,9 @@
   // timer is already set (the "Change" state).
   function renderExpireRow(item, row, editing) {
     row.innerHTML = "";
+    // Shown as one line ("Never", "In 3d"); tapping opens the choices below it.
+    const propRow = row.closest(".prop-row");
+    if (propRow) propRow.classList.toggle("expanded", !!editing);
     const button = (text, onClick) => {
       const b = document.createElement("button");
       b.type = "button";
@@ -4813,13 +4862,21 @@
     row.appendChild(label);
 
     if (item.autoExpireAt && !editing) {
-      label.textContent = "Auto-deletes " + formatExpiry(item.autoExpireAt) + " \u00b7 " + timeLeft(item.autoExpireAt);
-      button("Change", () => renderExpireRow(item, row, true));
-      button("Off", () => setExpiry(null));
+      label.textContent = timeLeft(item.autoExpireAt).replace(/^in /, "In ");
+      label.title = "Auto-deletes " + formatExpiry(item.autoExpireAt);
+      button("Change", () => renderExpireRow(item, row, true)).className = "expire-link";
+      button("Off", () => setExpiry(null)).className = "expire-link";
+      return;
+    }
+    if (!editing) {
+      label.remove();
+      const never = button("Never", () => renderExpireRow(item, row, true));
+      never.className = "prop-btn";
+      never.insertAdjacentHTML("beforeend", icon("chevron-down", "icon-sm"));
       return;
     }
 
-    label.textContent = item.autoExpireAt ? "Change to:" : "";
+    label.textContent = "Delete it after";
     EXPIRE_PRESETS.forEach(([key, text]) => button(text, () => setExpiry(expiryFromPreset(key))));
     const customBtn = button("Custom\u2026", () => {
       // The device's own date/time picker: a calendar and clock on desktop,
@@ -4837,7 +4894,7 @@
       input.after(setBtn);
       input.focus();
     });
-    if (item.autoExpireAt) button("Cancel", () => renderExpireRow(item, row, false));
+    button("Cancel", () => renderExpireRow(item, row, false)).className = "expire-link";
   }
 
   // ---------- Mobile back button ----------
