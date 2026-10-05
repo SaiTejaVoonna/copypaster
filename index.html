@@ -206,17 +206,19 @@
   .popover-input, .popover-select, .cleanup-rule input, .field-row select, .settings-select-row select, #sort-select,
   #bulk-bar select, #expire-row input[type="datetime-local"] {
     height: var(--h-md); padding: 0 var(--s-3); border-radius: var(--r-md);
-    background: var(--surface-2); border: 1px solid transparent; color: var(--text);
+    background: var(--surface-2); border: 1px solid var(--line-strong); color: var(--text);
     font-size: var(--fs-md); transition: border-color var(--t-fast), box-shadow var(--t-fast), background var(--t-fast);
   }
+  #search-input { border-color: transparent; }
+  .popover input, .popover select, #dialog input, #placeholder-modal input, #placeholder-modal select { background: var(--bg); }
   .input:hover, #search-input:hover, .dialog-field input:hover, .login-input input:hover, .popover-input:hover,
   .cleanup-rule input:hover, .field-row select:hover, .settings-select-row select:hover, #sort-select:hover {
-    border-color: var(--line-strong);
+    border-color: var(--text-3);
   }
   .input:focus, #search-input:focus, .dialog-field input:focus, .login-input input:focus, .placeholder-field-row input:focus,
   .placeholder-field-row select:focus, .popover-input:focus, .popover-select:focus, .cleanup-rule input:focus, .field-row select:focus,
   .settings-select-row select:focus, #sort-select:focus, #expire-row input:focus {
-    outline: none; border-color: var(--accent); background: var(--surface-1); box-shadow: 0 0 0 3px var(--accent-ring);
+    outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent), 0 0 0 4px var(--accent-ring);
   }
   ::placeholder { color: var(--text-3); opacity: 1; }
   select { cursor: pointer; }
@@ -822,6 +824,16 @@
     padding: 6px; z-index: 70; width: 240px; animation: popIn var(--t-med) var(--ease); transform-origin: top;
   }
   .popover.has-close { padding-top: 32px; }
+  .popover.with-head { padding: 10px; width: 290px; }
+  .popover .color-input { width: 22px; height: 22px; border-radius: 50%; overflow: hidden; padding: 0; border: none; box-shadow: inset 0 0 0 1px var(--line-strong); }
+  .popover .color-input::-webkit-color-swatch-wrapper { padding: 0; }
+  .popover .color-input::-webkit-color-swatch { border: none; border-radius: 50%; }
+  .popover .color-input::-moz-color-swatch { border: none; border-radius: 50%; }
+  .pop-head { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; }
+  .pop-icon { width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; color: var(--accent); background: var(--accent-soft); flex-shrink: 0; }
+  .pop-icon .icon { width: 17px; height: 17px; }
+  .pop-title { flex: 1; font-size: var(--fs-lg); font-weight: var(--fw-bold); letter-spacing: -0.01em; }
+  .pop-head .popover-close-btn { position: static; width: 28px; height: 28px; display: grid; place-items: center; }
   .popover.as-sheet {
     position: fixed; left: 0; right: 0; bottom: 0; top: auto !important; width: auto !important; z-index: var(--z-sheet);
     border-radius: var(--r-2xl) var(--r-2xl) 0 0; padding: 6px 14px calc(14px + env(safe-area-inset-bottom)); overflow-y: auto;
@@ -829,6 +841,8 @@
   }
   .popover.as-sheet::before { content: ""; display: block; width: 36px; height: 5px; border-radius: 3px; background: var(--line-strong); margin: 4px auto 10px; }
   .popover.as-sheet.has-close { padding-top: 6px; }
+  .popover.as-sheet .pop-title { font-size: var(--fs-xl); }
+  .popover.as-sheet .popover-input { height: 44px; }
   .popover.as-sheet .popover-list { max-height: none; }
   .popover.as-sheet .popover-list-item { min-height: 44px; font-size: 16px; }
   .popover-scrim { position: fixed; inset: 0; z-index: calc(var(--z-sheet) - 1); background: var(--scrim); animation: fadeIn var(--t-med) ease; }
@@ -1113,15 +1127,17 @@
   .settings-select-row select { height: var(--h-md); }
   #settings-footer { font-size: var(--fs-xs); color: var(--text-3); padding: 0 var(--s-1); }
 
-  /* Theme picker */
-  #theme-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-3); }
-  .theme-opt { display: flex; flex-direction: column; gap: 8px; align-items: center; background: none; border: none; cursor: pointer; color: var(--text-2); font-size: var(--fs-sm); font-weight: var(--fw-medium); padding: 0; }
-  .theme-swatch { width: 100%; aspect-ratio: 16 / 10; border-radius: var(--r-lg); box-shadow: 0 0 0 1px var(--line-strong); overflow: hidden; display: flex; transition: box-shadow var(--t-fast); }
-  .theme-swatch i { flex: 1; display: block; }
-  .theme-swatch .l { background: linear-gradient(#f6f6f4 0 28%, #fff 28%); }
-  .theme-swatch .d { background: linear-gradient(#111216 0 28%, #0d0e11 28%); }
-  .theme-opt.active { color: var(--text); }
-  .theme-opt.active .theme-swatch { box-shadow: 0 0 0 2px var(--accent); }
+  /* Segmented switch (Theme): small, with icons. */
+  .segmented { display: inline-flex; gap: 2px; padding: 3px; border-radius: var(--r-md); background: var(--surface-2); flex-shrink: 0; }
+  .segmented button {
+    display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 6px; border: none;
+    background: transparent; color: var(--text-2); font-size: var(--fs-sm); font-weight: var(--fw-medium); cursor: pointer;
+  }
+  .segmented button .icon { width: 15px; height: 15px; }
+  .segmented button:hover { color: var(--text); }
+  .segmented button.active { background: var(--surface-1); color: var(--text); box-shadow: var(--shadow-sm), 0 0 0 1px var(--line); }
+  html[data-theme="dark"] .segmented button.active { background: var(--surface-3); }
+  @media (max-width: 420px) { .settings-line:has(.segmented) { flex-direction: column; align-items: stretch; padding-block: 12px; } .segmented { display: flex; } .segmented button { flex: 1; justify-content: center; height: 32px; } }
 
   /* Shortcuts list */
   .shortcut-row { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
@@ -1466,6 +1482,7 @@
     <symbol id="icon-chevron-left" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></g></symbol>
     <symbol id="icon-sidebar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></g></symbol>
     <symbol id="icon-panel-right" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16"/></g></symbol>
+    <symbol id="icon-monitor" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></g></symbol>
     <symbol id="icon-menu" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/></g></symbol>
     <symbol id="icon-more" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="12" r="1.1" fill="currentColor"/><circle cx="12" cy="12" r="1.1" fill="currentColor"/><circle cx="18.5" cy="12" r="1.1" fill="currentColor"/></g></symbol>
     <symbol id="icon-undo" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></g></symbol>
@@ -1594,13 +1611,15 @@
         <section class="settings-page" data-page="appearance">
           <h2 class="settings-page-title">Appearance</h2>
           <div class="settings-section">
-            <div class="settings-section-title">Theme</div>
-            <div id="theme-picker" role="radiogroup" aria-label="Theme">
-              <button class="theme-opt" data-theme-pick="light" role="radio"><span class="theme-swatch"><i class="l"></i></span>Light</button>
-              <button class="theme-opt" data-theme-pick="dark" role="radio"><span class="theme-swatch"><i class="d"></i></span>Dark</button>
-              <button class="theme-opt" data-theme-pick="system" role="radio"><span class="theme-swatch"><i class="l"></i><i class="d"></i></span>Automatic</button>
+            <div class="settings-group">
+              <div class="settings-line"><span>Theme<small>Automatic follows your phone or computer.</small></span>
+                <div id="theme-picker" class="segmented" role="radiogroup" aria-label="Theme">
+                  <button class="theme-opt" data-theme-pick="light" role="radio"><svg class="icon"><use href="#icon-sun"></use></svg>Light</button>
+                  <button class="theme-opt" data-theme-pick="dark" role="radio"><svg class="icon"><use href="#icon-moon"></use></svg>Dark</button>
+                  <button class="theme-opt" data-theme-pick="system" role="radio"><svg class="icon"><use href="#icon-monitor"></use></svg>Auto</button>
+                </div>
+              </div>
             </div>
-            <div class="settings-hint">Automatic follows your phone or computer.</div>
           </div>
         </section>
 
@@ -2943,14 +2962,8 @@
     closeAnyPopover();
     const isEdit = !!existingFolder;
     const pop = document.createElement("div");
-    pop.className = "popover has-close";
-
-    const closeBtn = document.createElement("button");
-    closeBtn.className = "popover-close-btn";
-    closeBtn.textContent = "\u2715";
-    closeBtn.title = "Discard";
-    closeBtn.addEventListener("click", () => closeAnyPopover());
-    pop.appendChild(closeBtn);
+    pop.className = "popover with-head";
+    pop.appendChild(popoverHead("folder", isEdit ? "Edit folder" : "New folder"));
 
     const input = document.createElement("input");
     input.className = "popover-input";
@@ -2997,7 +3010,7 @@
       renderAllViews();
     });
 
-    pop.insertBefore(input, closeBtn.nextSibling);
+    pop.insertBefore(input, pop.querySelector(".pop-head").nextSibling);
     pop.appendChild(saveBtn);
     document.body.appendChild(pop);
     positionPopover(pop, anchorEl);
@@ -3101,6 +3114,18 @@
     setTimeout(() => document.addEventListener("click", onOutside), 0);
   }
 
+  // The top of a small panel: an icon, a title and a close button, matching
+  // the dialogs (New folder, Vault…).
+  function popoverHead(iconName, title) {
+    const head = document.createElement("div");
+    head.className = "pop-head";
+    head.innerHTML = '<span class="pop-icon">' + icon(iconName) + '</span><span class="pop-title"></span>' +
+      '<button type="button" class="popover-close-btn" title="Close" aria-label="Close">' + icon("close", "icon-sm") + "</button>";
+    head.querySelector(".pop-title").textContent = title;
+    head.querySelector("button").addEventListener("click", closeAnyPopover);
+    return head;
+  }
+
   function closeAnyPopover() {
     document.querySelectorAll(".popover, .context-menu, .popover-scrim").forEach((p) => p.remove());
   }
@@ -3135,14 +3160,8 @@
     closeAnyPopover();
     const isEdit = !!existingTag;
     const pop = document.createElement("div");
-    pop.className = "popover has-close";
-
-    const closeBtn = document.createElement("button");
-    closeBtn.className = "popover-close-btn";
-    closeBtn.textContent = "\u2715";
-    closeBtn.title = "Discard";
-    closeBtn.addEventListener("click", () => closeAnyPopover());
-    pop.appendChild(closeBtn);
+    pop.className = "popover with-head";
+    pop.appendChild(popoverHead("tag", isEdit ? "Edit tag" : "New tag"));
 
     const input = document.createElement("input");
     input.className = "popover-input";
@@ -5113,7 +5132,8 @@
   function openTagAssignPopover(anchorEvent, item) {
     closeAnyPopover();
     const pop = document.createElement("div");
-    pop.className = "popover tag-picker";
+    pop.className = "popover with-head tag-picker";
+    pop.appendChild(popoverHead("tag", "Tags"));
     const input = document.createElement("input");
     input.className = "popover-input";
     input.id = "tag-picker-input";
@@ -5488,14 +5508,8 @@
   document.getElementById("bulk-tag-btn").addEventListener("click", (e) => {
     closeAnyPopover();
     const pop = document.createElement("div");
-    pop.className = "popover has-close";
-
-    const closeBtn = document.createElement("button");
-    closeBtn.className = "popover-close-btn";
-    closeBtn.textContent = "\u2715";
-    closeBtn.title = "Close";
-    closeBtn.addEventListener("click", () => closeAnyPopover());
-    pop.appendChild(closeBtn);
+    pop.className = "popover with-head";
+    pop.appendChild(popoverHead("tag", "Tag selected items"));
 
     const label = document.createElement("div");
     label.className = "popover-label";
