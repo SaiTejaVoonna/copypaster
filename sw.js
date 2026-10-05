@@ -6,7 +6,7 @@
 // (bump CACHE when they do).
 // Your items are never touched here: they live in IndexedDB, not in this cache.
 
-const CACHE = "copypaster-v2";
+const CACHE = "copypaster-v3";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -15,8 +15,14 @@ const APP_SHELL = [
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",
   "./icons/apple-touch-icon.png",
-  "./icons/favicon-32.png"
+  "./icons/favicon-32.png",
+  "./groups-core.js",
+  "./groups.js",
+  "./groups.css"
 ];
+// The app's own code beside index.html. Like the page, fetched network-first
+// so an update never pairs a new page with old code; the saved copy is for offline.
+const CODE_FILES = ["./groups-core.js", "./groups.js", "./groups.css"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
@@ -50,6 +56,20 @@ self.addEventListener("fetch", (event) => {
           return res;
         })
         .catch(() => caches.match("./index.html").then((hit) => hit || caches.match("./")))
+    );
+    return;
+  }
+
+  const isCodeFile = url.origin === self.location.origin && !url.search &&
+    CODE_FILES.some((path) => new URL(path, self.location).pathname === url.pathname);
+  if (isCodeFile) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((cache) => cache.put(req, copy)); }
+          return res;
+        })
+        .catch(() => caches.match(req))
     );
     return;
   }

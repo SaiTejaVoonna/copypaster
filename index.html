@@ -7,6 +7,7 @@
 <meta name="description" content="Your private clipboard, notes and commands. Local-first, no account.">
 <meta name="theme-color" content="#0b0d11">
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="groups.css">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -1521,6 +1522,14 @@
     <button id="sidebar-search" type="button" title="Search and commands (Ctrl+K)"><svg class="icon"><use href="#icon-search"></use></svg><span>Search</span><span class="kbd" id="palette-kbd">Ctrl K</span></button>
     <div id="sidebar-scroll">
       <nav id="main-nav"></nav>
+      <div id="groups-section" hidden>
+        <div class="sidebar-divider"></div>
+        <div class="sidebar-section-header" data-section="groups">
+          <span class="section-title-click">Groups<span class="section-chevron"><svg class="icon"><use href="#icon-chevron-down"></use></svg></span></span>
+          <button id="groups-add-btn" class="section-add-btn" title="New group" aria-label="New group"><svg class="icon"><use href="#icon-plus"></use></svg></button>
+        </div>
+        <div id="groups-list"></div>
+      </div>
       <div class="sidebar-divider"></div>
       <div class="sidebar-section-header" data-section="folders">
         <span class="section-title-click">Folders<span class="section-chevron"><svg class="icon"><use href="#icon-chevron-down"></use></svg></span></span>
@@ -1601,6 +1610,7 @@
         <button class="settings-nav-item" data-page="appearance"><span class="sn-icon" style="background:#5b8cff"><svg class="icon"><use href="#icon-palette"></use></svg></span>Appearance<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="profiles"><span class="sn-icon" style="background:#34c759"><svg class="icon"><use href="#icon-users"></use></svg></span>Profiles<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="vault"><span class="sn-icon" style="background:#14b8a6"><svg class="icon"><use href="#icon-vault"></use></svg></span>Vault<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
+        <button class="settings-nav-item" data-page="groups"><span class="sn-icon" style="background:#8b5cf6"><svg class="icon"><use href="#icon-layers"></use></svg></span>Groups<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="cleanup"><span class="sn-icon" style="background:#a78bfa"><svg class="icon"><use href="#icon-sparkle"></use></svg></span>Paste clean-up<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="data"><span class="sn-icon" style="background:#f59e0b"><svg class="icon"><use href="#icon-database"></use></svg></span>Your data<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="shortcuts"><span class="sn-icon" style="background:#64748b"><svg class="icon"><use href="#icon-keyboard"></use></svg></span>Shortcuts<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
@@ -1636,6 +1646,12 @@
           <h2 class="settings-page-title">Vault</h2>
           <p class="settings-page-lead">Encrypted on this device with a password only you know.</p>
           <div class="settings-group" id="vault-settings-body"></div>
+        </section>
+
+        <section class="settings-page" data-page="groups" id="groups-settings">
+          <h2 class="settings-page-title">Groups</h2>
+          <p class="settings-page-lead">Timelines for one topic each, like Hospital, Food or your bike. Separate from your notes.</p>
+          <div id="groups-settings-body"></div>
         </section>
 
         <section class="settings-page" data-page="cleanup" id="cleanup-settings">
@@ -1692,12 +1708,14 @@
 <input id="attach-image-file" type="file" accept="image/*" multiple hidden>
 <div id="toast"></div>
 
+<script src="groups-core.js"></script>
+<script src="groups.js"></script>
 <script>
 
 (function () {
   "use strict";
 
-  const APP_VERSION = "2.0";
+  const APP_VERSION = "2.1";
 
   // ---------- Profiles ----------
   // Each profile is its own IndexedDB database, so notes, folders, tags and
@@ -1723,7 +1741,7 @@
   const saveProfiles = () => localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
 
   const DB_NAME = profileDbName(currentProfile.id);
-  const DB_VERSION = 4;
+  const DB_VERSION = 5; // v5 adds the Groups stores (groups, entries); nothing else changes
   const ITEMS_STORE = "items";
   const META_STORE = "meta"; // one record per setting that must live with the data (the Vault's wrapped key)
   const TAGS_STORE = "tags";
@@ -1748,6 +1766,7 @@
   };
 
   let db = null;
+  let groupsApi = null; // set once Groups (groups.js) has loaded its data
   let currentId = null;
   let currentView = "all"; // 'all' | 'saved' | 'pinned' | 'notes' | 'commands' | 'archive' | 'trash' | {tag:id} | {folder:id}
   let searchQuery = "";
@@ -1783,6 +1802,9 @@
         if (!database.objectStoreNames.contains(META_STORE)) {
           database.createObjectStore(META_STORE, { keyPath: "id" });
         }
+        // Groups (see groups.js): separate from items, so notes are never touched.
+        if (!database.objectStoreNames.contains("groups")) database.createObjectStore("groups", { keyPath: "id" });
+        if (!database.objectStoreNames.contains("entries")) database.createObjectStore("entries", { keyPath: "id" });
       };
       // Another tab or window still has an older version open, and the
       // browser won't upgrade the storage until it lets go. Say so; this
@@ -2803,18 +2825,33 @@
     { key: "vault", label: "Vault", icon: "vault" },
     { key: "more", label: "More", icon: "menu" }
   ];
+  // With Groups on: Items, Groups, Snap (the camera), Vault, More.
+  const GROUP_TABS = [
+    { key: "all", label: "Items", icon: "grid" },
+    { key: "groups", label: "Groups", icon: "layers" },
+    { key: "snap", label: "Snap", icon: "camera" },
+    { key: "vault", label: "Vault", icon: "vault" },
+    { key: "more", label: "More", icon: "menu" }
+  ];
   function renderTabBar() {
     const bar = document.getElementById("tab-bar");
-    const onTab = TABS.some((tab) => tab.key === currentView);
+    const groupsOn = !!(groupsApi && groupsApi.enabled());
+    const inGroups = groupsOn && groupsApi.isActive();
+    const tabs = groupsOn ? GROUP_TABS : TABS;
+    const activeKey = inGroups ? "groups" : currentView;
+    const onTab = tabs.some((tab) => tab.key === activeKey);
     bar.innerHTML = "";
-    for (const tab of TABS) {
+    for (const tab of tabs) {
       const b = document.createElement("button");
       b.type = "button";
-      b.className = "tab-btn" + (tab.key === currentView || (tab.key === "more" && !onTab) ? " active" : "");
+      b.className = "tab-btn" + (tab.key === "snap" ? " snap" : "") + (tab.key === activeKey || (tab.key === "more" && !onTab) ? " active" : "");
       b.dataset.tab = tab.key;
-      b.innerHTML = icon(tab.icon) + "<span>" + tab.label + "</span>";
+      b.innerHTML = (tab.key === "snap" ? '<span class="snap-ring">' + icon(tab.icon) + "</span>" : icon(tab.icon)) + "<span>" + tab.label + "</span>";
       b.addEventListener("click", () => {
         if (tab.key === "more") { openSidebarDrawer(); return; }
+        if (tab.key === "groups") { groupsApi.showHome(); return; }
+        if (tab.key === "snap") { groupsApi.openSnap(); return; }
+        if (inGroups) { groupsApi.exit(); switchView(tab.key); return; }
         if (currentView === tab.key) { itemsEl.scrollTo({ top: 0, behavior: motionOK() ? "smooth" : "auto" }); return; }
         switchView(tab.key);
       });
@@ -3546,6 +3583,8 @@
       { label: item.archivedAt ? "Unarchive" : "Archive", run: () => toggleArchiveWithUndo(item) },
       { label: item.vaulted ? "Move out of Vault" : "Move to Vault", run: () => (item.vaulted ? moveOutOfVault(item) : moveToVault(item)) },
       ...(item.vaulted ? [] : [{ label: "Move to folder\u2026", run: () => openFolderSheet(item) }]),
+      ...(!item.vaulted && item.type !== "password" && groupsApi && groupsApi.enabled() && groupsApi.hasGroups()
+        ? [{ label: "Move to group\u2026", icon: "layers", run: () => groupsApi.moveNoteToGroup(item) }] : []),
       { label: "Select\u2026", run: () => {
         if (!selectMode) document.getElementById("select-mode-btn").click();
         selectedIds.add(item.id);
@@ -5074,6 +5113,7 @@
     if (document.getElementById("image-lightbox")) { closeImageLightbox(); return true; }
     if (!settingsOverlay.classList.contains("hidden")) { settingsStepBack(); return true; }
     if (document.querySelector(".popover, .context-menu")) { closeAnyPopover(); return true; }
+    if (groupsApi && groupsApi.stepBack()) return true;
     if (openSwipe) { closeOpenSwipe(); return true; }
     if (sidebarEl.classList.contains("open")) { closeSidebarOnMobile(); return true; }
     if (selectMode) { document.getElementById("select-mode-btn").click(); return true; }
@@ -5093,6 +5133,7 @@
 
   window.addEventListener("popstate", () => {
     if (history.state && history.state.cpGuard) return; // moved forward onto the guard
+    if (location.hash.startsWith("#template=")) return; // a Groups template link opened in this tab (groups.js)
     clearTimeout(guardRestoreTimer);
     if (stepBack()) { pushBackGuard(); return; }
     // Nothing left to close.
@@ -5265,6 +5306,11 @@
       folders: folderCache
     };
     if (vaultMeta) payload.vault = { ...vaultMeta, passkeys: [] };
+    // Groups ride along; older versions of the app ignore these two keys.
+    if (groupsApi) {
+      const g = groupsApi.exportData();
+      if (g.groups.length || g.entries.length) { payload.cpsVersion = 2; payload.groups = g.groups; payload.entries = g.entries; }
+    }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -5338,10 +5384,12 @@
         addedItems++;
       }
       await saveItems(batch);
+      const addedGroups = groupsApi && (data.groups || data.entries) ? await groupsApi.importData(data) : { groups: 0, entries: 0 };
 
       if (progress) progress.close();
       renderAllViews();
       showToast("Imported " + addedItems + " items" + (addedTags || addedFolders ? " (+tags/folders)" : "") + (addedItems ? " \u2014 new ones are marked unread" : "") +
+        (addedGroups.groups || addedGroups.entries ? " \u00b7 " + addedGroups.groups + " groups, " + addedGroups.entries + " group entries" : "") +
         (vaultImport.skipped ? " \u00b7 " + vaultImport.skipped + " Vault items skipped" : ""));
     } catch (err) {
       console.error("Import failed:", err);
@@ -6320,7 +6368,7 @@
     if (!open) return [];
     return itemQuickActions(open).filter((a) => a.label !== "Open" && !a.label.startsWith("Select")).map((a) => ({ label: a.label, icon: actionIcon(a.label) || "chevron-right", run: a.run }));
   }
-  const ACTION_ICONS = [["copy", "copy"], ["favorite", "star"], ["pin", "pin"], ["archive", "archive"], ["vault", "vault"], ["folder", "folder"],
+  const ACTION_ICONS = [["copy", "copy"], ["favorite", "star"], ["pin", "pin"], ["archive", "archive"], ["vault", "vault"], ["folder", "folder"], ["to group", "layers"],
     ["trash", "trash"], ["delete", "trash"], ["read", "mail"], ["restore", "undo"], ["select", "check-box"], ["open", "chevron-right"]];
   function actionIcon(label) {
     const l = label.toLowerCase();
@@ -6393,6 +6441,7 @@
         }
       };
       group("Items", items);
+      if (q && mode !== "item" && groupsApi) group("In groups", groupsApi.paletteItems(q));
       group(mode === "item" ? "This item" : "Actions", actions);
       if (!rows.length) results.innerHTML = '<div class="palette-empty">No matching items or actions</div>';
       active = 0;
@@ -6456,6 +6505,7 @@
         (e.key.toLowerCase() === "n" && !inTextField && !e.ctrlKey && !e.metaKey && !e.altKey && !document.querySelector("#palette-overlay, #dialog-overlay, #new-menu-overlay, .popover"))) {
       e.preventDefault();
       closePalette();
+      if (groupsApi && groupsApi.isActive() && groupsApi.focusComposer()) return;
       openNewMenu();
       return;
     }
@@ -7819,10 +7869,44 @@
       .catch(() => {});
   }
 
+  // Groups live in groups.js; it only talks to the app through this.
+  async function startGroups() {
+    if (!window.CPGroups) return;
+    try {
+      groupsApi = await window.CPGroups.init({
+        getAll, put, remove, profileKey, showToast, openDialog, motionOK,
+        closeSidebarOnMobile, openSidebarDrawer, renderTabBar, renderAllViews, closeSettings,
+        copy: (text, msg) => copyToClipboard(text, msg),
+        openPhoto: (src) => openImageLightbox(src),
+        leaveNotes: async () => {
+          await saveOpenDraft();
+          if (currentId) await closeDetail();
+          if (selectMode) document.getElementById("select-mode-btn").click();
+        },
+        createNote: async ({ title, content, images, createdAt }) => {
+          const now = Date.now();
+          const item = normalize({ id: uuid(), type: "note", title: title || "", content: content || "", images: [...(images || [])], createdAt: createdAt || now, updatedAt: now });
+          await saveItem(item);
+          renderAllViews();
+          return item;
+        },
+        deleteNote: async (id) => {
+          if (currentId === id) await closeDetail();
+          await deleteItems([id]);
+          renderAllViews();
+        }
+      });
+      renderTabBar();
+    } catch (err) {
+      console.error("[CopyPaster] Groups failed to start:", err);
+    }
+  }
+
   openDB()
     .then(async (database) => {
       db = database;
       await refresh();
+      await startGroups();
       await sweepExpired();
       setInterval(sweepExpired, 60 * 1000);
       await handleLaunchParams();
