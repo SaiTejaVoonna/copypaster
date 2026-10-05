@@ -62,3 +62,49 @@ test("Settings opens on the last section you used; Shortcuts are listed", async 
   await page.click("#settings-btn");
   await expect(page.locator('.settings-page[data-page="shortcuts"]')).toBeVisible();
 });
+
+test("make a new tag right from an item, and find existing ones by typing", async ({ page }) => {
+  await newNote(page, "needs a tag");
+  await page.click("#add-tag-to-item-btn");
+  await page.keyboard.type("groceries");
+  await expect(page.locator(".tag-picker .create-row")).toHaveText(/Create “groceries”/);
+  await page.keyboard.press("Enter");
+  await expect(page.locator("#tags-row .tag-chip")).toHaveText(/groceries/);
+  await expect(page.locator("#tags-list")).toContainText("groceries"); // also in the sidebar
+  await page.keyboard.press("Escape");
+  await newNote(page, "second note");
+  await page.click("#add-tag-to-item-btn");
+  await page.keyboard.type("groc");
+  await expect(page.locator(".tag-picker .popover-list-item").first()).toHaveText("groceries");
+  await page.keyboard.press("Enter"); // picks the first match, not "Create “groc”"
+  await expect(page.locator("#tags-row .tag-chip")).toHaveText(/groceries/);
+});
+
+test("make a new folder from an item's Folder menu; the item moves into it", async ({ page }) => {
+  await newNote(page, "file me");
+  await page.selectOption("#detail-properties .field-row select", "__new__");
+  await page.fill("#dialog-name", "Recipes");
+  await page.click("#dialog button[type=submit]");
+  await expect(page.locator("#detail-properties .field-row select option:checked")).toHaveText("Recipes");
+  await expect(page.locator("#folders-list")).toContainText("Recipes");
+  await expect(lastToast(page)).toContainText("Moved to “Recipes”");
+});
+
+test("Details folds away to a one-line summary, and stays how you left it", async ({ page }) => {
+  await newNote(page, "fold me");
+  const panel = page.locator("#detail-properties");
+  await expect(panel).not.toHaveClass(/collapsed/); // open by default on a computer
+  await page.click(".props-head");
+  await expect(panel).toHaveClass(/collapsed/);
+  await expect(page.locator(".props-summary")).toBeVisible();
+  await newNote(page, "another");
+  await expect(page.locator("#detail-properties")).toHaveClass(/collapsed/);
+});
+
+test("the ⋯ button lists every action for the open item", async ({ page }) => {
+  await newNote(page, "more please");
+  await page.click("#detail-pane .icon-toggle.more");
+  await expect(page.locator(".context-menu")).toContainText("Move to Trash");
+  await page.locator(".context-menu .popover-list-item", { hasText: "Pin to top" }).click();
+  await expect(page.locator("#detail-pane .icon-toggle.pin")).toHaveClass(/on/);
+});

@@ -698,9 +698,25 @@
     display: flex; flex-direction: column; margin: 0 var(--s-8) var(--s-5); padding: var(--s-1) var(--s-4) var(--s-2);
     border-radius: var(--r-lg); background: var(--surface-1); border: 1px solid var(--line);
   }
-  .props-title { font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--text-3); padding: 10px 0 2px; }
+  .props-head {
+    display: flex; align-items: center; gap: var(--s-3); width: 100%; min-height: 44px; padding: 0; margin: 0;
+    background: none; border: none; color: inherit; cursor: pointer; text-align: left;
+  }
+  .props-title { font-size: var(--fs-sm); font-weight: var(--fw-semibold); color: var(--text); flex-shrink: 0; }
+  .props-summary { flex: 1; min-width: 0; font-size: var(--fs-sm); color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; opacity: 0; transition: opacity var(--t-med); }
+  #detail-properties.collapsed .props-summary { opacity: 1; }
+  .props-chevron { width: 15px; height: 15px; color: var(--text-3); flex-shrink: 0; transition: transform var(--t-med) var(--ease); }
+  #detail-properties.collapsed .props-chevron { transform: rotate(-90deg); }
+  #detail-properties.collapsed { padding-bottom: 0; }
+  .props-head:hover .props-title, .props-head:hover .props-chevron { color: var(--accent); }
+  /* Slides open and shut (a 0fr → 1fr grid row animates to the content's height). */
+  .props-fold { display: grid; grid-template-rows: 1fr; transition: grid-template-rows var(--t-slow) var(--ease); }
+  #detail-properties.collapsed .props-fold { grid-template-rows: 0fr; }
+  .props-inner { min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+  #detail-properties.collapsed .props-inner { visibility: hidden; transition: visibility 0s var(--t-slow); }
+  .props-inner > .prop-row:first-child { border-top: 1px solid var(--line); }
   .prop-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; column-gap: var(--s-3); row-gap: 6px; min-height: 44px; padding: 5px 0; font-size: var(--fs-md); }
-  .prop-row + .prop-row { border-top: 1px solid var(--line); }
+  .prop-row + .prop-row, .props-inner > .prop-picker + .prop-row { border-top: 1px solid var(--line); }
   .prop-label { color: var(--text-2); display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .prop-label .icon { width: 15px; height: 15px; color: var(--text-3); }
   .prop-value { flex: 1; min-width: 0; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; color: var(--text); }
@@ -819,6 +835,12 @@
   .popover-list-item:hover { background: var(--surface-2); }
   html[data-theme="dark"] .popover-list-item:hover { background: var(--surface-3); }
   .popover-list-item.checked { font-weight: var(--fw-semibold); }
+  .popover-list-item.active { background: var(--surface-2); }
+  html[data-theme="dark"] .popover-list-item.active { background: var(--surface-3); }
+  .popover-list-item.create-row { color: var(--accent); }
+  .popover-list-item.create-row .icon { color: var(--accent); }
+  .popover-empty { padding: 10px; font-size: var(--fs-sm); color: var(--text-3); text-align: center; }
+  .tag-picker .popover-input { height: 34px; font-size: var(--fs-md); margin-bottom: 6px; }
   .popover-list-item.checked::after { content: ""; margin-left: auto; width: 14px; height: 14px; background: var(--accent); -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l5 5L19 7'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l5 5L19 7'/%3E%3C/svg%3E") center / contain no-repeat; }
   .popover-list-item .icon { color: var(--text-2); }
   .popover-footer-btn {
@@ -1232,7 +1254,7 @@
     #type-select .type-btn .type-label { display: none; }
     #type-select .type-btn.active .type-label { display: inline; }
     .icon-toggle { min-width: 38px; height: 38px; }
-    .icon-toggle.unread, .icon-toggle.archive { display: none; }
+    .icon-toggle.unread, .icon-toggle.archive, .header-sep { display: none; }
     #detail-main { padding: var(--s-3) var(--s-5) var(--s-4); }
     #title-input { font-size: 26px; }
     #content-input { font-size: 17px; min-height: 180px; }
@@ -4334,6 +4356,20 @@
       span.textContent = labels[key];
       b.appendChild(span);
     });
+    // "⋯": every action for this item (a sheet on phones, a menu on desktop).
+    const moreBtn = document.createElement("button");
+    moreBtn.className = "icon-toggle more";
+    moreBtn.innerHTML = icon("more");
+    moreBtn.title = "More actions";
+    moreBtn.setAttribute("aria-label", "More actions");
+    moreBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const actions = itemQuickActions(item).filter((a) => a.label !== "Open");
+      if (isDrawerMode()) { openSheet(item.title || firstLine(item.content) || "This item", actions, false); return; }
+      const r = moreBtn.getBoundingClientRect();
+      showContextMenu(r.right - 200, r.bottom + 6, actions.map((a) => ({ label: a.label, danger: a.danger, onClick: a.run })));
+    });
+    right.appendChild(moreBtn);
     const zen = right.querySelector(".icon-toggle.zen");
     if (zen) { const sep = document.createElement("span"); sep.className = "header-sep"; right.appendChild(sep); right.appendChild(zen); }
     header.appendChild(right);
@@ -4515,12 +4551,28 @@
   // text, or an Info column beside it when the editor is wide.
   function buildDetailProperties(ed) {
     const { item, inTrash } = ed;
+    const panel = document.createElement("div");
+    panel.id = "detail-properties";
+    const open = detailsOpen();
+    panel.classList.toggle("collapsed", !open);
+    const head = document.createElement("button");
+    head.type = "button";
+    head.className = "props-head";
+    head.setAttribute("aria-expanded", open ? "true" : "false");
+    head.innerHTML = '<span class="props-title">Details</span><span class="props-summary"></span>' + icon("chevron-down", "props-chevron");
+    head.querySelector(".props-summary").textContent = detailsSummary(item);
+    head.addEventListener("click", () => {
+      const nowOpen = panel.classList.toggle("collapsed") === false;
+      head.setAttribute("aria-expanded", nowOpen ? "true" : "false");
+      try { localStorage.setItem(DETAILS_OPEN_KEY, nowOpen ? "1" : "0"); } catch {}
+    });
+    panel.appendChild(head);
+    const fold = document.createElement("div");
+    fold.className = "props-fold";
     const body = document.createElement("div");
-    body.id = "detail-properties";
-    const title = document.createElement("div");
-    title.className = "props-title";
-    title.textContent = "Details";
-    body.appendChild(title);
+    body.className = "props-inner";
+    fold.appendChild(body);
+    panel.appendChild(fold);
     const propRow = (label, iconName, extraClass) => {
       const row = document.createElement("div");
       row.className = "prop-row" + (extraClass ? " " + extraClass : "");
@@ -4557,7 +4609,16 @@
           folderSelect.appendChild(subOpt);
         });
       });
+      const newOpt = document.createElement("option");
+      newOpt.value = "__new__";
+      newOpt.textContent = "+ New folder\u2026";
+      folderSelect.appendChild(newOpt);
       folderSelect.addEventListener("change", async () => {
+        if (folderSelect.value === "__new__") {
+          folderSelect.value = item.folderId || "";
+          newFolderForItem(item);
+          return;
+        }
         item.folderId = folderSelect.value || null;
         if (item.folderId) item.order = Date.now();
         item.updatedAt = Date.now();
@@ -4657,7 +4718,25 @@
     dates.textContent = "Created " + new Date(item.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) + " \u00b7 Updated " + timeAgo(item.updatedAt);
     dates.title = "Created " + formatFullDate(item.createdAt) + "\nUpdated " + formatFullDate(item.updatedAt);
     body.appendChild(dates);
-    return body;
+    return panel;
+  }
+  // Open by default on bigger screens, folded on phones; your last choice wins.
+  const DETAILS_OPEN_KEY = "copypaster-details-open";
+  function detailsOpen() {
+    let saved = null;
+    try { saved = localStorage.getItem(DETAILS_OPEN_KEY); } catch {}
+    return saved === null ? !window.matchMedia("(max-width: 720px)").matches : saved === "1";
+  }
+  // One line for the folded card: "Work · 2 tags · In 7d · Green".
+  function detailsSummary(item) {
+    const parts = [];
+    const folder = item.folderId && folderById(item.folderId);
+    if (folder) parts.push(folder.name);
+    const tagNames = item.tags.map((id) => (tagById(id) || {}).name).filter(Boolean);
+    if (tagNames.length) parts.push(tagNames.length <= 2 ? tagNames.join(", ") : tagNames.length + " tags");
+    if (item.autoExpireAt && !item.deletedAt) parts.push(timeLeft(item.autoExpireAt).replace(/^in /, "In "));
+    if (item.color) parts.push(SWATCH_NAMES[SWATCHES.indexOf(item.color)] || "Color");
+    return parts.join(" \u00b7 ") || "Folder, tags, auto-delete, color";
   }
 
   function buildDetailFooter(ed) {
@@ -4856,6 +4935,8 @@
       await saveItem(item);
       renderAllViews();
       renderExpireRow(item, row, false);
+      const summary = document.querySelector("#detail-properties .props-summary");
+      if (summary) summary.textContent = detailsSummary(item);
     };
     const label = document.createElement("span");
     label.className = "expire-label";
@@ -4983,41 +5064,125 @@
   pushBackGuard();
   window.matchMedia("(max-width: 900px)").addEventListener("change", pushBackGuard);
 
+  // Tags for one item: type to filter, tap to add or remove (it stays open
+  // for more), and if nothing matches, Enter (or the last row) creates it.
   function openTagAssignPopover(anchorEvent, item) {
     closeAnyPopover();
     const pop = document.createElement("div");
-    pop.className = "popover";
+    pop.className = "popover tag-picker";
+    const input = document.createElement("input");
+    input.className = "popover-input";
+    input.id = "tag-picker-input";
+    input.placeholder = "Find or create a tag";
+    input.autocomplete = "off";
+    input.setAttribute("aria-label", "Find or create a tag");
     const list = document.createElement("div");
     list.className = "popover-list";
+    pop.append(input, list);
+    let active = 0;
+    let rows = [];
 
-    if (tagCache.length === 0) {
-      const empty = document.createElement("div");
-      empty.style.fontSize = "12px";
-      empty.style.color = "var(--text-dim)";
-      empty.style.padding = "4px 6px";
-      empty.textContent = "No tags yet. Create one from the sidebar.";
-      list.appendChild(empty);
+    const toggleTag = async (tag) => {
+      const had = item.tags.includes(tag.id);
+      item.tags = had ? item.tags.filter((x) => x !== tag.id) : item.tags.concat(tag.id);
+      item.updatedAt = Date.now();
+      await saveItem(item);
+      if (currentId === item.id) redrawDetail("properties");
+      renderTagsList();
+      render();
+    };
+    const createTag = async (name) => {
+      const existing = tagCache.find((tg) => tg.name.toLowerCase() === name.toLowerCase());
+      if (existing) { if (!item.tags.includes(existing.id)) await toggleTag(existing); return; }
+      const tag = { id: uuid(), name, color: SWATCHES[tagCache.length % SWATCHES.length], emoji: "" };
+      await put(TAGS_STORE, tag);
+      tagCache.push(tag);
+      input.value = "";
+      await toggleTag(tag);
+      showToast("Created tag \u201c" + name + "\u201d");
+    };
+    function render() {
+      const q = input.value.trim();
+      const ql = q.toLowerCase();
+      list.innerHTML = "";
+      rows = [];
+      const matches = tagCache.filter((tg) => !ql || tg.name.toLowerCase().includes(ql));
+      for (const tag of matches) {
+        const row = document.createElement("div");
+        const checked = item.tags.includes(tag.id);
+        row.className = "popover-list-item" + (checked ? " checked" : "");
+        row.setAttribute("role", "option");
+        row.setAttribute("aria-selected", checked ? "true" : "false");
+        const marker = tag.emoji ? '<span class="tag-emoji">' + tag.emoji + '</span>' : '<span class="tag-dot" style="background:' + tag.color + '"></span>';
+        row.innerHTML = marker + "<span></span>";
+        row.lastChild.textContent = tag.name;
+        row.addEventListener("click", () => toggleTag(tag));
+        list.appendChild(row);
+        rows.push({ row, run: () => toggleTag(tag) });
+      }
+      if (q && !tagCache.some((tg) => tg.name.toLowerCase() === ql)) {
+        const row = document.createElement("div");
+        row.className = "popover-list-item create-row";
+        row.innerHTML = icon("plus") + "<span></span>";
+        row.lastChild.textContent = "Create \u201c" + q + "\u201d";
+        row.addEventListener("click", () => createTag(q));
+        list.appendChild(row);
+        rows.push({ row, run: () => createTag(q) });
+      }
+      if (!rows.length) list.innerHTML = '<div class="popover-empty">' + (tagCache.length ? "No match" : "No tags yet. Type a name to make one.") + "</div>";
+      active = Math.min(active, Math.max(0, rows.length - 1));
+      highlight();
     }
-    for (const tag of tagCache) {
-      const row = document.createElement("div");
-      const checked = item.tags.includes(tag.id);
-      row.className = "popover-list-item" + (checked ? " checked" : "");
-      const marker = tag.emoji ? '<span class="tag-emoji">' + tag.emoji + '</span>' : '<span class="tag-dot" style="background:' + tag.color + '"></span>';
-      row.innerHTML = marker + escapeHtml(tag.name);
-      row.addEventListener("click", async () => {
-        const had = item.tags.includes(tag.id);
-        item.tags = had ? item.tags.filter((x) => x !== tag.id) : item.tags.concat(tag.id);
+    const highlight = () => rows.forEach((r, i) => r.row.classList.toggle("active", i === active));
+    input.addEventListener("input", () => { active = 0; render(); });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        if (!rows.length) return;
+        active = (active + (e.key === "ArrowDown" ? 1 : -1) + rows.length) % rows.length;
+        highlight();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (rows[active]) rows[active].run();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        closeAnyPopover();
+      }
+    });
+    document.body.appendChild(pop);
+    render();
+    // Below the whole Tags line, so the chips you add stay visible and clickable.
+    const anchor = anchorEvent.currentTarget || anchorEvent.target;
+    positionPopover(pop, anchor.closest(".prop-row") || anchor);
+    if (!isDrawerMode()) input.focus();
+  }
+
+  // Makes a folder from inside an item ("+ New folder…") and moves the item in.
+  function newFolderForItem(item) {
+    openDialog({
+      title: "New folder",
+      iconName: "folder",
+      fields: [{ name: "name", label: "Folder name", placeholder: "Work, Recipes, Deploy\u2026" }],
+      submitLabel: "Create and move here",
+      onSubmit: async ({ name }) => {
+        name = name.trim();
+        if (!name) return "Give the folder a name.";
+        let folder = folderCache.find((f) => !f.parentId && f.name.toLowerCase() === name.toLowerCase());
+        if (!folder) {
+          folder = { id: uuid(), name, parentId: null };
+          await put(FOLDERS_STORE, folder);
+          folderCache.push(folder);
+        }
+        item.folderId = folder.id;
+        item.order = Date.now();
         item.updatedAt = Date.now();
         await saveItem(item);
-        closeAnyPopover();
+        renderFoldersList();
         if (currentId === item.id) redrawDetail("properties");
-        showToast((had ? "Removed tag \u201c" : "Tagged \u201c") + tag.name + "\u201d");
-      });
-      list.appendChild(row);
-    }
-    pop.appendChild(list);
-    document.body.appendChild(pop);
-    positionPopover(pop, anchorEvent.target);
+        showToast("Moved to \u201c" + folder.name + "\u201d");
+      }
+    });
   }
 
   // ---------- Export / Import ----------
