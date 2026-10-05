@@ -90,7 +90,7 @@ test("make a new folder from an item's Folder menu; the item moves into it", asy
   await expect(lastToast(page)).toContainText("Moved to “Recipes”");
 });
 
-test("Details folds away to a one-line summary, and stays how you left it", async ({ page }) => {
+test("Organise folds away to a one-line summary, and stays how you left it", async ({ page }) => {
   await newNote(page, "fold me");
   const panel = page.locator("#detail-properties");
   await expect(panel).not.toHaveClass(/collapsed/); // open by default on a computer
@@ -107,4 +107,16 @@ test("the ⋯ button lists every action for the open item", async ({ page }) => 
   await expect(page.locator(".context-menu")).toContainText("Move to Trash");
   await page.locator(".context-menu .popover-list-item", { hasText: "Pin to top" }).click();
   await expect(page.locator("#detail-pane .icon-toggle.pin")).toHaveClass(/on/);
+});
+
+test("on a wide screen the panel button hides and shows Organise", async ({ page }) => {
+  await page.setViewportSize({ width: 1500, height: 900 }); // room for the side panel
+  await newNote(page, "wide editor");
+  const panel = page.locator("#detail-properties");
+  await expect(page.locator(".props-title")).toHaveText("Organise");
+  await expect(panel).toBeVisible();
+  await page.click("#detail-pane .icon-toggle.organise");
+  await expect(panel).toBeHidden();
+  await page.click("#detail-pane .icon-toggle.organise");
+  await expect(panel).toBeVisible();
 });

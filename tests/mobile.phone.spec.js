@@ -150,3 +150,17 @@ test("tab bar switches views; Settings goes list → section → back", async ({
   await expect(page.locator("#vault-setup-btn")).toBeHidden();
   await expect(page.locator('.settings-nav-item[data-page="profiles"]')).toBeVisible();
 });
+
+test("on a phone the tag picker slides up from the bottom", async ({ page }) => {
+  await page.tap("#new-btn");
+  await page.tap('#new-menu [data-new="note"]');
+  await page.tap(".props-head"); // Organise starts folded on phones
+  await page.tap("#add-tag-to-item-btn");
+  const sheet = page.locator(".tag-picker");
+  await expect(sheet).toHaveClass(/as-sheet/);
+  const box = await sheet.boundingBox();
+  const vh = page.viewportSize().height;
+  expect(Math.round(box.y + box.height)).toBeGreaterThanOrEqual(vh - 2); // touches the bottom edge
+  await page.tap(".popover-scrim", { position: { x: 20, y: 20 } });
+  await expect(sheet).toHaveCount(0);
+});

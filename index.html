@@ -573,6 +573,12 @@
   .icon-toggle.on.lock { color: var(--command); }
   .icon-toggle.on.archive { color: var(--success); }
   .icon-toggle.vault.on { color: var(--password); }
+  .icon-toggle.organise { display: none; }
+  .icon-toggle.organise.on { color: var(--accent); }
+  @container detail (min-width: 760px) {
+    .icon-toggle.organise { display: inline-flex; }
+    #detail-pane #detail-properties.collapsed { display: none; }
+  }
   .header-sep { width: 1px; height: 18px; background: var(--line-strong); margin: 0 6px; }
 
   body.zen-mode #sidebar, body.zen-mode #list-pane, body.zen-mode .resize-handle { display: none; }
@@ -692,7 +698,7 @@
   .attached-image-action.danger:hover { background: var(--danger); }
   @media (hover: none) { .attached-image-actions { opacity: 1; } .attached-image-action { width: 30px; height: 30px; } }
 
-  /* Details: one line per property (label left, value right), like a
+  /* Organise: one line per property (label left, value right), like a
      settings list. Tapping a value opens its choices underneath. */
   #detail-properties {
     display: flex; flex-direction: column; margin: 0 var(--s-8) var(--s-5); padding: var(--s-1) var(--s-4) var(--s-2);
@@ -816,6 +822,16 @@
     padding: 6px; z-index: 70; width: 240px; animation: popIn var(--t-med) var(--ease); transform-origin: top;
   }
   .popover.has-close { padding-top: 32px; }
+  .popover.as-sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; top: auto !important; width: auto !important; z-index: var(--z-sheet);
+    border-radius: var(--r-2xl) var(--r-2xl) 0 0; padding: 6px 14px calc(14px + env(safe-area-inset-bottom)); overflow-y: auto;
+    animation: sheet-up var(--t-slow) var(--ease); transition: bottom var(--t-fast) ease;
+  }
+  .popover.as-sheet::before { content: ""; display: block; width: 36px; height: 5px; border-radius: 3px; background: var(--line-strong); margin: 4px auto 10px; }
+  .popover.as-sheet.has-close { padding-top: 6px; }
+  .popover.as-sheet .popover-list { max-height: none; }
+  .popover.as-sheet .popover-list-item { min-height: 44px; font-size: 16px; }
+  .popover-scrim { position: fixed; inset: 0; z-index: calc(var(--z-sheet) - 1); background: var(--scrim); animation: fadeIn var(--t-med) ease; }
   .popover-close-btn {
     position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border-radius: var(--r-sm);
     background: transparent; border: none; color: var(--text-3); cursor: pointer; font-size: 12px;
@@ -1449,6 +1465,7 @@
     <symbol id="icon-chevron-right" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></g></symbol>
     <symbol id="icon-chevron-left" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></g></symbol>
     <symbol id="icon-sidebar" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/></g></symbol>
+    <symbol id="icon-panel-right" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M15 4v16"/></g></symbol>
     <symbol id="icon-menu" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/></g></symbol>
     <symbol id="icon-more" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="12" r="1.1" fill="currentColor"/><circle cx="12" cy="12" r="1.1" fill="currentColor"/><circle cx="18.5" cy="12" r="1.1" fill="currentColor"/></g></symbol>
     <symbol id="icon-undo" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></g></symbol>
@@ -3054,10 +3071,22 @@
 
   function positionPopover(pop, anchorEl) {
     if (window.matchMedia("(max-width: 600px)").matches) {
-      // Phones: centered near the top, clear of the keyboard and the menu.
-      pop.style.position = "fixed";
-      pop.style.top = "12vh";
-      pop.style.left = Math.max(12, (window.innerWidth - pop.offsetWidth) / 2) + "px";
+      // Phones: a panel from the bottom, in thumb reach. While the keyboard
+      // is up, it sits on top of the keyboard instead of behind it.
+      pop.classList.add("as-sheet");
+      const scrim = document.createElement("div");
+      scrim.className = "popover-scrim";
+      scrim.addEventListener("click", closeAnyPopover);
+      pop.before(scrim);
+      const vv = window.visualViewport;
+      const lift = () => {
+        if (!pop.isConnected) { if (vv) { vv.removeEventListener("resize", lift); vv.removeEventListener("scroll", lift); } return; }
+        const covered = vv ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
+        pop.style.bottom = covered + "px";
+        pop.style.maxHeight = ((vv ? vv.height : window.innerHeight) - 24) + "px";
+      };
+      if (vv) { vv.addEventListener("resize", lift); vv.addEventListener("scroll", lift); }
+      lift();
     } else {
       const rect = anchorEl.getBoundingClientRect();
       pop.style.top = Math.min(rect.bottom + 6, window.innerHeight - 260) + "px";
@@ -3073,7 +3102,7 @@
   }
 
   function closeAnyPopover() {
-    document.querySelectorAll(".popover, .context-menu").forEach((p) => p.remove());
+    document.querySelectorAll(".popover, .context-menu, .popover-scrim").forEach((p) => p.remove());
   }
 
   function showContextMenu(x, y, actions) {
@@ -4370,6 +4399,14 @@
       showContextMenu(r.right - 200, r.bottom + 6, actions.map((a) => ({ label: a.label, danger: a.danger, onClick: a.run })));
     });
     right.appendChild(moreBtn);
+    // Computers: show or hide the Organise panel on the right.
+    const organiseBtn = document.createElement("button");
+    organiseBtn.className = "icon-toggle organise" + (detailsOpen() ? " on" : "");
+    organiseBtn.innerHTML = icon("panel-right");
+    organiseBtn.title = detailsOpen() ? "Hide Organise" : "Show Organise";
+    organiseBtn.setAttribute("aria-label", "Organise panel");
+    organiseBtn.addEventListener("click", () => setOrganiseOpen(!detailsOpen()));
+    right.appendChild(organiseBtn);
     const zen = right.querySelector(".icon-toggle.zen");
     if (zen) { const sep = document.createElement("span"); sep.className = "header-sep"; right.appendChild(sep); right.appendChild(zen); }
     header.appendChild(right);
@@ -4559,13 +4596,9 @@
     head.type = "button";
     head.className = "props-head";
     head.setAttribute("aria-expanded", open ? "true" : "false");
-    head.innerHTML = '<span class="props-title">Details</span><span class="props-summary"></span>' + icon("chevron-down", "props-chevron");
+    head.innerHTML = '<span class="props-title">Organise</span><span class="props-summary"></span>' + icon("chevron-down", "props-chevron");
     head.querySelector(".props-summary").textContent = detailsSummary(item);
-    head.addEventListener("click", () => {
-      const nowOpen = panel.classList.toggle("collapsed") === false;
-      head.setAttribute("aria-expanded", nowOpen ? "true" : "false");
-      try { localStorage.setItem(DETAILS_OPEN_KEY, nowOpen ? "1" : "0"); } catch {}
-    });
+    head.addEventListener("click", () => setOrganiseOpen(panel.classList.contains("collapsed")));
     panel.appendChild(head);
     const fold = document.createElement("div");
     fold.className = "props-fold";
@@ -4719,6 +4752,17 @@
     dates.title = "Created " + formatFullDate(item.createdAt) + "\nUpdated " + formatFullDate(item.updatedAt);
     body.appendChild(dates);
     return panel;
+  }
+  // Opens or closes Organise: the card on phones, the right-hand panel on computers.
+  function setOrganiseOpen(open) {
+    try { localStorage.setItem(DETAILS_OPEN_KEY, open ? "1" : "0"); } catch {}
+    const panel = document.getElementById("detail-properties");
+    if (panel) {
+      panel.classList.toggle("collapsed", !open);
+      panel.querySelector(".props-head").setAttribute("aria-expanded", open ? "true" : "false");
+    }
+    const btn = document.querySelector("#detail-pane .icon-toggle.organise");
+    if (btn) { btn.classList.toggle("on", open); btn.title = open ? "Hide Organise" : "Show Organise"; }
   }
   // Open by default on bigger screens, folded on phones; your last choice wins.
   const DETAILS_OPEN_KEY = "copypaster-details-open";
