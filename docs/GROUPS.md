@@ -4,8 +4,9 @@ Groups are timelines for one topic each (Hospital, Food, Bike, Movies & Anime).
 They are **separate from notes**: notes never show inside a group and group
 entries never show in the notes list. Search (Ctrl K) finds both.
 
-Off by default. Settings → Groups → Show Groups. Turning it off only hides
-them.
+On by default since 2.5 (Groups is a tab in the phone dock). Settings → Groups →
+Show Groups turns them off; that only hides them. Group entries also show in
+the Timeline, and their tags are shared with notes (see `docs/CORE-2.5.md`).
 
 ## Files
 
@@ -28,6 +29,8 @@ Two IndexedDB stores in each profile's own database, added in DB version 5:
 - `cards`: `none` | `day` (same day + same main tag = one card; sub-chats marked `late` join up to 7 days later) | `title` (same main tag = one card)
 
 **Entry**: `{ id, refs: [{ g, s, tag }], title, note, tags[], amount, currency, rating, fields{}, photos[], link, happenedOn, addedOn }`
+
+- `tags`: short tag keys (`apollo-hospital`), shared with notes' tags by name. `#word` in the send bar adds one.
 
 - `refs`: one entry can be in several groups (linked, not copied). Each ref has its own sub-chat and main tag.
 - `amount` is in minor units (paise, cents). Totals are per currency, never converted.

@@ -2617,7 +2617,9 @@
   function copyItemSmart(item, liveContent) {
     if (item.type === "password") { copyLoginPart(item, "password"); return; }
     if (item.contentType === "image") { copyImageToClipboard(item.content); return; }
-    const content = liveContent !== undefined ? liveContent : item.content;
+    let content = liveContent !== undefined ? liveContent : item.content;
+    // A checklist copies as ☐ / ☑ lines under any text.
+    if (item.type === "note" && item.checklist && item.checklist.length) content = [content.trim(), checklistAsText(item.checklist)].filter(Boolean).join("\n");
     const placeholders = extractPlaceholders(content);
     const copy = (text) => {
       if (!item.vaulted || !vaultPrefs.clearClipboard) return copyToClipboard(text);
@@ -7022,7 +7024,7 @@
     for (const item of cache) {
       if (item.deletedAt || item._locked) continue;
       const title = (item.title || "").toLowerCase();
-      const content = (item.content || "").toLowerCase();
+      const content = ((item.content || "") + (item.checklist ? " " + item.checklist.map((c) => c.text).join(" ") : "")).toLowerCase();
       const tagNames = item.tags.map((id) => (tagById(id) || {}).name || "").join(" ").toLowerCase();
       let score = 0;
       if (title.includes(q)) score = 3;
@@ -8239,23 +8241,6 @@
     } else {
       copyToClipboard(value, label + " copied");
     }
-  }
-
-  // A random password with letters, digits and symbols, using the browser's
-  // secure random numbers (no modulo bias).
-  const PASSWORD_SETS = ["ABCDEFGHJKLMNPQRSTUVWXYZ", "abcdefghijkmnopqrstuvwxyz", "23456789", "!@#$%^&*-_=+?"];
-  function randomIndex(n) {
-    const limit = 256 - (256 % n);
-    const buf = new Uint8Array(1);
-    do crypto.getRandomValues(buf); while (buf[0] >= limit);
-    return buf[0] % n;
-  }
-  function generatePassword(length = 20) {
-    const all = PASSWORD_SETS.join("");
-    const chars = PASSWORD_SETS.map((set) => set[randomIndex(set.length)]); // at least one of each kind
-    while (chars.length < length) chars.push(all[randomIndex(all.length)]);
-    for (let i = chars.length - 1; i > 0; i--) { const j = randomIndex(i + 1); [chars[i], chars[j]] = [chars[j], chars[i]]; }
-    return chars.join("");
   }
 
   // The Website / Username / Password rows of a Password item. Returns a

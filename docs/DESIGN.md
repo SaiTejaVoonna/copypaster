@@ -1,6 +1,6 @@
-# CopyPaster design system (v2.0)
+# CopyPaster design system (v2.5)
 
-All styling lives in the `<style>` block of `index.html`, built on tokens at the top.
+All styling lives in the `<style>` block of `index.html`, plus `groups.css` and `tools.css` (Timeline, tools, v2.5 extras), all built on the tokens at the top of `index.html`.
 
 ## Tokens
 - **Type:** `--font`, `--font-display`, `--mono`; sizes `--fs-2xs` … `--fs-3xl`; weights `--fw-*`.
@@ -17,6 +17,6 @@ All styling lives in the `<style>` block of `index.html`, built on tokens at the
 Buttons (`.btn`, `.primary`, `.ghost`, `.danger`, `.icon-btn`), inputs, chips (`.chip`, `.on`), switches, list rows (type tile, title + time, preview line, meta pills), popovers and context menus, action sheets, the New Item command menu, dialogs, the command palette, toasts and the Settings layout all use the tokens above.
 
 ## Layout
-- **Desktop (> 900px):** sidebar | list | editor. The editor shows a Details column when it's at least 760px wide (a container query).
+- **Desktop (> 900px):** sidebar | list | editor. The editor shows a Details column when it's at least 760px wide (a container query). The Timeline takes the list's place; with a note open, the note sits beside it.
 - **Tablet (721–900px):** the sidebar becomes a drawer; list | editor.
-- **Phone (≤ 720px):** one pane at a time, a bottom tab bar, a floating + button, bottom sheets, and Settings as list → section.
+- **Phone (≤ 720px):** one pane at a time and the dock at the bottom: Inbox, Groups, + (new anything), Search (the Timeline), More (the full menu). The dock's + and More are the only New and menu buttons there. Bottom sheets, and Settings as list → section.

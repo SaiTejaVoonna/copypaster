@@ -75,7 +75,7 @@ test("make a new tag right from an item, and find existing ones by typing", asyn
   await newNote(page, "second note");
   await page.click("#add-tag-to-item-btn");
   await page.keyboard.type("groc");
-  await expect(page.locator(".tag-picker .popover-list-item").first()).toHaveText("groceries");
+  await expect(page.locator(".tag-picker .popover-list-item").first()).toHaveText("groceries1"); // name, then how often it's used
   await page.keyboard.press("Enter"); // picks the first match, not "Create “groc”"
   await expect(page.locator("#tags-row .tag-chip")).toHaveText(/groceries/);
 });

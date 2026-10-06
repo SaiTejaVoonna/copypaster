@@ -763,6 +763,7 @@
     try { await saveEntry(e); }
     catch (err) { console.error(err); api.showToast("Couldn't save. Is the phone out of storage?"); return; }
     entries.push(e);
+    changed();
     prefs.lastSub[g.id] = d.sub || null; prefs.lastTag[g.id] = d.tag || null; savePrefs();
     ui.drafts[g.id] = null;
     const fresh = draftFor(g); fresh.extras = true;
@@ -1079,6 +1080,7 @@
         const e = C.normalizeEntry({ refs: [{ g: d.g, s: d.s, tag: null }], title, note, photos, happenedOn: item.createdAt || Date.now(), addedOn: Date.now() });
         try { await saveEntry(e); } catch (err) { console.error(err); api.showToast("Couldn't move it"); return; }
         entries.push(e);
+        changed();
         await api.deleteNote(item.id);
         api.showToast("Moved to " + d.label);
         await openGroup(d.g, "all");
@@ -1413,6 +1415,7 @@
             photos, amount: g.fields.amount.on ? C.toMinor(draft.amount) : null, happenedOn: Date.now(), addedOn: Date.now() });
           try { await saveEntry(e); } catch (err) { console.error(err); api.showToast("Couldn't save the photo"); return; }
           entries.push(e);
+          changed();
           prefs.snapDest = dest; prefs.lastTag[g.id] = draft.tag || null; savePrefs();
           close();
           api.showToast("Saved to " + g.name + (sub ? " / " + sub.name : ""));

@@ -231,8 +231,9 @@ body.timeline-mode:not(.detail-open) #detail-pane { display: none !important; }
 .tagm-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .tagm-name b { font-weight: var(--fw-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tagm-name small { color: var(--text-3); font-size: var(--fs-xs); }
-.tagm-row button.small { height: 28px; padding: 0 10px; border-radius: var(--r-md); border: 1px solid var(--line-strong); background: var(--surface-1); color: var(--text-2); font-size: var(--fs-xs); cursor: pointer; }
-.tagm-row button.small:hover { color: var(--text); border-color: var(--accent); }
+.tagm-row button.small, .tagm-dupe button.small { height: 28px; padding: 0 10px; border-radius: var(--r-md); border: 1px solid var(--line-strong); background: var(--surface-1); color: var(--text-2); font-size: var(--fs-xs); cursor: pointer; }
+.tagm-row button.small:hover, .tagm-dupe button.small:hover { color: var(--text); border-color: var(--accent); }
+#tags-settings-body .settings-section + .settings-section { margin-top: var(--s-5); }
 .tagm-row button.small.danger { color: var(--danger); }
 .tagm-dupe { display: flex; gap: var(--s-2); align-items: center; flex-wrap: wrap; padding: 8px var(--s-3); border-bottom: 1px solid var(--line); font-size: var(--fs-sm); }
 .tagm-dupe:last-child { border-bottom: none; }
@@ -285,3 +286,6 @@ body.timeline-mode:not(.detail-open) #detail-pane { display: none !important; }
 .tl-new { height: 32px; margin-left: var(--s-2); }
 @media (max-width: 720px) { .tl-new { display: none !important; } }
 .tag-picker .tag-count { margin-left: auto; color: var(--text-3); font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+
+/* A tag box opened from Settings → Tags sits above Settings. */
+body:has(#settings-overlay:not(.hidden)) .popover, body:has(#settings-overlay:not(.hidden)) .popover-scrim { z-index: 240; }
