@@ -185,7 +185,8 @@ test("a checklist: add with Enter, tick, progress, turn back into text, copy", a
   await page.click('#new-menu [data-new="checklist"]');
   await expect(page.locator("#cl-add")).toBeFocused();
   for (const t of ["Milk", "Eggs", "Bread"]) { await page.fill("#cl-add", t); await page.keyboard.press("Enter"); }
-  await page.locator(".cl-row").nth(1).locator("input[type=checkbox]").check(); // Eggs
+  // By name, not position: a ticked item moves down under "done".
+  await page.getByRole("checkbox", { name: "To do: Eggs" }).click();
   await expect(page.locator(".cl-progress")).toHaveText("1 of 3 done");
   await expect(page.locator(".item-row .row-checklist")).toContainText("1/3");
   await expect(page.locator(".item-row .item-text")).toHaveText("Milk");
