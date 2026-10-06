@@ -312,8 +312,9 @@ body.group-mode #list-pane, body.group-mode #resize-list, body.group-mode #detai
   .gp-filters { padding: 0 var(--s-4) var(--s-2); }
   .gp-tabs { display: flex; }
   .gp-chips { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; flex-basis: 100%; }
-  .gp-tools { margin-left: 0; width: 100%; flex-wrap: nowrap; }
-  .gp-search { flex: 1; width: auto; min-width: 0; }
+  .gp-tools { margin-left: 0; width: 100%; }
+  .gp-search { flex: 1 1 100%; width: auto; min-width: 0; }
+  .gp-select { flex: 1 1 0; min-width: 0; }
   .gp-timeline { padding: 0 var(--s-3) var(--s-4); }
   body:not(.group-open) .gp-timeline { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
   .gp-tl { grid-template-columns: 46px 16px minmax(0, 1fr); }

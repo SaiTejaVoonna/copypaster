@@ -5328,6 +5328,12 @@
     document.getElementById("import-file").click();
   });
 
+  // iPhone/iPad don't know the .cps type and grey such files out when the
+  // picker is limited to it, so there the picker shows every file; the
+  // contents are checked below anyway.
+  if (/iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)) {
+    document.getElementById("import-file").removeAttribute("accept");
+  }
   document.getElementById("import-file").addEventListener("change", async (e) => {
     const file = e.target.files[0];
     e.target.value = "";
