@@ -13,9 +13,15 @@ const test = base.test.extend({
   },
 });
 
+// The "+ New" button: in the list header on computers, the dock's middle
+// button on phones.
+const newBtn = (page) => page.locator("#new-btn:visible, #tab-bar .tab-btn[data-tab='new']:visible").first();
+// The full menu: the ☰ button on tablets, "More" in the dock on phones.
+const menuBtn = (page) => page.locator("#menu-btn:visible, #tab-bar .tab-btn[data-tab='more']:visible").first();
+
 async function openApp(page) {
   await page.goto("./");
-  await expect(page.locator("#new-btn")).toBeVisible();
+  await expect(newBtn(page)).toBeVisible();
   // Wait for the first render from IndexedDB.
   await page.waitForFunction(() => document.querySelector("#items") !== null);
   await page.waitForTimeout(150);
@@ -34,7 +40,7 @@ async function seed(page, { items = [], folders = [], tags = [] }) {
     db.close();
   }, { items, folders, tags });
   await page.reload();
-  await expect(page.locator("#new-btn")).toBeVisible();
+  await expect(newBtn(page)).toBeVisible();
   await page.waitForTimeout(200);
 }
 
@@ -49,7 +55,7 @@ async function storedItems(page) {
 
 // Creates a note by typing, and waits for autosave (700 ms debounce).
 async function newNote(page, text, { title } = {}) {
-  await page.click("#new-btn");
+  await newBtn(page).click();
   await page.click('#new-menu [data-new="note"]');
   await expect(page.locator("#content-input")).toBeFocused();
   if (title) await page.fill("#title-input", title);
@@ -70,4 +76,4 @@ const rowTexts = async (page) => page.locator(".item-row .item-text").allInnerTe
 const lastToast = (page) => page.locator(".toast-item").last();
 const nav = (page, name) => page.locator("#sidebar .nav-item", { hasText: name });
 
-module.exports = { test, expect, openApp, seed, storedItems, newNote, paste, rowTexts, lastToast, nav };
+module.exports = { test, expect, openApp, seed, storedItems, newNote, paste, rowTexts, lastToast, nav, newBtn, menuBtn };

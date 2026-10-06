@@ -45,12 +45,19 @@ async function send(page, text, opts = {}) {
 // The header tile whose label is exactly this (e.g. "Visits", not "Top doctor · 2 visits").
 const stat = (page, label) => page.locator(".gp-stat").filter({ has: page.locator("span", { hasText: new RegExp("^" + label + "$") }) }).locator("b");
 
-test("Groups are off until switched on, and notes look exactly the same", async ({ page }) => {
-  await expect(page.locator("#groups-section")).toBeHidden();
-  await newNote(page, "plain note");
-  await turnOnGroups(page);
+test("Groups show by default, can be hidden, and notes look exactly the same", async ({ page }) => {
+  await expect(page.locator("#groups-section")).toBeVisible();
   await expect(page.locator("#groups-list")).toContainText("New group");
-  await expect(nav(page, "All Items")).toContainText("1");
+  await newNote(page, "plain note");
+  await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="groups"]');
+  await page.uncheck("#groups-enabled");
+  await page.click("#settings-close-btn");
+  await expect(page.locator("#groups-section")).toBeHidden();
+  await page.reload();
+  await expect(page.locator("#groups-section")).toBeHidden();
+  await turnOnGroups(page);
+  await expect(nav(page, "Inbox")).toContainText("1");
 });
 
 test("same day + same doctor becomes one visit; totals and counts add up", async ({ page }) => {
@@ -217,7 +224,7 @@ test("backups carry groups; old backups without groups still import", async ({ p
 test("a note moves into a group and back to Notes without losing its text", async ({ page }) => {
   await turnOnGroups(page);
   await createGroup(page, "Blank", "Ideas");
-  await nav(page, "All Items").click();
+  await nav(page, "Inbox").click();
   await newNote(page, "Line one\nLine two", { title: "Gift ideas" });
   await page.click(".item-row", { button: "right" });
   await page.locator(".context-menu .popover-list-item", { hasText: "Move to group" }).click();
@@ -256,7 +263,7 @@ test("search (Ctrl K) finds group entries and opens them", async ({ page }) => {
   await turnOnGroups(page);
   await createGroup(page, "Food");
   await send(page, "Osmania biscuit", { type: "Dish" });
-  await nav(page, "All Items").click();
+  await nav(page, "Inbox").click();
   await page.keyboard.press("Control+k");
   await page.fill("#palette-input", "osmania");
   await page.locator(".palette-row", { hasText: "Osmania biscuit" }).click();

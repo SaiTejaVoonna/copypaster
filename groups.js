@@ -87,12 +87,15 @@
     try { Object.assign(prefs, JSON.parse(localStorage.getItem(api.profileKey(PREFS_KEY)) || "{}")); } catch {}
   }
   function savePrefs() { try { localStorage.setItem(api.profileKey(PREFS_KEY), JSON.stringify(prefs)); } catch {} }
-  function readEnabled() { try { return localStorage.getItem(api.profileKey(ENABLED_KEY)) === "1"; } catch { return false; } }
+  // On unless it was switched off (Groups are part of the dock since v2.5).
+  function readEnabled() { try { return localStorage.getItem(api.profileKey(ENABLED_KEY)) !== "0"; } catch { return true; } }
 
-  async function saveGroup(g) { g.updatedAt = Date.now(); await api.put(GROUPS_STORE, g); }
-  async function saveEntry(e) { e.updatedAt = Date.now(); await api.put(ENTRIES_STORE, e); }
+  // Tells the app something changed (Timeline, tag counts).
+  const changed = () => { if (api.changed) api.changed(); };
+  async function saveGroup(g) { g.updatedAt = Date.now(); await api.put(GROUPS_STORE, g); changed(); }
+  async function saveEntry(e) { e.updatedAt = Date.now(); await api.put(ENTRIES_STORE, e); changed(); }
   // Gone for good (after it was moved to Notes, or emptied from Trash).
-  async function deleteEntry(e) { entries = entries.filter((x) => x !== e); await api.remove(ENTRIES_STORE, e.id); }
+  async function deleteEntry(e) { entries = entries.filter((x) => x !== e); await api.remove(ENTRIES_STORE, e.id); changed(); }
   // Delete = Trash for 30 days, with Undo, like notes.
   async function trashEntry(e) {
     e.deletedAt = Date.now();
@@ -273,7 +276,7 @@
     timelineEl.scrollTop = 0;
   }
   async function showHome() {
-    if (!enabled) return;
+    if (!enabled) setEnabled(true);
     await api.leaveNotes();
     if (!isPhone()) { if (groups.length) return openGroup(groups[0].id); openNewGroup(); return; }
     ui.screen = "home"; ui.selected = null; ui.menu = false;
@@ -286,6 +289,7 @@
     pane.hidden = true;
     renderSidebar();
     api.renderTabBar();
+    if (api.renderNav) api.renderNav();
   }
   // Phone back button / Escape: closes the top-most thing only.
   function stepBack() {
@@ -309,6 +313,7 @@
     renderMain();
     renderDetail();
     api.renderTabBar();
+    if (api.renderNav) api.renderNav();
   }
 
   // ---------- Sidebar ----------
@@ -578,7 +583,8 @@
     if (fields.length) meta.append(h("span", null, fields.join(" · ")));
     const tags = h("span", { class: "gp-row-tags" });
     if (!opts.inCard && t && ui.tag !== t.id) tags.append(h("span", { class: "gp-tagchip main", style: "--c:" + t.color }, t.name));
-    e.tags.forEach((x) => tags.append(h("span", { class: "gp-tagchip" }, "#" + x)));
+    e.tags.forEach((x) => tags.append(h("span", { class: "gp-tagchip tag", role: "button", tabindex: "0", title: "Everything tagged " + tagLabel(x),
+      onclick: (ev) => { ev.stopPropagation(); api.openTag(x); } }, "#" + tagLabel(x))));
     if (e.refs.length > 1) tags.append(h("span", { class: "gp-tagchip link" }, ic("link", "icon-sm"), "Also in " + e.refs.filter((x) => x.g !== g.id).map((x) => (groupById(x.g) || {}).name).filter(Boolean).join(", ")));
     const showSubPill = s && (opts.inCard || ui.s === "all") && e.title !== s.label;
     const subText = e.note || e.link || "";
@@ -732,7 +738,10 @@
     if (!canSend(d)) return;
     const now = Date.now();
     const happened = d.date ? (fromLocalInput(d.date) || now) : now;
-    const lines = d.text.trim().split("\n");
+    // #words in the text become tags (shared with notes) and leave the text.
+    const hashTags = [];
+    const text = d.text.replace(/(^|\s)#([\p{L}\p{N}_-]{1,40})/gu, (m, pre, word) => { hashTags.push(word); return pre; }).replace(/[ \t]+$/gm, "");
+    const lines = text.trim().split("\n");
     const sub = C.subOf(g, d.sub);
     let title = (lines[0] || "").trim();
     let note = lines.slice(1).join("\n").trim();
@@ -746,7 +755,9 @@
       if (f.type === "number") { const n = Number(String(v).replace(/,/g, "")); if (Number.isFinite(n)) fields[f.id] = n; }
       else fields[f.id] = String(v).slice(0, 500);
     });
-    const e = C.normalizeEntry({ refs: [{ g: g.id, s: d.sub || null, tag: d.tag || null }], title, note, link: link || null,
+    const tagKeys = [];
+    for (const word of hashTags) { const k = await api.ensureTag(word); if (k && !tagKeys.includes(k)) tagKeys.push(k); }
+    const e = C.normalizeEntry({ refs: [{ g: g.id, s: d.sub || null, tag: d.tag || null }], title, note, link: link || null, tags: tagKeys,
       amount: g.fields.amount.on ? C.toMinor(d.amount) : null, currency: d.currency, rating: d.rating, fields, photos: d.photos,
       happenedOn: happened, addedOn: now });
     try { await saveEntry(e); }
@@ -888,8 +899,16 @@
     g.fields.custom.forEach((f) => cell(f.name + (f.unit ? " (" + f.unit + ")" : ""), h("input", { type: f.type === "number" ? "number" : f.type === "date" ? "date" : "text", step: f.type === "number" ? "any" : null, inputmode: f.type === "number" ? "decimal" : null,
       "aria-label": f.name, value: e.fields[f.id] !== undefined ? e.fields[f.id] : "",
       oninput: (ev) => { const v = ev.target.value; if (v === "") delete e.fields[f.id]; else e.fields[f.id] = f.type === "number" ? Number(v) : v; rerender(); } })));
-    cell("Tags", h("input", { type: "text", "aria-label": "Tags", placeholder: "Add tags, like follow-up", value: e.tags.map((t) => "#" + t).join(" "),
-      onchange: (ev) => { e.tags = [...new Set(ev.target.value.split(/[\s,]+/).map(C.normalizeTagName).filter(Boolean))].slice(0, 20); ev.target.value = e.tags.map((t) => "#" + t).join(" "); rerender(); } }), true);
+    const tagBox = h("div", { class: "gp-tagedit" });
+    const drawTags = () => {
+      tagBox.replaceChildren();
+      e.tags.forEach((k) => tagBox.append(h("span", { class: "gp-tagchip tag" },
+        h("button", { class: "gp-tag-open", title: "Everything tagged " + tagLabel(k), onclick: () => api.openTag(k) }, "#" + tagLabel(k)),
+        h("button", { class: "gp-tag-x", "aria-label": "Remove tag " + tagLabel(k), onclick: async () => { e.tags = e.tags.filter((x) => x !== k); await saveEntry(e); drawTags(); rerender(); } }, ic("close", "icon-sm")))));
+      tagBox.append(h("button", { class: "gp-mini", id: "gp-add-tag", onclick: () => pickTags(e, () => { drawTags(); rerender(); }) }, ic("plus", "icon-sm"), "Tag"));
+    };
+    drawTags();
+    cell("Tags", tagBox, true);
     cell("Link", h("input", { type: "url", "aria-label": "Link", placeholder: "https://", value: e.link || "", oninput: (ev) => { e.link = ev.target.value.trim() || null; rerender(); } }), true);
     // Keep the two-column grid even: an odd last half-width cell spans both columns.
     const halves = [...grid.children].filter((c) => !c.classList.contains("wide"));
@@ -927,6 +946,40 @@
     detailEl.append(sc);
   }
   function growNote(t) { t.style.height = "auto"; t.style.height = Math.max(90, t.scrollHeight) + "px"; }
+
+  // Tags are shared with notes: pick from all of them, or make a new one.
+  function tagLabel(key) { return api.tagLabel ? api.tagLabel(key) : key; }
+  function pickTags(e, done) {
+    sheet("Tags", (body) => {
+      const input = h("input", { class: "input gp-input", id: "gp-tag-find", placeholder: "Find or create a tag", autocomplete: "off", "aria-label": "Find or create a tag" });
+      const list = h("div", { class: "tl-pick-list" });
+      const draw = () => {
+        const raw = input.value.trim();
+        const q = C.normalizeTagName(raw);
+        list.replaceChildren();
+        const all = api.tags();
+        const hits = all.filter((t) => !q || t.key.includes(q) || t.name.toLowerCase().includes(raw.toLowerCase()));
+        hits.forEach((t) => {
+          const on = e.tags.includes(t.key);
+          list.append(h("button", { class: "tl-pick" + (on ? " on" : ""), "aria-pressed": String(on), "data-tag": t.key, onclick: async () => {
+            e.tags = on ? e.tags.filter((x) => x !== t.key) : [...e.tags, t.key].slice(0, 20);
+            await saveEntry(e); done(); draw();
+          } }, on ? ic("check") : h("span", { class: "tag-dot", style: "--c:" + (t.color || "var(--text-3)") }), t.name, h("span", { class: "num" }, t.count)));
+        });
+        if (q && !all.some((t) => t.key === q)) list.append(h("button", { class: "tl-pick", id: "gp-tag-create", onclick: async () => {
+          const k = await api.ensureTag(raw);
+          if (k && !e.tags.includes(k)) e.tags = [...e.tags, k].slice(0, 20);
+          await saveEntry(e); input.value = ""; done(); draw();
+        } }, ic("plus"), "Create \u201c" + raw + "\u201d"));
+        if (!list.childNodes.length) list.append(h("p", { class: "gp-hint" }, "No tags yet. Type a name to make one."));
+      };
+      input.addEventListener("input", draw);
+      input.addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); const b = list.querySelector("#gp-tag-create") || list.querySelector(".tl-pick"); if (b) b.click(); } });
+      body.append(input, list, h("p", { class: "gp-hint" }, "The same tags as your notes. Tap one anywhere to see everything with it."));
+      draw();
+      if (!isPhone()) setTimeout(() => input.focus(), 30);
+    });
+  }
 
   function entryActions(e, g, anchor) {
     sheet("Entry", (body, close) => {
@@ -1398,6 +1451,7 @@
     renderSidebar();
     renderSettings();
     api.renderTabBar();
+    changed();
   }
   function renderSettings() {
     const box = document.getElementById("groups-settings-body");
@@ -1473,18 +1527,82 @@
       await api.put(ENTRIES_STORE, e); entries.push(e); haveE.add(e.id); addedEntries++;
     }
     if (addedGroups && !enabled) setEnabled(true);
-    renderSidebar(); renderSettings();
+    renderSidebar(); renderSettings(); changed();
     if (ui.screen) render();
     return { groups: addedGroups, entries: addedEntries };
   }
 
   function focusComposer() { const t = document.getElementById("gp-text"); if (t) { t.focus(); return true; } return false; }
 
+  // ---------- For the Timeline and shared tags ----------
+  function timelineRows() {
+    if (!enabled) return [];
+    const out = [];
+    for (const e of live()) {
+      const first = e.refs.find((r) => groupById(r.g));
+      if (!first) continue;
+      const g = groupById(first.g);
+      const s = C.subOf(g, first.s);
+      const where = e.refs.map((r) => {
+        const gg = groupById(r.g); if (!gg) return null;
+        const ss = C.subOf(gg, r.s), t = C.tagOf(gg, r.tag);
+        return { label: gg.name + (ss ? " / " + ss.name : "") + (t ? " \u00b7 " + t.name : ""), color: gg.color, icon: gg.icon };
+      }).filter(Boolean);
+      const text = [e.refs.map((r) => { const gg = groupById(r.g); return gg ? C.entryText(e, gg) + " " + gg.name : ""; }).join(" "), where.map((w) => w.label).join(" ")].join(" ").toLowerCase();
+      out.push({
+        kind: "entry", id: e.id, at: e.happenedOn, edited: e.updatedAt || e.addedOn,
+        title: e.title || (s ? s.label : "Entry"), sub: e.note || e.link || "",
+        icon: s ? s.icon : g.icon, color: s ? s.color : g.color, photo: e.photos[0] || null,
+        tags: e.tags.slice(), tagLabels: e.tags.map((k) => ({ key: k, label: tagLabel(k) })),
+        where, amount: e.amount || 0, amountText: e.amount ? money(e, g) : null, rating: e.rating || 0,
+        groups: e.refs.map((r) => r.g), types: ["entry", ...(e.photos.length ? ["photo"] : []), ...(e.link ? ["link"] : [])],
+        flags: {}, status: null, text
+      });
+    }
+    return out;
+  }
+  async function openEntry(id) {
+    const e = entryById(id);
+    if (!e) return;
+    const r = e.refs.find((x) => groupById(x.g));
+    if (!r) return;
+    if (!enabled) setEnabled(true);
+    await openGroup(r.g, "all");
+    selectEntry(id);
+  }
+  function tagCounts() {
+    const m = new Map();
+    if (!enabled) return m;
+    for (const e of live()) for (const k of e.tags) m.set(k, (m.get(k) || 0) + 1);
+    return m;
+  }
+  // Renaming or merging a tag in the app renames it in every entry.
+  async function renameTag(from, to) {
+    let n = 0;
+    for (const e of entries) {
+      if (!e.tags.includes(from)) continue;
+      e.tags = [...new Set(e.tags.map((k) => (k === from ? to : k)).filter(Boolean))];
+      await api.put(ENTRIES_STORE, e); n++;
+    }
+    if (n) { changed(); if (ui.screen) render(); }
+    return n;
+  }
+  const removeTag = (key) => renameTag(key, "");
+  async function openComposer() {
+    if (!enabled) setEnabled(true);
+    if (!groups.length) { openNewGroup(); return; }
+    const gid = ui.g && groupById(ui.g) ? ui.g : groups[0].id;
+    await openGroup(gid, "all");
+    focusLater("gp-text");
+  }
+  const groupList = () => groups.map((g) => ({ id: g.id, name: g.name, icon: g.icon, color: g.color }));
+
   const publicApi = {
     enabled: () => enabled,
     isActive: () => !!ui.screen,
     onHome: () => ui.screen === "home",
     stepBack, exit, showHome, openSnap, openNewGroup, paletteItems, exportData, importData, moveNoteToGroup, focusComposer,
+    timelineRows, openEntry, tagCounts, renameTag, removeTag, openComposer, groupList, setEnabled,
     hasGroups: () => groups.length > 0
   };
   // Add the icons now, so the static markup (Settings) can use them right away.

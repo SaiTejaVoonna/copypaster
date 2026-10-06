@@ -370,3 +370,13 @@ body.group-mode #toast { top: calc(14px + env(safe-area-inset-top)); bottom: aut
   .gp-tools-btn { display: inline-flex !important; }
   .gp-filters:not(.tools-open) .gp-tools { display: none; }
 }
+
+/* ---------- Shared tags on entries ---------- */
+.gp-tagchip.tag { cursor: pointer; }
+.gp-tagchip.tag:hover { color: var(--accent); }
+.gp-tagedit { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; padding: 3px 0; }
+.gp-tagedit .gp-tagchip { font-size: var(--fs-xs); padding: 0 2px 0 8px; height: 26px; }
+.gp-tag-open { border: none; background: none; color: inherit; font: inherit; cursor: pointer; padding: 0; }
+.gp-tag-open:hover { text-decoration: underline; }
+.gp-tag-x { width: 20px; height: 20px; border: none; border-radius: 50%; background: none; color: inherit; display: grid; place-items: center; cursor: pointer; padding: 0; opacity: .7; }
+.gp-tag-x:hover { opacity: 1; background: var(--surface-3); }

@@ -21,7 +21,6 @@ test("Groups tab, a group screen, Snap, and back steps out one screen at a time"
   await page.evaluate(() => localStorage.setItem("copypaster-groups-on", "1"));
   await page.reload();
   await expect(page.locator("#tab-bar [data-tab='groups']")).toBeVisible();
-  await expect(page.locator("#tab-bar [data-tab='snap']")).toBeVisible();
 
   await page.click("#tab-bar [data-tab='groups']");
   await page.click(".gp-empty button:has-text('New group')");
@@ -44,8 +43,9 @@ test("Groups tab, a group screen, Snap, and back steps out one screen at a time"
   await expect(page.locator(".gp-home-title h1")).toHaveText("Groups");
   await expect(page.locator("#tab-bar")).toBeVisible();
 
-  // Snap: photo first, then a quick save sheet.
-  const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.click("#tab-bar [data-tab='snap']")]);
+  // Snap (in the dock's + menu): photo first, then a quick save sheet.
+  await page.click("#tab-bar [data-tab='new']");
+  const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.click("#new-menu [data-new='snap']")]);
   await chooser.setFiles(pngFile());
   await page.fill("#gp-snap-cap", "Tyre receipt");
   await page.selectOption("#gp-snap-dest", { label: "Bike / Spare parts" });

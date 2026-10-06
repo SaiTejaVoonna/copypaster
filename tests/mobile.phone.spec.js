@@ -1,4 +1,4 @@
-const { test, expect, openApp, seed, storedItems, rowTexts, lastToast } = require("./fixtures");
+const { test, expect, openApp, seed, storedItems, rowTexts, lastToast, newBtn, menuBtn } = require("./fixtures");
 
 const t = Date.now();
 const notes = (...names) => names.map((n, i) => ({ id: n, type: "note", content: n, createdAt: t - i, updatedAt: t - i, schemaVersion: 2 }));
@@ -72,13 +72,13 @@ test("long-press opens the action sheet; pin and move to folder work from it", a
 });
 
 test("side menu opens, picks a view and closes; new folder box is on top", async ({ page }) => {
-  await page.tap("#menu-btn");
+  await menuBtn(page).tap();
   await expect(page.locator("#sidebar")).toHaveClass(/open/);
   await page.locator("#sidebar .nav-item", { hasText: "Commands" }).tap();
   await expect(page.locator("#list-title")).toHaveText("Commands");
   await expect(page.locator("#sidebar")).not.toHaveClass(/open/);
 
-  await page.tap("#menu-btn");
+  await menuBtn(page).tap();
   await page.tap("#add-folder-btn");
   const box = await page.locator(".popover").boundingBox();
   const onTop = await page.evaluate(({ x, y }) => !!document.elementFromPoint(x, y).closest(".popover"), { x: box.x + box.width / 2, y: box.y + 30 });
@@ -107,7 +107,7 @@ test("text fields are 16px so iPhone does not zoom in", async ({ page }) => {
   const size = (sel) => page.$eval(sel, (e) => getComputedStyle(e).fontSize);
   const px = async (sel) => parseFloat(await size(sel));
   expect(await px("#search-input")).toBeGreaterThanOrEqual(16);
-  await page.tap("#new-btn");
+  await newBtn(page).tap();
   await page.tap('#new-menu [data-new="note"]');
   await expect(page.locator("#content-input")).toBeVisible();
   expect(await px("#title-input")).toBeGreaterThanOrEqual(16);
@@ -115,7 +115,7 @@ test("text fields are 16px so iPhone does not zoom in", async ({ page }) => {
 });
 
 test("Save on a phone says Saved and goes back to the list", async ({ page }) => {
-  await page.tap("#new-btn");
+  await newBtn(page).tap();
   await page.tap('#new-menu [data-new="note"]');
   await page.fill("#content-input", "saved from phone");
   await page.locator("#detail-pane button.action", { hasText: "Save" }).tap();
@@ -125,7 +125,7 @@ test("Save on a phone says Saved and goes back to the list", async ({ page }) =>
 });
 
 test("profile switcher opens as a sheet on phones", async ({ page }) => {
-  await page.tap("#menu-btn");
+  await menuBtn(page).tap();
   await page.tap("#profile-btn");
   await expect(page.locator("#action-sheet")).toContainText("Personal");
   await page.locator("#action-sheet button", { hasText: "New profile" }).tap();
@@ -135,12 +135,21 @@ test("profile switcher opens as a sheet on phones", async ({ page }) => {
   await expect(page.locator("#profile-name")).toHaveText("Work");
 });
 
-test("tab bar switches views; Settings goes list → section → back", async ({ page }) => {
-  await page.tap('.tab-btn[data-tab="commands"]');
-  await expect(page.locator("#list-title")).toHaveText("Commands");
-  await expect(page.locator('.tab-btn[data-tab="commands"]')).toHaveClass(/active/);
+test("the dock: Inbox, Groups, +, Search, More; no second menu button; Settings goes list → section → back", async ({ page }) => {
+  await expect(page.locator("#tab-bar .tab-btn")).toHaveText(["Inbox", "Groups", "New", "Search", "More"]);
+  await expect(page.locator("#menu-btn")).toBeHidden(); // More in the dock is the one menu button
+  await expect(page.locator("#new-btn")).toBeHidden(); // the dock's + is the one New button
+  await page.tap('.tab-btn[data-tab="search"]');
+  await expect(page.locator("#tl-pane")).toBeVisible();
+  await expect(page.locator('.tab-btn[data-tab="search"]')).toHaveClass(/active/);
+  await page.tap('.tab-btn[data-tab="inbox"], .tab-btn[data-tab="all"]');
+  await expect(page.locator("#list-title")).toHaveText("Inbox");
   await page.tap('.tab-btn[data-tab="more"]');
   await expect(page.locator("#sidebar")).toHaveClass(/open/);
+  await page.locator("#sidebar .nav-item", { hasText: "Commands" }).tap();
+  await expect(page.locator("#list-title")).toHaveText("Commands");
+  await expect(page.locator('.tab-btn[data-tab="more"]')).toHaveClass(/active/);
+  await page.tap('.tab-btn[data-tab="more"]');
   await page.tap("#settings-btn");
   await expect(page.locator('.settings-nav-item[data-page="vault"]')).toBeVisible();
   await page.tap('.settings-nav-item[data-page="vault"]');
@@ -152,7 +161,7 @@ test("tab bar switches views; Settings goes list → section → back", async ({
 });
 
 test("on a phone the tag picker slides up from the bottom", async ({ page }) => {
-  await page.tap("#new-btn");
+  await newBtn(page).tap();
   await page.tap('#new-menu [data-new="note"]');
   await page.tap(".props-head"); // Organise starts folded on phones
   await page.tap("#add-tag-to-item-btn");

@@ -8,6 +8,7 @@
 <meta name="theme-color" content="#0b0d11">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="groups.css">
+<link rel="stylesheet" href="tools.css">
 <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -335,12 +336,12 @@
   #folders-list .nav-icon, #tags-list .nav-icon { opacity: 0.75; }
 
   #sidebar-footer { padding: var(--s-2) 0 var(--s-3); border-top: 1px solid var(--line); margin: 0 calc(-1 * var(--s-2)); padding-left: var(--s-2); padding-right: var(--s-2); }
-  #settings-btn {
+  #settings-btn, .footer-btn {
     width: 100%; display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border-radius: var(--r-md);
     background: transparent; border: none; color: var(--text-2); font-size: var(--fs-md); font-weight: var(--fw-medium); cursor: pointer;
   }
-  #settings-btn:hover { background: var(--surface-2); color: var(--text); }
-  #settings-btn .icon { width: 17px; height: 17px; }
+  #settings-btn:hover, .footer-btn:hover { background: var(--surface-2); color: var(--text); }
+  #settings-btn .icon, .footer-btn .icon { width: 17px; height: 17px; }
 
   @media (min-width: 901px) {
     #sidebar.collapsed { width: 60px !important; min-width: 60px; }
@@ -350,7 +351,7 @@
     #sidebar.collapsed #sidebar-search span, #sidebar.collapsed .settings-btn-label { display: none; }
     #sidebar.collapsed #brand { flex-direction: column; padding-left: 0; padding-right: 0; }
     #sidebar.collapsed #sidebar-collapse-btn { transform: rotate(180deg); }
-    #sidebar.collapsed .nav-item, #sidebar.collapsed #settings-btn, #sidebar.collapsed #sidebar-search { justify-content: center; padding: 0; }
+    #sidebar.collapsed .nav-item, #sidebar.collapsed .footer-btn, #sidebar.collapsed #sidebar-search { justify-content: center; padding: 0; }
     #sidebar.collapsed .nav-label { justify-content: center; }
     #sidebar.collapsed #profile-btn { justify-content: center; padding: 0; }
   }
@@ -1224,7 +1225,7 @@
     #resize-sidebar { display: none; }
     #list-pane { width: 340px; min-width: 300px; border-right: 1px solid var(--line); }
     #menu-btn { display: inline-flex; margin-left: -6px; }
-    .nav-item, #settings-btn { height: 40px; font-size: 15px; }
+    .nav-item, .footer-btn { height: 40px; font-size: 15px; }
   }
 
   /* Phones: one pane at a time, a tab bar at the bottom and a floating + button. */
@@ -1544,7 +1545,8 @@
       <div id="tags-list"></div>
     </div>
     <div id="sidebar-footer">
-      <button id="settings-btn" title="Settings"><svg class="icon"><use href="#icon-gear"></use></svg><span class="settings-btn-label">Settings</span></button>
+      <button id="pwgen-btn" class="footer-btn" title="Password generator"><svg class="icon"><use href="#icon-dice"></use></svg><span class="settings-btn-label">Password generator</span></button>
+      <button id="settings-btn" class="footer-btn" title="Settings"><svg class="icon"><use href="#icon-gear"></use></svg><span class="settings-btn-label">Settings</span></button>
     </div>
   </div>
   <div class="resize-handle" id="resize-sidebar" title="Drag to resize"></div>
@@ -1611,6 +1613,7 @@
         <button class="settings-nav-item" data-page="profiles"><span class="sn-icon" style="background:#34c759"><svg class="icon"><use href="#icon-users"></use></svg></span>Profiles<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="vault"><span class="sn-icon" style="background:#14b8a6"><svg class="icon"><use href="#icon-vault"></use></svg></span>Vault<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="groups"><span class="sn-icon" style="background:#8b5cf6"><svg class="icon"><use href="#icon-layers"></use></svg></span>Groups<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
+        <button class="settings-nav-item" data-page="tags"><span class="sn-icon" style="background:#ec4899"><svg class="icon"><use href="#icon-tag"></use></svg></span>Tags<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="cleanup"><span class="sn-icon" style="background:#a78bfa"><svg class="icon"><use href="#icon-sparkle"></use></svg></span>Paste clean-up<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="data"><span class="sn-icon" style="background:#f59e0b"><svg class="icon"><use href="#icon-database"></use></svg></span>Your data<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="shortcuts"><span class="sn-icon" style="background:#64748b"><svg class="icon"><use href="#icon-keyboard"></use></svg></span>Shortcuts<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
@@ -1654,6 +1657,12 @@
           <div id="groups-settings-body"></div>
         </section>
 
+        <section class="settings-page" data-page="tags" id="tags-settings">
+          <h2 class="settings-page-title">Tags</h2>
+          <p class="settings-page-lead">One set of tags for notes and groups. Rename, recolor, merge look-alikes and clear out unused ones.</p>
+          <div id="tags-settings-body"></div>
+        </section>
+
         <section class="settings-page" data-page="cleanup" id="cleanup-settings">
           <h2 class="settings-page-title">Paste clean-up</h2>
           <p class="settings-page-lead">Applied automatically to text you paste as a new note. Any note can also be cleaned up from its editor with “Clean up”.</p>
@@ -1675,8 +1684,14 @@
           <h2 class="settings-page-title">Your data</h2>
           <p class="settings-page-lead">Everything is saved only in this browser, on this device. Export now and then to keep a backup file.</p>
           <div class="settings-group">
-            <div class="settings-line"><span>Back up<small>Download a .cps file with everything, Vault items still encrypted.</small></span><button id="export-btn" class="btn"><svg class="icon"><use href="#icon-download"></use></svg>Export</button></div>
+            <div class="settings-line"><span>Back up<small id="last-backup">Download a .cps file with everything, Vault items still encrypted.</small></span><button id="export-btn" class="btn"><svg class="icon"><use href="#icon-download"></use></svg>Export</button></div>
             <div class="settings-line"><span>Restore<small>Add items from a .cps backup. Nothing is overwritten.</small></span><button id="import-btn" class="btn"><svg class="icon"><use href="#icon-upload"></use></svg>Import</button></div>
+            <div class="settings-line"><label for="backup-remind">Remind me to back up<small>A gentle note at the top of your Inbox.</small></label>
+              <select id="backup-remind" class="settings-inline-select"><option value="7">Every week</option><option value="14">Every 2 weeks</option><option value="30">Every month</option><option value="0">Never</option></select></div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-section-title">Storage on this device</div>
+            <div class="settings-group padded" id="storage-box"><div class="settings-hint">Working it out…</div></div>
           </div>
           <input id="import-file" type="file" accept=".cps,.json" hidden>
         </section>
@@ -1691,6 +1706,9 @@
           <div class="settings-group">
             <div class="settings-line"><span><b id="app-version"></b><small>Local-first. No account. Works offline.</small></span><button id="check-updates-btn" type="button">Check for updates</button></div>
             <div id="update-status" class="hidden" aria-live="polite"><div class="update-bar"></div><div class="update-text"></div></div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-group padded"><div class="rights" id="rights-notice">© 2026 Sai Teja Voonna. All rights reserved.<br>CopyPaster keeps everything on your device. Nothing is collected or sent to us.</div></div>
           </div>
           <div class="settings-section">
             <div class="settings-section-title">Install</div>
@@ -1710,12 +1728,17 @@
 
 <script src="groups-core.js"></script>
 <script src="groups.js"></script>
+<script src="search-core.js"></script>
+<script src="password-core.js"></script>
+<script src="totp-core.js"></script>
+<script src="tools.js"></script>
+<script src="timeline.js"></script>
 <script>
 
 (function () {
   "use strict";
 
-  const APP_VERSION = "2.1";
+  const APP_VERSION = "2.5";
 
   // ---------- Profiles ----------
   // Each profile is its own IndexedDB database, so notes, folders, tags and
@@ -1758,6 +1781,13 @@
     return '<svg class="icon' + (extraClass ? " " + extraClass : "") + '"><use href="#icon-' + name + '"></use></svg>';
   }
   const ITEM_TYPES = ["note", "command", "password"]; // Password items only live in the Vault
+  // A note's status (optional). Colors come from the design tokens.
+  const STATUSES = [
+    { key: "todo", label: "To do", color: "var(--warning)" },
+    { key: "doing", label: "In progress", color: "var(--accent)" },
+    { key: "done", label: "Done", color: "var(--success)" }
+  ];
+  const statusOf = (key) => STATUSES.find((st) => st.key === key) || null;
   const TYPE_ICONS = { note: "note", command: "command", password: "key" };
   const TYPE_DESCRIPTIONS = {
     password: "A login: website, username and password. Always encrypted in the Vault.",
@@ -1767,6 +1797,8 @@
 
   let db = null;
   let groupsApi = null; // set once Groups (groups.js) has loaded its data
+  let timelineApi = null; // set once the Timeline (timeline.js) is ready
+  let toolsApi = null; // password builder, 2FA, voice, sketch (tools.js)
   let currentId = null;
   let currentView = "all"; // 'all' | 'saved' | 'pinned' | 'notes' | 'commands' | 'archive' | 'trash' | {tag:id} | {folder:id}
   let searchQuery = "";
@@ -2194,6 +2226,15 @@
     item.archivedAt = item.archivedAt || null;
     item.autoExpireAt = item.autoExpireAt || null;
     item.folderId = item.folderId || null;
+    // v2.5: checklist items, a status, a reminder and voice notes (all optional).
+    item.checklist = Array.isArray(item.checklist)
+      ? item.checklist.filter((c) => c && typeof c.text === "string").map((c) => ({ id: c.id || uuid(), text: c.text.slice(0, 2000), done: !!c.done }))
+      : null;
+    item.status = STATUSES.some((st) => st.key === item.status) ? item.status : null;
+    item.remindAt = Number.isFinite(item.remindAt) ? item.remindAt : null;
+    item.reminded = !!item.reminded;
+    item.audio = Array.isArray(item.audio) ? item.audio.filter((a) => a && typeof a.src === "string" && /^data:audio\//.test(a.src)) : [];
+    item.sketches = Array.isArray(item.sketches) ? item.sketches.filter((x) => typeof x === "string").slice(-50) : []; // ends of images drawn here (for type:sketch)
     if (item.type === "password") item.login = { url: "", username: "", password: "", ...(item.login || {}) };
     item.order = (typeof item.order === "number") ? item.order : item.createdAt || Date.now();
     migrateItem(item);
@@ -2282,6 +2323,9 @@
       b.setAttribute("aria-selected", b.dataset.page === page ? "true" : "false");
     });
     document.querySelectorAll(".settings-page").forEach((s) => s.classList.toggle("active", s.dataset.page === page));
+    // Pages whose contents depend on your data are drawn when shown.
+    if (page === "tags") renderTagSettings();
+    if (page === "data") { renderBackupInfo(); renderStorage(); }
     try { localStorage.setItem(SETTINGS_PAGE_KEY, page); } catch {}
     if (push && settingsIsStacked()) {
       settingsPanel.classList.add("at-page");
@@ -2742,14 +2786,18 @@
     renderFoldersList();
     renderTagsList();
     renderList();
+    if (timelineApi) timelineApi.refresh();
   }
 
   // ---------- Nav ----------
 
   const NAV_ITEMS = [
-    { key: "all", label: "All Items", icon: "grid" },
+    { key: "all", label: "Inbox", icon: "inbox" },
+    // Everything (notes and group entries) by date; opens its own pane.
+    { key: "timeline", label: "Timeline", icon: "timeline" },
     // Only listed while something is unread (or while you're looking at it).
     { key: "unread", label: "Unread", icon: "unread", hideWhenEmpty: true },
+    { key: "reminders", label: "Reminders", icon: "bell", hideWhenEmpty: true },
     { key: "saved", label: "Favorites", icon: "star" },
     { key: "pinned", label: "Pinned", icon: "pin" },
     { key: "notes", label: "Notes", icon: "note" },
@@ -2764,6 +2812,8 @@
     const live = (i) => !i.vaulted && !i.deletedAt && !i.archivedAt;
     switch (key) {
       case "all": return cache.filter(live).length;
+      case "timeline": return cache.filter(live).length + (groupsApi ? groupsApi.timelineRows().length : 0);
+      case "reminders": return cache.filter((i) => i.remindAt && live(i)).length;
       case "unread": return cache.filter((i) => i.unread && live(i)).length;
       case "saved": return cache.filter((i) => i.starred && live(i)).length;
       case "pinned": return cache.filter((i) => i.pinned && live(i)).length;
@@ -2779,15 +2829,19 @@
   function renderNav() {
     const nav = document.getElementById("main-nav");
     nav.innerHTML = "";
+    const tlOpen = !!(timelineApi && timelineApi.isOpen());
+    const elsewhere = tlOpen || !!(groupsApi && groupsApi.isActive());
     for (const item of NAV_ITEMS) {
-      const isActive = currentView === item.key;
+      const isActive = item.key === "timeline" ? tlOpen : currentView === item.key && !elsewhere;
       if (item.hideWhenEmpty && !isActive && countForNav(item.key) === 0) continue;
       const el = document.createElement("div");
       el.className = "nav-item" + (isActive ? " active" : "");
       el.title = item.label + " (" + countForNav(item.key) + ")";
       el.innerHTML = '<span class="nav-label"><span class="nav-icon">' + icon(item.icon) + '</span><span class="nav-text">' + item.label + '</span></span>' +
         '<span class="count">' + countForNav(item.key) + '</span>';
+      el.dataset.nav = item.key;
       el.addEventListener("click", () => {
+        if (item.key === "timeline") { openTimeline(); return; }
         switchView(item.key);
       });
       nav.appendChild(el);
@@ -2816,43 +2870,43 @@
     showToast("All marked as read");
   });
 
-  // Phones: the main places, one tap away at the bottom. "More" opens the
-  // full sidebar (folders, tags, archive, trash, profile, settings).
-  const TABS = [
-    { key: "all", label: "Items", icon: "grid" },
-    { key: "saved", label: "Favorites", icon: "star" },
-    { key: "commands", label: "Commands", icon: "command" },
-    { key: "vault", label: "Vault", icon: "vault" },
-    { key: "more", label: "More", icon: "menu" }
-  ];
-  // With Groups on: Items, Groups, Snap (the camera), Vault, More.
-  const GROUP_TABS = [
-    { key: "all", label: "Items", icon: "grid" },
-    { key: "groups", label: "Groups", icon: "layers" },
-    { key: "snap", label: "Snap", icon: "camera" },
-    { key: "vault", label: "Vault", icon: "vault" },
-    { key: "more", label: "More", icon: "menu" }
-  ];
+  // Phones: the dock. Inbox, Groups, + (new anything), Search (the
+  // Timeline), More (the full menu: folders, tags, Vault, settings…).
+  // With Groups switched off, Favorites takes their place.
+  function dockTabs() {
+    const groupsOn = !!(groupsApi && groupsApi.enabled());
+    return [
+      { key: "all", label: "Inbox", icon: "inbox" },
+      groupsOn ? { key: "groups", label: "Groups", icon: "layers" } : { key: "saved", label: "Favorites", icon: "star" },
+      { key: "new", label: "New", icon: "plus" },
+      { key: "search", label: "Search", icon: "search" },
+      { key: "more", label: "More", icon: "menu" }
+    ];
+  }
   function renderTabBar() {
     const bar = document.getElementById("tab-bar");
-    const groupsOn = !!(groupsApi && groupsApi.enabled());
-    const inGroups = groupsOn && groupsApi.isActive();
-    const tabs = groupsOn ? GROUP_TABS : TABS;
-    const activeKey = inGroups ? "groups" : currentView;
+    document.body.classList.add("has-dock");
+    const inGroups = !!(groupsApi && groupsApi.enabled() && groupsApi.isActive());
+    const tlOpen = !!(timelineApi && timelineApi.isOpen());
+    const tabs = dockTabs();
+    const activeKey = tlOpen ? "search" : inGroups ? "groups" : currentView;
     const onTab = tabs.some((tab) => tab.key === activeKey);
     bar.innerHTML = "";
     for (const tab of tabs) {
       const b = document.createElement("button");
       b.type = "button";
-      b.className = "tab-btn" + (tab.key === "snap" ? " snap" : "") + (tab.key === activeKey || (tab.key === "more" && !onTab) ? " active" : "");
+      b.className = "tab-btn" + (tab.key === "new" ? " plus" : "") + (tab.key === activeKey || (tab.key === "more" && !onTab) ? " active" : "");
       b.dataset.tab = tab.key;
-      b.innerHTML = (tab.key === "snap" ? '<span class="snap-ring">' + icon(tab.icon) + "</span>" : icon(tab.icon)) + "<span>" + tab.label + "</span>";
-      b.addEventListener("click", () => {
+      b.setAttribute("aria-label", tab.label);
+      b.innerHTML = (tab.key === "new" ? '<span class="plus-ring">' + icon(tab.icon) + "</span>" : icon(tab.icon)) + "<span>" + tab.label + "</span>";
+      b.addEventListener("click", async () => {
         if (tab.key === "more") { openSidebarDrawer(); return; }
-        if (tab.key === "groups") { groupsApi.showHome(); return; }
-        if (tab.key === "snap") { groupsApi.openSnap(); return; }
+        if (tab.key === "new") { openNewMenu(); return; }
+        if (tab.key === "search") { openTimeline({ focus: true }); return; }
+        if (tab.key === "groups") { closeTimeline(); groupsApi.showHome(); return; }
+        if (tlOpen) closeTimeline();
         if (inGroups) { groupsApi.exit(); switchView(tab.key); return; }
-        if (currentView === tab.key) { itemsEl.scrollTo({ top: 0, behavior: motionOK() ? "smooth" : "auto" }); return; }
+        if (currentView === tab.key && !tlOpen) { itemsEl.scrollTo({ top: 0, behavior: motionOK() ? "smooth" : "auto" }); return; }
         switchView(tab.key);
       });
       bar.appendChild(b);
@@ -2863,6 +2917,7 @@
   // View Transitions API (Chrome/Edge today); elsewhere it just switches.
   function switchView(view) {
     closeSidebarOnMobile();
+    closeTimeline();
     const apply = () => {
       currentView = view;
       renderNav(); renderFoldersList(); renderTagsList(); renderList();
@@ -3069,13 +3124,14 @@
       el.appendChild(hint);
       return;
     }
-    const tagsWithCounts = tagCache.map((tag) => ({
+    const inGroups = groupsApi ? groupsApi.tagCounts() : new Map();
+    const withCounts = tagCache.map((tag) => ({
       tag,
-      count: cache.filter((i) => !i.vaulted && !i.deletedAt && i.tags.includes(tag.id)).length
+      count: cache.filter((i) => !i.vaulted && !i.deletedAt && i.tags.includes(tag.id)).length + (inGroups.get(tagKey(tag.name)) || 0)
     }));
-    tagsWithCounts.sort((a, b) => b.count - a.count || a.tag.name.localeCompare(b.tag.name));
+    withCounts.sort((a, b) => b.count - a.count || a.tag.name.localeCompare(b.tag.name));
 
-    for (const { tag, count } of tagsWithCounts) {
+    for (const { tag, count } of withCounts) {
       const row = document.createElement("div");
       const isActive = typeof currentView === "object" && currentView.tag === tag.id;
       row.className = "nav-item" + (isActive ? " active" : "");
@@ -3099,17 +3155,21 @@
   }
 
   async function deleteTag(tagId) {
-    if (!confirm("Delete this tag? It will be removed from all items.")) return;
+    if (!confirm("Delete this tag? It will be removed from all notes and group entries.")) return;
     for (const item of cache) {
       if (item.tags.includes(tagId)) {
         item.tags = item.tags.filter((x) => x !== tagId);
         await saveItem(item);
       }
     }
+    const gone = tagById(tagId);
     await remove(TAGS_STORE, tagId);
     tagCache = tagCache.filter((t) => t.id !== tagId);
+    // Gone from group entries too, unless another record still has that name.
+    if (gone && groupsApi && !tagCache.some((t) => tagKey(t.name) === tagKey(gone.name))) await groupsApi.removeTag(tagKey(gone.name));
     if (typeof currentView === "object" && currentView.tag === tagId) currentView = "all";
     renderAllViews();
+    renderTagSettings();
     showToast("Tag deleted");
   }
 
@@ -3273,10 +3333,12 @@
         return;
       }
       if (isEdit) {
+        const oldKey = tagKey(existingTag.name);
         existingTag.name = name;
         existingTag.color = selectedColor;
         existingTag.emoji = selectedEmoji;
         await put(TAGS_STORE, existingTag);
+        if (groupsApi && oldKey !== tagKey(name)) await groupsApi.renameTag(oldKey, tagKey(name));
       } else {
         const tag = { id: uuid(), name, color: selectedColor, emoji: selectedEmoji };
         await put(TAGS_STORE, tag);
@@ -3309,6 +3371,7 @@
     if (item.archivedAt) return false;
     if (currentView === "all") return true;
     if (currentView === "unread") return item.unread;
+    if (currentView === "reminders") return !!item.remindAt;
     if (currentView === "saved") return item.starred;
     if (currentView === "pinned") return item.pinned;
     if (currentView === "notes") return item.type === "note";
@@ -3338,19 +3401,60 @@
     return qi === query.length ? score : -1;
   }
 
+  // The search box understands the same words as the Timeline (#tag,
+  // is:fav, type:photo, date:2026…); what's left is matched as text.
+  let parsedSearch = null;
+  function searchParts() {
+    if (!parsedSearch || parsedSearch.q !== searchQuery) {
+      const p = window.CPSearch ? window.CPSearch.parse(searchQuery, { groups: [] }) : { text: searchQuery, tags: [], date: null, types: [], is: [], tokens: [] };
+      parsedSearch = { q: searchQuery, p };
+    }
+    return parsedSearch.p;
+  }
+  const searchText = () => searchParts().text;
+
   function itemSearchScore(item) {
-    if (!searchQuery) return 0;
-    const searchable = (item.content || "") + (item.login ? " " + item.login.username + " " + item.login.url : "");
-    const contentScore = fuzzyScore(searchQuery, searchable);
-    const titleScore = fuzzyScore(searchQuery, item.title || "") + 50; // title matches rank slightly higher
+    const q = searchText();
+    if (!q) return 0;
+    const checklistText = item.checklist ? " " + item.checklist.map((c) => c.text).join(" ") : "";
+    const searchable = (item.content || "") + checklistText + (item.login ? " " + item.login.username + " " + item.login.url : "");
+    const contentScore = fuzzyScore(q, searchable);
+    const titleScore = fuzzyScore(q, item.title || "") + 50; // title matches rank slightly higher
     const tagNames = item.tags.map((tid) => tagById(tid)).filter(Boolean).map((t) => t.name);
-    const tagScore = Math.max(-1, ...tagNames.map((n) => fuzzyScore(searchQuery, n)));
+    const tagScore = Math.max(-1, ...tagNames.map((n) => fuzzyScore(q, n)));
     return Math.max(contentScore, item.title ? titleScore : -1, tagScore);
+  }
+
+  // Note flags for is:… words.
+  function noteFlags(item) {
+    return { fav: item.starred, pinned: item.pinned, unread: item.unread, archived: !!item.archivedAt, reminder: !!item.remindAt,
+      todo: item.status === "todo", doing: item.status === "doing", done: item.status === "done" };
+  }
+  // What a note counts as for type:… words.
+  function noteTypes(item) {
+    const kind = itemKind(item);
+    const out = [kind === "image" ? "photo" : kind];
+    if (kind !== "image" && item.images && item.images.length) out.push("photo");
+    if (item.checklist) out.push("checklist");
+    if (item.audio && item.audio.length) out.push("voice");
+    if (item.sketches && item.images.some((img) => item.sketches.includes(img.slice(-24)))) out.push("sketch");
+    return out;
   }
 
   function matchesSearch(item) {
     if (!searchQuery) return true;
-    return itemSearchScore(item) >= 0;
+    if (item._locked) return !searchParts().tokens.length && !searchText();
+    const p = searchParts();
+    if (p.tags.length) {
+      const keys = item.tags.map((id) => tagById(id)).filter(Boolean).map((t) => tagKey(t.name));
+      if (!p.tags.every((k) => keys.includes(k))) return false;
+    }
+    if (p.date && !(item.createdAt >= p.date.from && item.createdAt < p.date.to)) return false;
+    if (p.types.length && !p.types.some((t) => noteTypes(item).includes(t))) return false;
+    const flags = noteFlags(item);
+    for (const f of p.is) if (f !== "archived" && !flags[f]) return false;
+    if (p.groups.length && !p.notesOnly) return false;
+    return !searchText() || itemSearchScore(item) >= 0;
   }
 
   function sortByMode(list, mode) {
@@ -3397,6 +3501,7 @@
     if (typeof currentView === "object" && currentView.tag) return { icon: "tag", title: "Nothing tagged yet", hint: "Open an item and add this tag with \u201c+ Tag\u201d." };
     switch (currentView) {
       case "unread": return { icon: "check-all", title: "All caught up", hint: "Nothing unread. Items you import, or mark as unread, show up here." };
+      case "reminders": return { icon: "bell", title: "No reminders", hint: "Open a note, then Organise \u2192 Remind me." };
       case "saved": return { icon: "star", title: "No favorites yet", hint: "Tap the star on any item to keep it here for quick access." };
       case "pinned": return { icon: "pin", title: "Nothing pinned", hint: "Pinned items stay at the top of every list. Use the pin in an item's header." };
       case "notes": return { icon: "note", title: "No notes", hint: "Anything you paste or write is a Note.", action: "New note" };
@@ -3439,6 +3544,21 @@
     const day = Math.floor(hr / 24);
     return day + "d ago";
   }
+  // A reminder time, short: "18:00", "Tomorrow 9:00", "Fri 18:00", "12 Oct".
+  function shortWhen(ts) {
+    const d = new Date(ts), now = new Date();
+    const start = new Date(now); start.setHours(0, 0, 0, 0);
+    const days = Math.floor((ts - start.getTime()) / 86400000);
+    const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    if (days === 0) return time;
+    if (days === 1) return "Tomorrow " + time;
+    if (days > 1 && days < 7) return d.toLocaleDateString(undefined, { weekday: "short" }) + " " + time;
+    return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  }
+  const toolsClock = (ms) => { const sec = Math.round((ms || 0) / 1000); return Math.floor(sec / 60) + ":" + String(sec % 60).padStart(2, "0"); };
+  // A tag's shared name across notes and groups: "Apollo Hospital" → apollo-hospital.
+  const tagKey = (name) => (window.CPSearch ? window.CPSearch.normalizeTag(name) : String(name || "").toLowerCase());
+
   function timeLeft(ts) {
     const min = Math.ceil((ts - Date.now()) / 60000);
     if (min <= 1) return "in under a minute";
@@ -3564,7 +3684,12 @@
     return [
       { label: "Open", run: () => openDetail(item.id) },
       ...(item.type === "password"
-        ? [{ label: "Copy password", run: () => copyLoginPart(item, "password") }, { label: "Copy username", run: () => copyLoginPart(item, "username") }]
+        ? [{ label: "Copy password", run: () => copyLoginPart(item, "password") }, { label: "Copy username", run: () => copyLoginPart(item, "username") },
+          ...(item.login.totp && window.CPTotp ? [{ label: "Copy 2FA code", icon: "shield", run: async () => {
+            const now = await window.CPTotp.code(item.login.totp);
+            if (vaultPrefs.clearClipboard) scheduleClipboardClear();
+            copyToClipboard(now.code, "Code copied \u00b7 " + now.left + " s left");
+          } }] : [])]
         : [{ label: "Copy", run: () => copyItemSmart(item) }]),
       { label: item.unread ? "Mark as read" : "Mark as unread", run: async () => {
         item.unread = !item.unread;
@@ -3896,9 +4021,12 @@
     renderFilterChips(filtered);
     if (kindFilter !== "all") filtered = filtered.filter((i) => !i._locked && itemKind(i) === kindFilter);
     const folderMode = isFolderView() && !searchQuery;
+    const remindersMode = currentView === "reminders";
     if (folderMode) {
       filtered = filtered.slice().sort((a, b) => a.order - b.order);
-    } else if (searchQuery) {
+    } else if (remindersMode) {
+      filtered = filtered.slice().sort((a, b) => a.remindAt - b.remindAt);
+    } else if (searchQuery && searchText()) {
       filtered = filtered.slice().sort((a, b) => itemSearchScore(b) - itemSearchScore(a));
     } else {
       const sorted = sortByMode(filtered, sortMode);
@@ -3911,6 +4039,22 @@
     updateSelectAllRow();
 
     itemsEl.innerHTML = "";
+    renderBackupBanner();
+
+    // A tag is shared with group entries: say how many more are there.
+    if (typeof currentView === "object" && currentView.tag && groupsApi) {
+      const tg = tagById(currentView.tag);
+      const more = tg ? (groupsApi.tagCounts().get(tagKey(tg.name)) || 0) : 0;
+      if (more) {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "tl-group-banner";
+        b.innerHTML = icon("layers") + "<span></span>" + icon("chevron-right", "icon-sm");
+        b.querySelector("span").textContent = (more === 1 ? "1 group entry" : more + " group entries") + " also tagged #" + tg.name + ". See everything in Timeline";
+        b.addEventListener("click", () => openTimeline({ q: "#" + tagKey(tg.name) }));
+        itemsEl.appendChild(b);
+      }
+    }
 
     if (filtered.length === 0) {
       itemsEl.appendChild(renderEmptyState());
@@ -3918,10 +4062,20 @@
     }
 
     // Date headings (Pinned, Today, Yesterday…) when the list is in date order.
-    const grouped = !folderMode && !searchQuery && /^(updated|created)-/.test(sortMode);
+    const grouped = !folderMode && !remindersMode && !searchText() && /^(updated|created)-/.test(sortMode);
     const dateKey = sortMode.startsWith("created") ? "createdAt" : "updatedAt";
     let lastGroup = null;
     for (const item of filtered) {
+      if (remindersMode) {
+        const g = item.remindAt <= Date.now() ? "Due" : "Upcoming";
+        if (g !== lastGroup) {
+          const hd = document.createElement("div");
+          hd.className = "list-group";
+          hd.textContent = g;
+          itemsEl.appendChild(hd);
+          lastGroup = g;
+        }
+      }
       if (grouped) {
         const g = item.pinned && !item._locked ? "Pinned" : dateGroup(item[dateKey]);
         if (g !== lastGroup) {
@@ -4023,7 +4177,7 @@
       const isLogin = item.type === "password";
       const lines = (item.content || "").split("\n").map((l) => l.trim()).filter(Boolean);
       const primaryText = isLogin ? (item.title || hostOf(item.login.url) || "Password")
-        : item.title ? item.title : (item.contentType === "image" ? "Image" : firstLine(item.content));
+        : item.title ? item.title : (item.contentType === "image" ? "Image" : firstLine(item.content) || (item.checklist && item.checklist.length ? item.checklist[0].text : "") || (item.audio.length ? "Voice note" : ""));
       if (!primaryText) {
         text.textContent = item.images && item.images.length ? "Photo" : "Untitled";
         if (!(item.images && item.images.length)) text.classList.add("untitled");
@@ -4041,6 +4195,11 @@
       let subText = "";
       if (isLogin) subText = [item.login.username, hostOf(item.login.url)].filter(Boolean).join(" \u00b7 ");
       else if (item.contentType === "image") subText = "";
+      else if (item.checklist && item.checklist.length && item.type === "note") {
+        // The first item is the title when there's no other: don't repeat it.
+        const rest = !item.title && !firstLine(item.content) ? item.checklist.slice(1) : item.checklist;
+        subText = rest.filter((c) => !c.done).map((c) => "\u2610 " + c.text).join("  ") || (rest.length ? "All done" : "");
+      }
       else if (item.title) subText = lines[0] || "";
       else if (kind === "link") subText = hostOf(lines[0]) || "";
       else subText = lines.slice(1).join("  ");
@@ -4060,6 +4219,39 @@
         pinBadge.innerHTML = icon("pin", "icon-sm");
         pinBadge.title = "Pinned";
         meta.appendChild(pinBadge);
+      }
+      const st = item.type === "note" && statusOf(item.status);
+      if (st) {
+        const pill = document.createElement("span");
+        pill.className = "status-pill";
+        pill.style.setProperty("--c", st.color);
+        pill.textContent = st.label;
+        meta.appendChild(pill);
+      }
+      if (item.checklist && item.checklist.length && item.type === "note") {
+        const done = item.checklist.filter((c) => c.done).length;
+        const cl = document.createElement("span");
+        cl.className = "row-checklist";
+        cl.innerHTML = icon("checklist", "icon-sm");
+        cl.appendChild(document.createTextNode(done + "/" + item.checklist.length));
+        cl.title = done + " of " + item.checklist.length + " done";
+        meta.appendChild(cl);
+      }
+      if (item.remindAt) {
+        const rm = document.createElement("span");
+        rm.className = "row-remind";
+        rm.innerHTML = icon("bell", "icon-sm");
+        rm.appendChild(document.createTextNode(item.remindAt <= Date.now() ? "Due" : shortWhen(item.remindAt)));
+        rm.title = "Reminder: " + formatExpiry(item.remindAt);
+        meta.appendChild(rm);
+      }
+      if (item.audio.length) {
+        const au = document.createElement("span");
+        au.className = "row-checklist";
+        au.innerHTML = icon("mic", "icon-sm");
+        au.appendChild(document.createTextNode(item.audio.length > 1 ? String(item.audio.length) : toolsClock(item.audio[0].duration)));
+        au.title = item.audio.length === 1 ? "Voice note" : item.audio.length + " voice notes";
+        meta.appendChild(au);
       }
       if (item.type === "command" && item.language) {
         const langBadge = document.createElement("span");
@@ -4186,6 +4378,13 @@
         e.stopPropagation();
         deleteAttachedImage(item, idx);
       });
+      const drawBtn = document.createElement("button");
+      drawBtn.className = "attached-image-action";
+      drawBtn.innerHTML = icon("pen", "icon-sm");
+      drawBtn.title = "Draw on it (saves a copy)";
+      drawBtn.setAttribute("aria-label", "Draw on image");
+      drawBtn.addEventListener("click", (e) => { e.stopPropagation(); addSketch(item, dataUrl); });
+      actions.appendChild(drawBtn);
       actions.appendChild(downloadBtn);
       actions.appendChild(removeBtn);
       thumbWrap.appendChild(thumb);
@@ -4211,7 +4410,8 @@
     if (item._locked) return false; // a locked Vault item's content is just unreadable, not empty
     if (item.login && (item.login.url || item.login.username || item.login.password)) return false;
     return !(item.title || "").trim() && !(item.content || "").trim() && !item.images.length &&
-      !item.tags.length && !item.folderId && !item.starred && !item.pinned && !item.runs.length;
+      !item.tags.length && !item.folderId && !item.starred && !item.pinned && !item.runs.length &&
+      !(item.checklist && item.checklist.some((c) => c.text.trim())) && !item.audio.length && !item.status && !item.remindAt;
   }
   function discardIfBlank(id) {
     const item = id && cache.find((i) => i.id === id);
@@ -4478,6 +4678,7 @@
     if (!inTrash) {
       body.appendChild(buildGalleryRow(item));
     }
+    if (item.audio.length) body.appendChild(buildAudioList(item, inTrash));
 
     const titleInput = document.createElement("input");
     titleInput.id = "title-input";
@@ -4486,11 +4687,12 @@
     titleInput.value = item.title || "";
     titleInput.disabled = inTrash;
     body.appendChild(titleInput);
+    if (item.type === "note" && item.checklist) body.appendChild(buildChecklist(item, inTrash));
 
     const textarea = document.createElement("textarea");
     textarea.id = "content-input";
     textarea.value = item.content;
-    textarea.placeholder = item.type === "password" ? "Notes (optional): security questions, PINs, recovery codes\u2026" : "Type or paste content here...";
+    textarea.placeholder = item.type === "password" ? "Notes (optional): security questions, PINs, recovery codes\u2026" : item.checklist && item.type === "note" ? "Notes (optional)" : "Type or paste content here...";
     textarea.disabled = inTrash || (item.type === "command" && item.locked);
     textarea.classList.toggle("prose", item.type === "note");
     textarea.classList.toggle("terminal", item.type === "command");
@@ -4516,6 +4718,27 @@
       editToolbar.appendChild(undoBtn);
       editToolbar.appendChild(redoBtn);
       editToolbar.appendChild(cleanBtn);
+      if (item.type === "note") {
+        const sep = document.createElement("span");
+        sep.className = "toolbar-sep";
+        const listBtn = document.createElement("button");
+        listBtn.id = "checklist-btn";
+        listBtn.className = item.checklist ? "on" : "";
+        listBtn.innerHTML = icon("checklist") + "<span>" + (item.checklist ? "Checklist on" : "Checklist") + "</span>";
+        listBtn.title = item.checklist ? "Turn the checklist back into text" : "Turn the lines into a checklist";
+        listBtn.addEventListener("click", () => toggleChecklist(ed));
+        const voiceBtn = document.createElement("button");
+        voiceBtn.id = "voice-btn";
+        voiceBtn.innerHTML = icon("mic") + "<span>Voice</span>";
+        voiceBtn.title = "Record a voice note";
+        voiceBtn.addEventListener("click", () => addVoiceNote(item));
+        const sketchBtn = document.createElement("button");
+        sketchBtn.id = "sketch-btn";
+        sketchBtn.innerHTML = icon("pen") + "<span>Sketch</span>";
+        sketchBtn.title = "Draw something";
+        sketchBtn.addEventListener("click", () => addSketch(item));
+        editToolbar.append(sep, listBtn, voiceBtn, sketchBtn);
+      }
       body.appendChild(editToolbar);
     }
 
@@ -4752,6 +4975,37 @@
       value.appendChild(tagsRow);
     }
     if (item.type === "note" && !inTrash) {
+      const value = propRow("Status", "flag");
+      const pick = document.createElement("div");
+      pick.className = "status-pick";
+      pick.id = "status-pick";
+      [{ key: null, label: "None" }, ...STATUSES].forEach((st) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.textContent = st.label;
+        b.dataset.status = st.key || "";
+        if (st.color) b.style.setProperty("--c", st.color);
+        if ((item.status || null) === st.key) b.className = "on";
+        b.addEventListener("click", async () => {
+          item.status = st.key;
+          item.updatedAt = Date.now();
+          await saveItem(item);
+          redrawDetail("properties");
+          showToast(st.key ? "Status: " + st.label : "Status cleared");
+        });
+        pick.appendChild(b);
+      });
+      value.appendChild(pick);
+    }
+    if (!inTrash && !item.vaulted && item.type !== "password") {
+      const value = propRow("Remind me", "bell");
+      const remindRow = document.createElement("div");
+      remindRow.id = "remind-row";
+      remindRow.className = "remind-row";
+      value.appendChild(remindRow);
+      renderRemindRow(item, remindRow, false);
+    }
+    if (item.type === "note" && !inTrash) {
       const value = propRow("Auto-delete", "timer");
       const expireRow = document.createElement("div");
       expireRow.id = "expire-row";
@@ -4836,9 +5090,12 @@
     if (folder) parts.push(folder.name);
     const tagNames = item.tags.map((id) => (tagById(id) || {}).name).filter(Boolean);
     if (tagNames.length) parts.push(tagNames.length <= 2 ? tagNames.join(", ") : tagNames.length + " tags");
+    const st = item.type === "note" && statusOf(item.status);
+    if (st) parts.push(st.label);
+    if (item.remindAt) parts.push("\u23f0 " + (item.remindAt <= Date.now() ? "Due" : shortWhen(item.remindAt)));
     if (item.autoExpireAt && !item.deletedAt) parts.push(timeLeft(item.autoExpireAt).replace(/^in /, "In "));
     if (item.color) parts.push(SWATCH_NAMES[SWATCHES.indexOf(item.color)] || "Color");
-    return parts.join(" \u00b7 ") || "Folder, tags, auto-delete, color";
+    return parts.join(" \u00b7 ") || "Folder, tags, status, reminder, color";
   }
 
   function buildDetailFooter(ed) {
@@ -5080,6 +5337,353 @@
     button("Cancel", () => renderExpireRow(item, row, false)).className = "expire-link";
   }
 
+  // ---------- Checklists ----------
+  // A note can carry a checklist ({ id, text, done }) above its text.
+  // Turning it on makes each line an item; turning it off writes the items
+  // back as ☐ / ☑ lines, so nothing is ever lost either way.
+  const CHECK_LINE = /^\s*(?:[-*•]\s*)?(?:\[( |x|X)\]\s*|([☐☑✓✔]\s*))?(.*)$/;
+  function linesToChecklist(text) {
+    return (text || "").split("\n").map((l) => l.trim()).filter(Boolean).map((line) => {
+      const m = line.match(CHECK_LINE);
+      const done = (m[1] && m[1].toLowerCase() === "x") || (m[2] && m[2].trim() !== "☐");
+      return { id: uuid(), text: (m[3] || "").trim() || line, done: !!done };
+    });
+  }
+  const checklistAsText = (list) => list.map((c) => (c.done ? "☑ " : "☐ ") + c.text).join("\n");
+
+  async function toggleChecklist(ed) {
+    const { item } = ed;
+    ed.flush();
+    const content = document.getElementById("content-input");
+    if (content) item.content = content.value;
+    const before = { content: item.content, checklist: item.checklist };
+    if (item.checklist) {
+      const text = checklistAsText(item.checklist.filter((c) => c.text.trim()));
+      item.content = [item.content.trim(), text].filter(Boolean).join("\n");
+      item.checklist = null;
+    } else {
+      item.checklist = linesToChecklist(item.content);
+      item.content = "";
+    }
+    item.updatedAt = Date.now();
+    await saveItem(item);
+    openDetail(item.id);
+    if (item.checklist) setTimeout(() => { const add = document.getElementById("cl-add"); if (add && !item.checklist.length) add.focus(); }, 0);
+    showToast(item.checklist ? "Checklist on" : "Checklist turned into text", { action: { label: "Undo", onClick: async () => {
+      item.content = before.content; item.checklist = before.checklist; item.updatedAt = Date.now();
+      await saveItem(item); if (currentId === item.id) openDetail(item.id);
+    } } });
+  }
+
+  function buildChecklist(item, readOnly) {
+    const wrap = document.createElement("div");
+    wrap.className = "cl";
+    wrap.id = "checklist";
+    let saveTimer = null;
+    const saveSoon = () => {
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(async () => { item.updatedAt = Date.now(); await saveItem(item); }, 400);
+    };
+    const saveNow = async () => { clearTimeout(saveTimer); item.updatedAt = Date.now(); await saveItem(item); };
+    const draw = (focusId, caretEnd) => {
+      wrap.innerHTML = "";
+      const list = item.checklist;
+      const open = list.filter((c) => !c.done), done = list.filter((c) => c.done);
+      if (list.length) {
+        const prog = document.createElement("div");
+        prog.className = "cl-progress";
+        prog.textContent = done.length + " of " + list.length + " done";
+        wrap.appendChild(prog);
+      }
+      const row = (c) => {
+        const r = document.createElement("div");
+        r.className = "cl-row" + (c.done ? " done" : "");
+        r.dataset.id = c.id;
+        const box = document.createElement("input");
+        box.type = "checkbox";
+        box.checked = c.done;
+        box.disabled = readOnly;
+        box.setAttribute("aria-label", (c.done ? "Done: " : "To do: ") + c.text);
+        box.addEventListener("change", async () => { c.done = box.checked; await saveNow(); draw(); renderList(); });
+        const text = document.createElement("input");
+        text.className = "cl-text";
+        text.value = c.text;
+        text.disabled = readOnly;
+        text.setAttribute("aria-label", "Checklist item");
+        text.addEventListener("input", () => { c.text = text.value; saveSoon(); });
+        text.addEventListener("keydown", async (e) => {
+          const i = list.indexOf(c);
+          if (e.key === "Enter" && !e.isComposing) {
+            e.preventDefault();
+            const at = text.selectionStart;
+            const next = { id: uuid(), text: c.text.slice(at), done: false };
+            c.text = c.text.slice(0, at);
+            list.splice(i + 1, 0, next);
+            await saveNow();
+            draw(next.id);
+          } else if (e.key === "Backspace" && !text.value && list.length) {
+            e.preventDefault();
+            list.splice(i, 1);
+            await saveNow();
+            const prev = list[Math.max(0, i - 1)];
+            draw(prev ? prev.id : null, true);
+          }
+        });
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "btn icon ghost cl-del";
+        del.innerHTML = icon("close", "icon-sm");
+        del.setAttribute("aria-label", "Delete item");
+        del.hidden = readOnly;
+        del.addEventListener("click", async () => {
+          const i = list.indexOf(c);
+          list.splice(i, 1);
+          await saveNow();
+          draw();
+          showToast("Item deleted", { action: { label: "Undo", onClick: async () => { list.splice(i, 0, c); await saveNow(); if (currentId === item.id) openDetail(item.id); } } });
+        });
+        r.append(box, text, del);
+        return r;
+      };
+      open.forEach((c) => wrap.appendChild(row(c)));
+      if (!readOnly) {
+        const add = document.createElement("label");
+        add.className = "cl-add";
+        add.innerHTML = icon("plus");
+        const input = document.createElement("input");
+        input.id = "cl-add";
+        input.placeholder = "Add item";
+        input.setAttribute("aria-label", "Add a checklist item");
+        input.addEventListener("keydown", async (e) => {
+          if (e.key !== "Enter" || e.isComposing) return;
+          e.preventDefault();
+          const v = input.value.trim();
+          if (!v) return;
+          // Pasting several lines adds several items.
+          v.split("\n").map((x) => x.trim()).filter(Boolean).forEach((t) => list.push({ id: uuid(), text: t, done: false }));
+          await saveNow();
+          draw("__add");
+          renderList();
+        });
+        input.addEventListener("paste", (e) => {
+          const t = e.clipboardData && e.clipboardData.getData("text/plain");
+          if (!t || !t.includes("\n")) return;
+          e.preventDefault();
+          linesToChecklist(t).forEach((c) => list.push(c));
+          saveNow().then(() => { draw("__add"); renderList(); });
+        });
+        add.appendChild(input);
+        wrap.appendChild(add);
+      }
+      if (done.length) {
+        const head = document.createElement("div");
+        head.className = "cl-done-head";
+        head.innerHTML = "<span></span>";
+        head.firstChild.textContent = done.length + " done";
+        if (!readOnly) {
+          const clear = document.createElement("button");
+          clear.type = "button";
+          clear.textContent = "Clear done";
+          clear.addEventListener("click", async () => {
+            const removed = list.filter((c) => c.done);
+            item.checklist = list.filter((c) => !c.done);
+            await saveNow();
+            openDetail(item.id);
+            showToast(removed.length + " done items cleared", { action: { label: "Undo", onClick: async () => { item.checklist = item.checklist.concat(removed); await saveNow(); if (currentId === item.id) openDetail(item.id); } } });
+          });
+          head.appendChild(clear);
+        }
+        wrap.appendChild(head);
+        done.forEach((c) => wrap.appendChild(row(c)));
+      }
+      if (focusId === "__add") { const a = document.getElementById("cl-add"); if (a) a.focus(); }
+      else if (focusId) {
+        const el = wrap.querySelector('.cl-row[data-id="' + CSS.escape(focusId) + '"] .cl-text');
+        if (el) { el.focus(); const at = caretEnd ? el.value.length : 0; el.setSelectionRange(at, at); }
+      }
+    };
+    draw();
+    return wrap;
+  }
+
+  // ---------- Voice notes and sketches ----------
+  function buildAudioList(item, readOnly) {
+    const list = document.createElement("div");
+    list.className = "audio-list";
+    list.id = "audio-list";
+    item.audio.forEach((a, i) => {
+      const row = document.createElement("div");
+      row.className = "audio-row";
+      row.innerHTML = icon("mic");
+      const player = document.createElement("audio");
+      player.controls = true;
+      player.preload = "metadata";
+      player.src = a.src;
+      const len = document.createElement("span");
+      len.className = "audio-len";
+      len.textContent = toolsClock(a.duration);
+      row.append(player, len);
+      if (!readOnly) {
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "btn icon ghost";
+        del.innerHTML = icon("trash", "icon-sm");
+        del.setAttribute("aria-label", "Delete voice note");
+        del.addEventListener("click", async () => {
+          const [removed] = item.audio.splice(i, 1);
+          item.updatedAt = Date.now();
+          await saveItem(item);
+          openDetail(item.id);
+          showToast("Voice note deleted", { action: { label: "Undo", onClick: async () => { item.audio.splice(i, 0, removed); await saveItem(item); if (currentId === item.id) openDetail(item.id); } } });
+        });
+        row.appendChild(del);
+      }
+      list.appendChild(row);
+    });
+    return list;
+  }
+  async function addVoiceNote(item) {
+    if (!toolsApi) return;
+    if (editor && editor.item.id === item.id) editor.flush();
+    const rec = await toolsApi.recordVoice();
+    if (!rec) return;
+    const fresh = cache.find((i) => i.id === item.id) || item;
+    fresh.audio.push(rec);
+    fresh.updatedAt = Date.now();
+    await saveItem(fresh);
+    if (currentId === fresh.id) openDetail(fresh.id);
+    showToast("Voice note saved · " + toolsClock(rec.duration));
+  }
+  async function addSketch(item, background) {
+    if (!toolsApi) return;
+    if (editor && editor.item.id === item.id) editor.flush();
+    const png = await toolsApi.sketch(background ? { background } : {});
+    if (!png) return;
+    const fresh = cache.find((i) => i.id === item.id) || item;
+    convertStandaloneImageToGallery(fresh);
+    fresh.images.push(png);
+    fresh.sketches = [...(fresh.sketches || []), png.slice(-24)];
+    fresh.updatedAt = Date.now();
+    await saveItem(fresh);
+    if (currentId === fresh.id) openDetail(fresh.id);
+    showToast(background ? "Saved a drawn-on copy" : "Sketch saved");
+  }
+  // "+ New → Voice note / Sketch / Checklist": a fresh note with it.
+  async function newNoteWith(kind) {
+    await newItem("note");
+    const item = currentId && cache.find((i) => i.id === currentId);
+    if (!item) return;
+    if (kind === "checklist") {
+      item.checklist = [];
+      await saveItem(item);
+      openDetail(item.id);
+      const add = document.getElementById("cl-add");
+      if (add) add.focus();
+    } else if (kind === "voice") addVoiceNote(item);
+    else if (kind === "sketch") addSketch(item);
+  }
+
+  // ---------- Reminders ----------
+  // A time on a note. When it comes, the note shows a reminder (and a system
+  // notification, if allowed). Browsers only run this while CopyPaster is
+  // open; a closed app catches up the next time it opens.
+  function reminderPresets() {
+    const now = new Date();
+    const at = (d, h, m = 0) => { const x = new Date(d); x.setHours(h, m, 0, 0); return x.getTime(); };
+    const out = [["In 1 hour", Date.now() + 3600000]];
+    if (now.getHours() < 17) out.push(["This evening", at(now, 18)]);
+    else if (now.getHours() < 20) out.push(["Tonight", at(now, 21)]);
+    const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1);
+    out.push(["Tomorrow morning", at(tomorrow, 9)]);
+    const monday = new Date(now); monday.setDate(now.getDate() + ((8 - now.getDay()) % 7 || 7));
+    out.push(["Next week", at(monday, 9)]);
+    return out;
+  }
+  function renderRemindRow(item, row, editing) {
+    row.innerHTML = "";
+    const propRowEl = row.closest(".prop-row");
+    if (propRowEl) propRowEl.classList.toggle("expanded", !!editing);
+    const btn = (text, onClick, cls) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = text;
+      if (cls) b.className = cls;
+      b.addEventListener("click", onClick);
+      row.appendChild(b);
+      return b;
+    };
+    const set = async (ts) => {
+      item.remindAt = ts;
+      item.reminded = false;
+      item.updatedAt = Date.now();
+      await saveItem(item);
+      renderAllViews();
+      renderRemindRow(item, row, false);
+      const summary = document.querySelector("#detail-properties .props-summary");
+      if (summary) summary.textContent = detailsSummary(item);
+      if (ts) {
+        showToast("I'll remind you " + shortWhen(ts).replace(/^(\d)/, "at $1"));
+        if ("Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});
+      } else showToast("Reminder off");
+    };
+    if (item.remindAt && !editing) {
+      const when = document.createElement("span");
+      const due = item.remindAt <= Date.now();
+      when.className = "remind-when" + (due ? " due" : "");
+      when.textContent = due ? "Due · " + shortWhen(item.remindAt) : shortWhen(item.remindAt);
+      when.title = formatExpiry(item.remindAt);
+      row.appendChild(when);
+      if (due) btn("Snooze 1 hour", () => set(Date.now() + 3600000));
+      btn(due ? "Done" : "Off", () => set(null));
+      btn("Change", () => renderRemindRow(item, row, true));
+      return;
+    }
+    if (!editing) {
+      const off = btn("Off", () => renderRemindRow(item, row, true), "prop-btn");
+      off.insertAdjacentHTML("beforeend", icon("chevron-down", "icon-sm"));
+      return;
+    }
+    reminderPresets().forEach(([label, ts]) => btn(label, () => set(ts)));
+    const custom = btn("Pick a time…", () => {
+      const input = document.createElement("input");
+      input.type = "datetime-local";
+      input.min = toLocalInputValue(Date.now() + 60000);
+      input.value = toLocalInputValue(item.remindAt || Date.now() + 3600000);
+      custom.replaceWith(input);
+      const ok = document.createElement("button");
+      ok.type = "button";
+      ok.textContent = "Set";
+      ok.addEventListener("click", () => {
+        const ts = input.value ? new Date(input.value).getTime() : NaN;
+        if (!(ts > Date.now())) { showToast("Pick a time in the future"); return; }
+        set(ts);
+      });
+      input.after(ok);
+      input.focus();
+    });
+    btn("Cancel", () => renderRemindRow(item, row, false), "expire-link");
+  }
+  async function checkReminders() {
+    const now = Date.now();
+    const due = cache.filter((i) => i.remindAt && !i.reminded && i.remindAt <= now && !i.deletedAt && !i._locked);
+    if (!due.length) return;
+    for (const item of due) item.reminded = true;
+    await saveItems(due);
+    for (const item of due) notifyReminder(item);
+    renderAllViews();
+  }
+  async function notifyReminder(item) {
+    const title = item.title || firstLine(item.content) || (item.checklist && item.checklist[0] ? item.checklist[0].text : "") || "A note";
+    if ("Notification" in window && Notification.permission === "granted" && document.visibilityState !== "visible") {
+      try {
+        const reg = navigator.serviceWorker && await navigator.serviceWorker.getRegistration();
+        if (reg) await reg.showNotification("Reminder", { body: title, tag: "cp-" + item.id, icon: "icons/icon-192.png", badge: "icons/favicon-32.png" });
+        else new Notification("Reminder", { body: title });
+      } catch {}
+    }
+    showToast("⏰ " + title, { sticky: true, action: { label: "Open", onClick: () => { closeTimeline(); if (groupsApi && groupsApi.isActive()) groupsApi.exit(); openDetail(item.id); } } });
+  }
+
   // ---------- Mobile back button ----------
   // The phone's back button (and back gesture) steps back through whatever
   // is open, top first: sheet, command box, dialogs, photo, Settings, popups,
@@ -5105,6 +5709,7 @@
   // Closes the top-most open thing. Returns false when there's nothing left.
   function stepBack() {
     if (document.getElementById("dialog-overlay")) { closeDialog(); return true; }
+    if (toolsApi && toolsApi.isOpen()) { toolsApi.close(); return true; }
     if (document.getElementById("action-sheet-overlay")) { closeActionSheet(); return true; }
     if (document.getElementById("new-menu-overlay")) { closeNewMenu(); return true; }
     if (document.getElementById("palette-overlay")) { closePalette(); return true; }
@@ -5115,6 +5720,14 @@
     if (document.querySelector(".popover, .context-menu")) { closeAnyPopover(); return true; }
     if (groupsApi && groupsApi.stepBack()) return true;
     if (openSwipe) { closeOpenSwipe(); return true; }
+    // The Timeline: an open note over it closes first, then the Timeline.
+    if (timelineApi && timelineApi.isOpen()) {
+      if (sidebarEl.classList.contains("open")) { closeSidebarOnMobile(); return true; }
+      if (currentId) { closeDetail(); return true; }
+      timelineApi.stepBack();
+      renderNav(); renderTabBar();
+      return true;
+    }
     if (sidebarEl.classList.contains("open")) { closeSidebarOnMobile(); return true; }
     if (selectMode) { document.getElementById("select-mode-btn").click(); return true; }
     if (document.body.classList.contains("zen-mode")) { document.body.classList.remove("zen-mode"); return true; }
@@ -5211,7 +5824,10 @@
       const ql = q.toLowerCase();
       list.innerHTML = "";
       rows = [];
-      const matches = tagCache.filter((tg) => !ql || tg.name.toLowerCase().includes(ql));
+      // Most-used first (notes and group entries together), with counts.
+      const used = new Map(tagsWithCounts().map((t) => [t.key, t.count]));
+      const matches = tagCache.filter((tg) => !ql || tg.name.toLowerCase().includes(ql))
+        .sort((a, b) => (used.get(tagKey(b.name)) || 0) - (used.get(tagKey(a.name)) || 0) || a.name.localeCompare(b.name));
       for (const tag of matches) {
         const row = document.createElement("div");
         const checked = item.tags.includes(tag.id);
@@ -5219,8 +5835,9 @@
         row.setAttribute("role", "option");
         row.setAttribute("aria-selected", checked ? "true" : "false");
         const marker = tag.emoji ? '<span class="tag-emoji">' + tag.emoji + '</span>' : '<span class="tag-dot" style="background:' + tag.color + '"></span>';
-        row.innerHTML = marker + "<span></span>";
-        row.lastChild.textContent = tag.name;
+        row.innerHTML = marker + "<span></span>" + '<span class="tag-count"></span>';
+        row.children[1].textContent = tag.name;
+        row.lastChild.textContent = used.get(tagKey(tag.name)) || "";
         row.addEventListener("click", () => toggleTag(tag));
         list.appendChild(row);
         rows.push({ row, run: () => toggleTag(tag) });
@@ -5321,6 +5938,9 @@
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
+    try { localStorage.setItem(profileKey(LAST_BACKUP_KEY), String(Date.now())); } catch {}
+    renderBackupInfo();
+    renderList();
     showToast("Exported");
   });
 
@@ -5415,8 +6035,15 @@
       { key: "paste", label: "Paste from clipboard", hint: "Saves what you copied", icon: "paste", cls: "cm-paste", letter: "V", run: () => document.getElementById("paste-btn").click() },
       { key: "command", label: "Command", hint: "Code you run again, with {{blanks}}", icon: "command", cls: "cm-command", letter: "C", run: () => newItem("command") },
       { key: "password", label: "Password", hint: "Login for a website, in the Vault", icon: "key", cls: "cm-password", letter: "P", run: () => newItem("password") },
-      { key: "photo", label: "Photo", hint: "From your files or camera", icon: "image", cls: "cm-image", letter: "I", run: () => { newPhotoPending = true; document.getElementById("attach-image-file").click(); } }
+      { key: "photo", label: "Photo", hint: "From your files or camera", icon: "image", cls: "cm-image", letter: "I", run: () => { newPhotoPending = true; document.getElementById("attach-image-file").click(); } },
+      { key: "checklist", label: "Checklist", hint: "Tick things off", icon: "checklist", cls: "cm-note", letter: "L", run: () => newNoteWith("checklist") },
+      { key: "voice", label: "Voice note", hint: "Record up to 5 minutes", icon: "mic", cls: "cm-image", letter: "R", run: () => newNoteWith("voice") },
+      { key: "sketch", label: "Sketch", hint: "Draw with your finger or mouse", icon: "pen", cls: "cm-command", letter: "S", run: () => newNoteWith("sketch") }
     ];
+    if (!inVault && groupsApi && groupsApi.enabled()) {
+      entries.push({ key: "entry", label: "Group entry", hint: groupsApi.hasGroups() ? "Into a group's timeline" : "Make your first group", icon: "layers", cls: "cm-folder", letter: "G", run: () => { closeTimeline(); groupsApi.openComposer(); } });
+      if (groupsApi.hasGroups()) entries.push({ key: "snap", label: "Snap to group", hint: "Camera first, then pick a group", icon: "camera", cls: "cm-image", letter: "A", run: () => groupsApi.openSnap() });
+    }
     if (!inVault) entries.push({ key: "folder", label: "Folder", hint: "Group items together", icon: "folder-plus", cls: "cm-folder", letter: "F", run: () => openFolderPopover(document.getElementById("new-btn"), null) });
     if (inVault) { const pw = entries.splice(3, 1)[0]; entries.unshift(pw); }
     return entries;
@@ -5964,6 +6591,7 @@
     const loginFields = item.type === "password" && document.getElementById("login-fields");
     if (loginFields) {
       const login = {
+        ...item.login,
         url: document.getElementById("login-url").value.trim(),
         username: document.getElementById("login-username").value,
         password: document.getElementById("login-password").value
@@ -6342,7 +6970,13 @@
       { label: "New command", icon: "command", run: () => newItem("command") },
       { label: "New password", icon: "key", run: () => newItem("password") },
       { label: "Paste from clipboard", icon: "paste", run: click("paste-btn") },
-      ...NAV_ITEMS.filter((n) => !n.hideWhenEmpty || countForNav(n.key) > 0)
+      { label: "New checklist", icon: "checklist", run: () => newNoteWith("checklist") },
+      { label: "New voice note", icon: "mic", run: () => newNoteWith("voice") },
+      { label: "New sketch", icon: "pen", run: () => newNoteWith("sketch") },
+      { label: "Password generator", icon: "dice", run: () => openPasswordGenerator() },
+      { label: "Open Timeline", icon: "timeline", run: () => openTimeline({ focus: true }) },
+      { label: "Manage tags", icon: "tag", run: () => openSettings("tags") },
+      ...NAV_ITEMS.filter((n) => n.key !== "timeline" && (!n.hideWhenEmpty || countForNav(n.key) > 0))
         .map((n) => ({ label: "Go to " + n.label, icon: n.icon, run: () => switchView(n.key) })),
       ...(isVaultSetUp() ? [isVaultUnlocked()
         ? { label: "Lock Vault", icon: "vault", run: () => lockVault("Vault locked") }
@@ -6515,6 +7149,24 @@
       openNewMenu();
       return;
     }
+    const modalOpen = document.querySelector("#palette-overlay, #dialog-overlay, #new-menu-overlay, #cp-sheet-overlay, #gp-sheet-overlay, .popover, #settings-overlay:not(.hidden)");
+    // T: the Timeline. F: its filters. (Not while typing.)
+    if (!inTextField && !e.ctrlKey && !e.metaKey && !e.altKey && !modalOpen && e.key.toLowerCase() === "t") {
+      e.preventDefault();
+      if (timelineApi && timelineApi.isOpen()) closeTimeline(); else openTimeline({ focus: true });
+      return;
+    }
+    if (!inTextField && !e.ctrlKey && !e.metaKey && !e.altKey && !modalOpen && e.key.toLowerCase() === "f" && timelineApi) {
+      e.preventDefault();
+      if (!timelineApi.isOpen()) openTimeline();
+      timelineApi.openFilters();
+      return;
+    }
+    if (e.key === "/" && !inTextField && !e.ctrlKey && !e.metaKey && !document.getElementById("palette-overlay") && timelineApi && timelineApi.isOpen()) {
+      e.preventDefault();
+      timelineApi.focusSearch();
+      return;
+    }
     if (e.key === "/" && !inTextField && !e.ctrlKey && !e.metaKey && !document.getElementById("palette-overlay")) {
       e.preventDefault();
       const search = document.getElementById("search-input");
@@ -6530,6 +7182,7 @@
       if (e.key === "0") { e.preventDefault(); lightbox._lbZoom.reset(); return; }
     }
     if (e.key === "Escape") {
+      if (toolsApi && toolsApi.isOpen()) { toolsApi.close(); return; }
       if (document.getElementById("new-menu-overlay")) { closeNewMenu(); return; }
       if (document.getElementById("action-sheet-overlay")) { closeActionSheet(); return; }
       if (sidebarEl.classList.contains("open")) { closeSidebarOnMobile(); return; }
@@ -6541,13 +7194,14 @@
       const openPopover = document.querySelector(".popover");
       if (openPopover) { closeAnyPopover(); return; }
       if (document.body.classList.contains("zen-mode")) { document.body.classList.remove("zen-mode"); return; }
-      if (detailPane.classList.contains("open")) { closeDetail(); }
+      if (detailPane.classList.contains("open")) { closeDetail(); return; }
+      if (timelineApi && timelineApi.isOpen() && !(groupsApi && groupsApi.isActive())) { timelineApi.stepBack(); renderNav(); renderTabBar(); }
       return;
     }
 
     // Arrow keys move a highlight through the visible list \u2014 doesn't touch
     // typing in any text field, and doesn't fight the browser over Tab.
-    if ((e.key === "ArrowDown" || e.key === "ArrowUp") && !inTextField && !document.querySelector(".popover") && !document.getElementById("placeholder-modal-overlay")) {
+    if ((e.key === "ArrowDown" || e.key === "ArrowUp") && !inTextField && !document.querySelector(".popover") && !document.getElementById("placeholder-modal-overlay") && !(timelineApi && timelineApi.isOpen())) {
       if (!visibleIds.length) return;
       e.preventDefault();
       let idx = visibleIds.indexOf(keyboardHighlightId);
@@ -6729,7 +7383,9 @@
     ["Search everything and run commands", [MOD, "K"]],
     ["New item", [MOD, "N"]],
     ["Actions for the open item", [MOD, SHIFT, "P"]],
-    ["Search this list", ["/"]],
+    ["Search this list (or the Timeline)", ["/"]],
+    ["Timeline: everything by date", ["T"]],
+    ["Filters (in the Timeline)", ["F"]],
     ["Move through the list", ["\u2191", "\u2193"]],
     ["Open the highlighted item", ["Enter"]],
     ["Copy the 1st\u20139th item", ["1", "\u2026", "9"]],
@@ -7647,7 +8303,8 @@
       b.addEventListener("click", onClick);
       return b;
     };
-    const read = () => ({ url: urlInput.value.trim(), username: userInput.value, password: pwInput.value });
+    // Keeps the 2FA setup (and anything else stored with the login) as it is.
+    const read = () => ({ ...item.login, url: urlInput.value.trim(), username: userInput.value, password: pwInput.value });
     const copyNow = (part) => { ed.flush(); copyLoginPart(item, part); };
 
     const urlInput = field("login-url", "url", item.login.url, "example.com");
@@ -7668,13 +8325,21 @@
       showBtn.textContent = hidden ? "Hide" : "Show";
       showBtn.title = hidden ? "Hide password" : "Show password";
     });
-    const genBtn = button("Generate", "Generate a strong password", () => {
-      if (pwInput.value && !confirm("Replace the current password with a new one?")) return;
-      pwInput.value = generatePassword();
-      pwInput.type = "text";
-      showBtn.textContent = "Hide";
-      pwInput.dispatchEvent(new Event("input", { bubbles: true }));
-      showToast("Strong password generated — remember to change it on the website too");
+    // Generate opens the password builder (length, kinds, exact counts, presets).
+    const genBtn = button("Generate", "Make a password: choose length, characters, or a preset", () => {
+      if (!toolsApi) return;
+      toolsApi.passwordBuilder({
+        title: "Make a password",
+        useLabel: pwInput.value ? "Replace password" : "Use password",
+        onUse: (pw) => {
+          if (pwInput.value && pwInput.value !== pw && !confirm("Replace the current password with the new one?")) return;
+          pwInput.value = pw;
+          pwInput.type = "text";
+          showBtn.textContent = "Hide";
+          pwInput.dispatchEvent(new Event("input", { bubbles: true }));
+          showToast("New password set \u2014 remember to change it on the website too");
+        }
+      });
     });
     const pwRow = row("Password", pwInput, inTrash ? [showBtn] : [showBtn, button("Copy", "Copy password", () => copyNow("password")), genBtn]);
     const strength = document.createElement("div");
@@ -7689,9 +8354,277 @@
     updateStrength();
     pwRow.appendChild(strength);
 
+    // 2FA: the 6-digit codes for this login, made on this device.
+    const otpBox = document.createElement("div");
+    otpBox.className = "login-otp";
+    otpBox.id = "login-otp";
+    const totp = item.login.totp;
+    if (totp && window.CPTotp) {
+      otpBox.appendChild(toolsApi.totpWidget(totp, { onCopy: (code) => {
+        if (vaultPrefs.clearClipboard) { scheduleClipboardClear(); copyToClipboard(code, "Code copied \u00b7 clears in 30 s"); }
+        else copyToClipboard(code, "Code copied");
+      } }));
+      const meta = document.createElement("span");
+      meta.className = "otp-meta";
+      meta.textContent = [totp.issuer, totp.account].filter(Boolean).join(" \u00b7 ") || "Tap the code to copy it";
+      otpBox.appendChild(meta);
+      if (!inTrash) otpBox.appendChild(button("Remove", "Remove 2FA from this login", async () => {
+        if (!confirm("Remove the 2FA setup key from this login? Keep another way to sign in first.")) return;
+        ed.flush();
+        delete item.login.totp;
+        item.updatedAt = Date.now();
+        await saveItem(item);
+        openDetail(item.id);
+        showToast("2FA removed");
+      }));
+    } else if (!inTrash) {
+      otpBox.appendChild(button("Add 2FA code", "Add two-step login codes for this site", () => {
+        if (!toolsApi) return;
+        toolsApi.totpSetup({ account: userInput.value, issuer: item.title || hostOf(urlInput.value), onDone: async (t) => {
+          ed.flush();
+          item.login = { ...read(), totp: t };
+          item.updatedAt = Date.now();
+          await saveItem(item);
+          openDetail(item.id);
+          showToast("2FA added \u00b7 encrypted in the Vault");
+        } });
+      }));
+    }
+    row("2FA", otpBox, []);
+
     body.appendChild(wrap);
     return read;
   }
+
+  // ---------- Password generator (from the menu) ----------
+  function openPasswordGenerator() {
+    closeSidebarOnMobile();
+    if (toolsApi) toolsApi.passwordBuilder({ title: "Password generator" });
+  }
+  document.getElementById("pwgen-btn").addEventListener("click", openPasswordGenerator);
+
+  // ---------- Settings → Tags ----------
+  // Every tag with how often it's used in notes and in groups. Rename and
+  // recolor (the tag box), merge look-alikes, delete unused ones.
+  const looseKey = (k) => k.replace(/[-_]/g, "").replace(/(es|s)$/, "");
+  function tagLookAlikes(list) {
+    const out = [];
+    for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) {
+      const a = list[i], b = list[j];
+      const same = looseKey(a.key) === looseKey(b.key) || a.key.startsWith(b.key + "-") || b.key.startsWith(a.key + "-");
+      if (same) out.push(a.count >= b.count ? [b, a] : [a, b]); // [merge this, into this]
+    }
+    return out.slice(0, 20);
+  }
+  async function mergeTags(from, into) {
+    const intoRec = tagCache.find((t) => tagKey(t.name) === into.key);
+    if (!intoRec) return;
+    const fromIds = tagCache.filter((t) => tagKey(t.name) === from.key).map((t) => t.id);
+    const changedItems = [];
+    for (const item of cache) {
+      if (!item.tags.some((id) => fromIds.includes(id))) continue;
+      item.tags = [...new Set(item.tags.map((id) => (fromIds.includes(id) ? intoRec.id : id)))];
+      changedItems.push(item);
+    }
+    await saveItems(changedItems);
+    if (groupsApi) await groupsApi.renameTag(from.key, into.key);
+    for (const id of fromIds) await remove(TAGS_STORE, id);
+    tagCache = tagCache.filter((t) => !fromIds.includes(t.id));
+    if (typeof currentView === "object" && fromIds.includes(currentView.tag)) currentView = { tag: intoRec.id };
+    renderAllViews();
+    renderTagSettings();
+    showToast("Merged #" + from.name + " into #" + into.name);
+  }
+  function renderTagSettings() {
+    const box = document.getElementById("tags-settings-body");
+    if (!box) return;
+    box.innerHTML = "";
+    const list = tagsWithCounts();
+    const section = (title, hint) => {
+      const sec = document.createElement("div");
+      sec.className = "settings-section";
+      const t = document.createElement("div");
+      t.className = "settings-section-title";
+      t.textContent = title;
+      sec.appendChild(t);
+      if (hint) { const p = document.createElement("div"); p.className = "settings-hint"; p.style.margin = "0 0 6px"; p.textContent = hint; sec.appendChild(p); }
+      const g = document.createElement("div");
+      g.className = "settings-group";
+      sec.appendChild(g);
+      box.appendChild(sec);
+      return g;
+    };
+    const small = (text, onClick, cls) => { const b = document.createElement("button"); b.type = "button"; b.className = "small" + (cls ? " " + cls : ""); b.textContent = text; b.addEventListener("click", onClick); return b; };
+    if (!list.length) {
+      const g = section("Your tags");
+      const p = document.createElement("div");
+      p.className = "settings-hint";
+      p.style.padding = "12px";
+      p.textContent = "No tags yet. Add one from a note's Organise panel, or type #word when sending to a group.";
+      g.appendChild(p);
+      return;
+    }
+    const dupes = tagLookAlikes(list);
+    if (dupes.length) {
+      const g = section("Look-alikes", "These might be the same tag. Merging moves every note and entry to one of them.");
+      dupes.forEach(([from, into]) => {
+        const row = document.createElement("div");
+        row.className = "tagm-dupe";
+        const names = document.createElement("span");
+        names.className = "gp-grow";
+        names.textContent = "#" + from.name + " (" + from.count + ")  →  #" + into.name + " (" + into.count + ")";
+        row.append(names, small("Merge", () => mergeTags(from, into)));
+        g.appendChild(row);
+      });
+    }
+    const g = section("Your tags", list.length + (list.length === 1 ? " tag" : " tags") + ". Counts include notes and group entries.");
+    const wrap = document.createElement("div");
+    wrap.className = "tagm-list";
+    list.forEach((t) => {
+      const rec = tagCache.find((x) => tagKey(x.name) === t.key);
+      const row = document.createElement("div");
+      row.className = "tagm-row";
+      row.dataset.tag = t.key;
+      if (t.emoji) { const e = document.createElement("span"); e.className = "tagm-emoji"; e.textContent = t.emoji; row.appendChild(e); }
+      else { const d = document.createElement("span"); d.className = "tagm-dot"; d.style.background = t.color || "var(--text-3)"; row.appendChild(d); }
+      const name = document.createElement("span");
+      name.className = "tagm-name";
+      name.innerHTML = "<b></b><small></small>";
+      name.firstChild.textContent = t.name;
+      name.lastChild.textContent = !t.count ? "Not used" : [t.notes ? t.notes + (t.notes === 1 ? " note" : " notes") : "", t.entries ? t.entries + (t.entries === 1 ? " group entry" : " group entries") : ""].filter(Boolean).join(" · ");
+      row.appendChild(name);
+      if (t.count) row.appendChild(small("Show", () => { closeSettings(); openTag(t.key); }));
+      if (rec) row.appendChild(small("Edit", (e) => openTagPopover(e.currentTarget, rec)));
+      if (list.length > 1) row.appendChild(small("Merge…", () => {
+        const others = list.filter((x) => x.key !== t.key && tagCache.some((r) => tagKey(r.name) === x.key));
+        openSheet("Merge #" + t.name + " into…", others.map((o) => ({ label: "#" + o.name + " (" + o.count + ")", icon: "tag", run: () => mergeTags(t, o) })));
+      }));
+      if (rec) row.appendChild(small("Delete", () => deleteTag(rec.id), "danger"));
+      wrap.appendChild(row);
+    });
+    g.appendChild(wrap);
+    const unused = list.filter((t) => !t.count);
+    if (unused.length > 1) {
+      const actions = document.createElement("div");
+      actions.className = "settings-row-actions";
+      const b = document.createElement("button");
+      b.type = "button";
+      b.id = "delete-unused-tags";
+      b.textContent = "Delete " + unused.length + " unused tags";
+      b.addEventListener("click", async () => {
+        if (!confirm("Delete " + unused.length + " tags that nothing uses?")) return;
+        for (const t of unused) for (const rec of tagCache.filter((x) => tagKey(x.name) === t.key)) await remove(TAGS_STORE, rec.id);
+        const keys = new Set(unused.map((t) => t.key));
+        tagCache = tagCache.filter((x) => !keys.has(tagKey(x.name)));
+        renderAllViews();
+        renderTagSettings();
+        showToast("Deleted " + unused.length + " unused tags");
+      });
+      actions.appendChild(b);
+      box.appendChild(actions);
+    }
+  }
+
+  // ---------- Backups: when was the last one, and a gentle reminder ----------
+  const LAST_BACKUP_KEY = "copypaster-last-backup";
+  const BACKUP_REMIND_KEY = "copypaster-backup-remind";
+  const BACKUP_SNOOZE_KEY = "copypaster-backup-snooze";
+  const FIRST_SEEN_KEY = "copypaster-first-seen";
+  const readNum = (key) => { try { return Number(localStorage.getItem(profileKey(key))) || 0; } catch { return 0; } };
+  try { if (!readNum(FIRST_SEEN_KEY)) localStorage.setItem(profileKey(FIRST_SEEN_KEY), String(Date.now())); } catch {}
+  const remindDays = () => { try { const v = localStorage.getItem(profileKey(BACKUP_REMIND_KEY)); return v === null ? 30 : Number(v) || 0; } catch { return 30; } };
+  function daysAgoText(ts) {
+    const d = Math.floor((Date.now() - ts) / 86400000);
+    return d <= 0 ? "today" : d === 1 ? "yesterday" : d + " days ago";
+  }
+  function renderBackupInfo() {
+    const el = document.getElementById("last-backup");
+    const last = readNum(LAST_BACKUP_KEY);
+    if (el) el.textContent = last ? "Last backup " + daysAgoText(last) + " (" + new Date(last).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) + "). Vault items stay encrypted." : "Never backed up on this device. Download a .cps file with everything, Vault items still encrypted.";
+    const sel = document.getElementById("backup-remind");
+    if (sel) sel.value = String(remindDays());
+  }
+  document.getElementById("backup-remind").addEventListener("change", (e) => {
+    try { localStorage.setItem(profileKey(BACKUP_REMIND_KEY), e.target.value); } catch {}
+    renderList();
+  });
+  // Shown at the top of the Inbox when it's been a while and there's something to lose.
+  function backupDue() {
+    const days = remindDays();
+    if (!days || currentView !== "all" || searchQuery) return null;
+    const things = cache.filter((i) => !i.deletedAt).length + (groupsApi ? groupsApi.timelineRows().length : 0);
+    if (things < 3) return null;
+    const last = readNum(LAST_BACKUP_KEY);
+    const since = last || readNum(FIRST_SEEN_KEY) || Date.now();
+    if (Date.now() - since < days * 86400000) return null;
+    if (Date.now() < readNum(BACKUP_SNOOZE_KEY)) return null;
+    return { last, things };
+  }
+  function renderBackupBanner() {
+    const due = backupDue();
+    if (!due) return;
+    const bar = document.createElement("div");
+    bar.className = "backup-banner";
+    bar.id = "backup-banner";
+    bar.innerHTML = icon("download") + "<span></span>";
+    bar.querySelector("span").textContent = due.last ? "Last backup " + daysAgoText(due.last) + ". Everything lives only on this device." : "No backup yet. Everything lives only on this device.";
+    const later = document.createElement("button");
+    later.type = "button";
+    later.textContent = "Later";
+    later.addEventListener("click", () => { try { localStorage.setItem(profileKey(BACKUP_SNOOZE_KEY), String(Date.now() + 3 * 86400000)); } catch {} bar.remove(); });
+    const go = document.createElement("button");
+    go.type = "button";
+    go.className = "go";
+    go.textContent = "Back up now";
+    go.addEventListener("click", () => document.getElementById("export-btn").click());
+    bar.append(later, go);
+    itemsEl.appendChild(bar);
+  }
+
+  // ---------- Storage on this device ----------
+  const fmtBytes = (n) => (n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(0) + " KB" : n < 1073741824 ? (n / 1048576).toFixed(1) + " MB" : (n / 1073741824).toFixed(2) + " GB");
+  async function renderStorage() {
+    const box = document.getElementById("storage-box");
+    if (!box) return;
+    // What takes the space, roughly (text is counted by length).
+    const parts = { text: 0, photos: 0, audio: 0, groups: 0, vault: 0 };
+    for (const i of cache) {
+      if (i._locked) { parts.vault += JSON.stringify(i.enc || "").length; continue; }
+      parts.photos += (i.images || []).reduce((t, x) => t + x.length, 0);
+      parts.audio += (i.audio || []).reduce((t, a) => t + a.src.length, 0);
+      parts.text += (i.content || "").length + (i.title || "").length + (i.checklist ? JSON.stringify(i.checklist).length : 0);
+    }
+    if (groupsApi) { const g = groupsApi.exportData(); if (g.groups.length || g.entries.length) parts.groups = JSON.stringify(g.groups).length + g.entries.reduce((t, e) => t + JSON.stringify(e).length, 0); }
+    let usage = Object.values(parts).reduce((a, b) => a + b, 0), quota = 0;
+    try { if (navigator.storage && navigator.storage.estimate) { const est = await navigator.storage.estimate(); usage = est.usage || usage; quota = est.quota || 0; } } catch {}
+    const total = Object.values(parts).reduce((a, b) => a + b, 0) || 1;
+    box.innerHTML = "";
+    const line = document.createElement("div");
+    line.className = "settings-hint";
+    line.textContent = "Using " + fmtBytes(usage) + (quota ? " of about " + fmtBytes(quota) + " this browser allows" : "") + ".";
+    const bar = document.createElement("div");
+    bar.className = "storage-bar";
+    const legend = document.createElement("div");
+    legend.className = "storage-legend";
+    [["photos", "Photos and sketches", "var(--image)"], ["audio", "Voice notes", "var(--command)"], ["groups", "Groups", "var(--accent)"], ["text", "Text", "var(--note)"], ["vault", "Vault (locked)", "var(--password)"]].forEach(([k, label, color]) => {
+      if (!parts[k]) return;
+      const seg = document.createElement("i");
+      seg.style.width = (100 * parts[k] / total) + "%";
+      seg.style.background = color;
+      seg.title = label + ": " + fmtBytes(parts[k]);
+      bar.appendChild(seg);
+      const l = document.createElement("span");
+      l.style.setProperty("--c", color);
+      l.textContent = label + " " + fmtBytes(parts[k]);
+      legend.appendChild(l);
+    });
+    const tip = document.createElement("div");
+    tip.className = "settings-hint";
+    tip.style.marginTop = "6px";
+    tip.textContent = quota && usage / quota > 0.8 ? "Getting full. Export a backup, then delete old photos or voice notes." : "Photos are kept as they were added; group photos are shrunk to 1600 px.";
+    box.append(line, bar, legend, tip);
+  }
+  renderBackupInfo();
 
   // ---------- Profiles: screens ----------
   const profileInitial = (pr) => (pr.name.trim()[0] || "?").toUpperCase();
@@ -7875,6 +8808,127 @@
       .catch(() => {});
   }
 
+  // ---------- Shared tags ----------
+  // Notes keep tag records (name, color, icon); group entries keep the tag's
+  // short key (apollo-hospital). Both meet on the key, so one tag means the
+  // same thing everywhere and every tag has one record here.
+  function tagsWithCounts() {
+    const byKey = new Map();
+    for (const t of tagCache) {
+      const k = tagKey(t.name);
+      if (!k) continue;
+      if (!byKey.has(k)) byKey.set(k, { key: k, name: t.name, color: t.color, emoji: t.emoji || "", count: 0, notes: 0, entries: 0, ids: [] });
+      byKey.get(k).ids.push(t.id);
+    }
+    for (const i of cache) {
+      if (i.vaulted || i.deletedAt) continue;
+      for (const id of i.tags) { const t = tagById(id); const rec = t && byKey.get(tagKey(t.name)); if (rec) { rec.count++; rec.notes++; } }
+    }
+    const fromGroups = groupsApi ? groupsApi.tagCounts() : new Map();
+    for (const [k, n] of fromGroups) {
+      if (!byKey.has(k)) byKey.set(k, { key: k, name: k, color: null, emoji: "", count: 0, notes: 0, entries: 0, ids: [] });
+      const rec = byKey.get(k); rec.count += n; rec.entries += n;
+    }
+    return [...byKey.values()].sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  }
+  async function ensureTag(name) {
+    const clean = String(name || "").trim().replace(/^#+/, "").slice(0, 40);
+    const key = tagKey(clean);
+    if (!key) return null;
+    if (!tagCache.some((t) => tagKey(t.name) === key)) {
+      const tag = { id: uuid(), name: clean, color: SWATCHES[tagCache.length % SWATCHES.length], emoji: "" };
+      await put(TAGS_STORE, tag);
+      tagCache.push(tag);
+      renderTagsList();
+    }
+    return key;
+  }
+  const tagLabel = (key) => { const t = tagCache.find((x) => tagKey(x.name) === key); return t ? t.name : key; };
+  // Tags that only exist on group entries (from before v2.5) get a record.
+  async function registerEntryTags() {
+    if (!groupsApi) return;
+    for (const k of groupsApi.tagCounts().keys()) if (!tagCache.some((t) => tagKey(t.name) === k)) await ensureTag(k);
+  }
+
+  // ---------- Timeline ----------
+  function noteRows() {
+    const out = [];
+    for (const i of cache) {
+      if (i.vaulted || i.deletedAt || i._locked) continue;
+      const kind = itemKind(i);
+      const types = noteTypes(i);
+      const tagObjs = i.tags.map((id) => tagById(id)).filter(Boolean);
+      const lines = (i.content || "").split("\n").map((l) => l.trim()).filter(Boolean);
+      const listText = i.checklist ? i.checklist.map((c) => c.text).join(" ") : "";
+      const title = i.title || lines[0] || (i.checklist && i.checklist[0] ? i.checklist[0].text : "") || (i.audio.length ? "Voice note" : i.images.length ? "Photo" : "Untitled");
+      let sub = i.title ? lines[0] || "" : lines.slice(1).join("  ");
+      if (i.checklist && i.checklist.length) sub = i.checklist.filter((c) => c.done).length + " of " + i.checklist.length + " done";
+      if (kind === "link") sub = hostOf(lines[0]) || sub;
+      const folder = i.folderId && folderById(i.folderId);
+      const where = [];
+      if (folder) where.push({ label: folder.name, icon: "folder" });
+      if (i.remindAt) where.push({ label: (i.remindAt <= Date.now() ? "Due " : "") + shortWhen(i.remindAt), icon: "bell", color: "var(--warning)" });
+      const st = i.type === "note" && statusOf(i.status);
+      out.push({
+        kind: "note", id: i.id, at: i.createdAt, edited: i.updatedAt,
+        title, sub: sub.slice(0, 160), icon: i.checklist ? "checklist" : i.audio.length && !i.images.length ? "mic" : KIND_ICONS[kind],
+        color: "var(--" + (kind === "image" ? "image" : kind) + ")", photo: i.images[0] || null,
+        tags: tagObjs.map((t) => tagKey(t.name)), tagLabels: tagObjs.map((t) => ({ key: tagKey(t.name), label: t.name })),
+        where, status: st ? { label: st.label, color: st.color } : null,
+        amount: 0, rating: 0, groups: [], types, flags: noteFlags(i),
+        text: [i.title, i.content, listText, tagObjs.map((t) => t.name).join(" "), folder ? folder.name : ""].join(" ").toLowerCase()
+      });
+    }
+    return out;
+  }
+  async function openTimeline(opts = {}) {
+    if (!timelineApi) return;
+    await timelineApi.open(opts);
+    renderNav();
+    renderTabBar();
+  }
+  function closeTimeline() {
+    if (timelineApi && timelineApi.isOpen()) timelineApi.close();
+  }
+  function startTimeline() {
+    if (!window.CPTimeline || !window.CPTools) return;
+    try {
+      timelineApi = window.CPTimeline.init({
+        notes: noteRows,
+        entries: () => (groupsApi ? groupsApi.timelineRows() : []),
+        groups: () => (groupsApi && groupsApi.enabled() ? groupsApi.groupList() : []),
+        tags: tagsWithCounts,
+        showToast, openSidebarDrawer,
+        openNew: () => openNewMenu(),
+        onEnter: async () => {
+          closeSidebarOnMobile();
+          closeSettings();
+          if (groupsApi && groupsApi.isActive()) groupsApi.exit();
+          if (selectMode) document.getElementById("select-mode-btn").click();
+          if (currentId && window.matchMedia("(max-width: 720px)").matches) await closeDetail();
+        },
+        onExit: () => { renderNav(); renderTabBar(); },
+        openNote: async (id) => {
+          if (currentId && currentId !== id) await saveOpenDraft();
+          openDetail(id);
+        },
+        openEntry: async (id) => {
+          await saveOpenDraft();
+          if (currentId) await closeDetail();
+          timelineApi.close();
+          await groupsApi.openEntry(id);
+        }
+      });
+    } catch (err) {
+      console.error("[CopyPaster] Timeline failed to start:", err);
+    }
+  }
+  // A tag tapped anywhere: everything with it, notes and group entries.
+  function openTag(key) {
+    if (groupsApi && groupsApi.isActive()) groupsApi.exit();
+    openTimeline({ q: "#" + key });
+  }
+
   // Groups live in groups.js; it only talks to the app through this.
   async function startGroups() {
     if (!window.CPGroups) return;
@@ -7882,9 +8936,12 @@
       groupsApi = await window.CPGroups.init({
         getAll, put, remove, profileKey, showToast, openDialog, motionOK,
         closeSidebarOnMobile, openSidebarDrawer, renderTabBar, renderAllViews, closeSettings,
+        tags: tagsWithCounts, ensureTag, tagLabel, openTag, renderNav,
+        changed: () => { renderTagsList(); renderNav(); if (timelineApi) timelineApi.refresh(); },
         copy: (text, msg) => copyToClipboard(text, msg),
         openPhoto: (src) => openImageLightbox(src),
         leaveNotes: async () => {
+          closeTimeline();
           await saveOpenDraft();
           if (currentId) await closeDetail();
           if (selectMode) document.getElementById("select-mode-btn").click();
@@ -7903,16 +8960,23 @@
         }
       });
       renderTabBar();
+      await registerEntryTags();
     } catch (err) {
       console.error("[CopyPaster] Groups failed to start:", err);
     }
   }
+
+  toolsApi = window.CPTools ? window.CPTools.init({ showToast, motionOK, copy: (text, msg) => copyToClipboard(text, msg) }) : null;
 
   openDB()
     .then(async (database) => {
       db = database;
       await refresh();
       await startGroups();
+      startTimeline();
+      renderNav();
+      checkReminders();
+      setInterval(checkReminders, 15000);
       await sweepExpired();
       setInterval(sweepExpired, 60 * 1000);
       await handleLaunchParams();
