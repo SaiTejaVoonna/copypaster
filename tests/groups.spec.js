@@ -42,7 +42,8 @@ async function send(page, text, opts = {}) {
   await expect(lastToast(page)).toContainText("Saved to");
 }
 
-const stat = (page, label) => page.locator(".gp-stat", { hasText: label }).locator("b");
+// The header tile whose label is exactly this (e.g. "Visits", not "Top doctor · 2 visits").
+const stat = (page, label) => page.locator(".gp-stat").filter({ has: page.locator("span", { hasText: new RegExp("^" + label + "$") }) }).locator("b");
 
 test("Groups are off until switched on, and notes look exactly the same", async ({ page }) => {
   await expect(page.locator("#groups-section")).toBeHidden();
@@ -60,7 +61,7 @@ test("same day + same doctor becomes one visit; totals and counts add up", async
   await send(page, "Consultation", { type: "Bill", amount: 700 });
   await send(page, "Medicines", { type: "Medicine", amount: "920.50" });
 
-  const card = page.locator(".gp-card", { hasText: "Dermatology visit" });
+  const card = page.locator(".gp-card", { hasText: "Visit ·" });
   await expect(card).toHaveCount(1);
   await expect(card.locator(".gp-card-head .gp-amount")).toHaveText("₹1,620.50");
   await expect(card.locator(".gp-inner .gp-entry")).toHaveCount(3);
@@ -79,7 +80,7 @@ test("a lab report a few days later joins the visit and shows when it was added"
   const day = (d, t) => { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().slice(0, 10) + "T" + t; };
   await send(page, "Prescription", { type: "Prescription", date: day(3, "10:30") });
   await send(page, "Blood test", { type: "Lab Report", date: day(1, "16:00"), amount: 300 });
-  const card = page.locator(".gp-card", { hasText: "ENT visit" });
+  const card = page.locator(".gp-card", { hasText: "Visit ·" });
   await expect(card.locator(".gp-inner .gp-entry")).toHaveCount(2);
   // Both were typed in today for earlier days, so both say when they were added.
   await expect(card.locator(".gp-added")).toHaveCount(2);
@@ -98,7 +99,7 @@ test("filtering by doctor changes the header totals and can be cleared", async (
   await expect(stat(page, "Total spent")).toHaveText("₹2,100");
   await page.locator(".gp-chip", { hasText: "Eye" }).click();
   await expect(stat(page, "Total spent")).toHaveText("₹600");
-  await expect(page.locator(".gp-filtered")).toContainText("Filtered: Eye");
+  await expect(page.locator(".gp-filtered")).toContainText("Eye");
   await page.click(".gp-filtered button");
   await expect(stat(page, "Total spent")).toHaveText("₹2,100");
 });
@@ -269,4 +270,59 @@ test("user text is never turned into HTML", async ({ page }) => {
   await expect(page.locator(".gp-entry .gp-t")).toHaveText("<img src=x onerror=window.__pwned=1>");
   expect(await page.evaluate(() => window.__pwned)).toBeUndefined();
   expect(await page.locator("#group-pane b:text-is('bold')").count()).toBe(0);
+});
+
+test("delete goes to Trash with Undo, and can be restored from Settings", async ({ page }) => {
+  await turnOnGroups(page);
+  await createGroup(page, "Food");
+  await send(page, "Bun Maska", { type: "Dish" });
+  await page.locator(".gp-entry", { hasText: "Bun Maska" }).click();
+  await page.click(".gp-d-actions button:has-text('Delete')");
+  await page.locator(".gp-choice", { hasText: "Delete" }).click();
+  await expect(page.locator(".gp-entry", { hasText: "Bun Maska" })).toHaveCount(0);
+  await lastToast(page).locator("button", { hasText: "Undo" }).click();
+  await expect(page.locator(".gp-entry", { hasText: "Bun Maska" })).toHaveCount(1);
+
+  await page.locator(".gp-entry", { hasText: "Bun Maska" }).click();
+  await page.click(".gp-d-actions button:has-text('Delete')");
+  await page.locator(".gp-choice", { hasText: "Delete" }).click();
+  await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="groups"]');
+  await page.click("#groups-settings-body button:has-text('Trash (1)')");
+  await page.locator(".gp-sheet .gp-choice", { hasText: "Bun Maska" }).locator("button:has-text('Restore')").click();
+  await page.click(".gp-sheet button[aria-label='Close']");
+  await page.click("#settings-close-btn");
+  await expect(page.locator(".gp-entry", { hasText: "Bun Maska" })).toHaveCount(1);
+});
+
+test("each group keeps its own sort; a filter stays while switching tabs", async ({ page }) => {
+  await turnOnGroups(page);
+  await createGroup(page, "Hospital");
+  await addMainTag(page, "Eye");
+  await send(page, "Eye checkup", { type: "Bill", amount: 600 });
+  await send(page, "Glasses", { type: "Prescription" });
+  await page.selectOption("select[aria-label='Sort']", "amount");
+  await createGroup(page, "Food");
+  await expect(page.locator("select[aria-label='Sort']")).toHaveValue("newest");
+  await page.locator(".gp-nav-group", { hasText: "Hospital" }).click();
+  await expect(page.locator("select[aria-label='Sort']")).toHaveValue("amount");
+  await expect(page.locator(".gp-active")).toContainText("Highest amount");
+
+  await page.locator(".gp-chip", { hasText: "Eye" }).click();
+  await page.locator(".gp-nav-sub", { hasText: "Bills" }).first().click();
+  await expect(page.locator(".gp-active")).toContainText("Eye");
+  await expect(stat(page, "Total spent")).toHaveText("₹600");
+  await page.click(".gp-clear-all");
+  await expect(page.locator(".gp-active")).toHaveCount(0);
+});
+
+test("a pharmacy bill alone is not a visit; it joins the visit before it", async ({ page }) => {
+  await turnOnGroups(page);
+  await createGroup(page, "Hospital");
+  await addMainTag(page, "ENT");
+  const day = (d, t) => { const x = new Date(); x.setDate(x.getDate() - d); return x.toISOString().slice(0, 10) + "T" + t; };
+  await send(page, "Review", { type: "Prescription", date: day(2, "11:00") });
+  await send(page, "Pharmacy", { type: "Medicine", date: day(1, "19:00"), amount: 799 });
+  await expect(stat(page, "Visits")).toHaveText("1");
+  await expect(page.locator(".gp-card", { hasText: "Visit · 2 items" })).toHaveCount(1);
 });

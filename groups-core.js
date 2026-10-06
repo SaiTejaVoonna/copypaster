@@ -45,7 +45,7 @@
       subs: [], mainLabel: "", fields: { amount: { on: true, currency: "INR" }, rating: false, custom: [] }, cards: "none", cardWord: "" },
     { key: "hospital", name: "Hospital", desc: "Prescriptions, lab reports, medicines and bills", icon: "cross", color: "#ef4444",
       subs: [sub("Prescriptions", "Prescription", "clipboard", "#22c55e"), sub("Lab Reports", "Lab Report", "flask", "#8b5cf6", { late: true }),
-        sub("Medicines", "Medicine", "pill", "#ec4899"), sub("Bills", "Bill", "receipt", "#f5b544", { late: true })],
+        sub("Medicines", "Medicine", "pill", "#ec4899", { late: true }), sub("Bills", "Bill", "receipt", "#f5b544", { late: true })],
       mainLabel: "Doctor", fields: { amount: { on: true, currency: "INR" }, rating: false, custom: [] }, cards: "day", cardWord: "Visit" },
     { key: "food", name: "Food", desc: "Places I ate, bills, recipes and places to try", icon: "cup", color: "#f97316",
       subs: [sub("Dishes", "Dish", "utensils", "#14b8a6"), sub("Bills", "Bill", "receipt", "#f5b544"),
@@ -140,7 +140,9 @@
       link: e.link ? String(e.link).slice(0, 2000) : null,
       happenedOn: typeof e.happenedOn === "number" ? e.happenedOn : (e.addedOn || now),
       addedOn: typeof e.addedOn === "number" ? e.addedOn : now,
-      updatedAt: e.updatedAt || now
+      updatedAt: e.updatedAt || now,
+      // Set when moved to Trash; kept 30 days, then removed for good.
+      deletedAt: typeof e.deletedAt === "number" ? e.deletedAt : null
     };
   }
 
@@ -182,7 +184,8 @@
   const sameDay = (a, b) => { const x = new Date(a), y = new Date(b); return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate(); };
   const monthKey = (t) => { const d = new Date(t); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0"); };
 
-  function inGroup(entries, gid) { return entries.filter((e) => refIn(e, gid)); }
+  // Everything shown skips entries in Trash.
+  function inGroup(entries, gid) { return entries.filter((e) => !e.deletedAt && refIn(e, gid)); }
   function inSub(entries, gid, sid) { return inGroup(entries, gid).filter((e) => !sid || sid === "all" || refIn(e, gid).s === sid); }
   // tag: a main-tag id, "__none" (no main tag) or null (everything).
   function filterEntries(entries, g, sid, tag, query) {
@@ -275,26 +278,33 @@
   }
 
   // ---------- Header stats (react to the active filter) ----------
+  // A card only counts as a visit/outing when something in it isn't a
+  // "late" kind: a pharmacy bill or lab report on its own isn't a visit.
+  function countsAsVisit(c, g) {
+    return !!c.tag && c.items.some((e) => { const s = subOf(g, refIn(e, g.id).s); return !(s && s.late); });
+  }
   function stats(entries, g, sid, list) {
     const out = [];
     const sub = sid && sid !== "all" ? subOf(g, sid) : null;
     const cards = buildCards(list, g, "all");
-    const tagged = cards.filter((c) => c.tag);
+    const tagged = cards.filter((c) => countsAsVisit(c, g));
     if (sub) out.push({ key: "count", icon: sub.icon, label: sub.name, value: String(list.length) });
     else if (g.cards === "title" && g.mainLabel) out.push({ key: "count", icon: g.icon, label: plural(g.cardWord || g.mainLabel), value: String(cards.filter((c) => c.kind === "title").length) });
     else if (g.cards === "day" && g.mainLabel) out.push({ key: "count", icon: "calendar", label: plural(g.cardWord || "Visit"), value: String(tagged.length) });
     else out.push({ key: "count", icon: "note", label: "Entries", value: String(list.length) });
-    if (g.fields.amount.on) {
+    // Money tiles only when there's money to show.
+    if (g.fields.amount.on && list.some((e) => e.amount)) {
       out.push({ key: "total", icon: "wallet", label: "Total spent", value: formatTotals(totals(list, g), g) });
       const now = new Date();
       const thisMonth = list.filter((e) => { const d = new Date(e.happenedOn); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); });
-      out.push({ key: "month", icon: "calendar", label: "Spent in " + now.toLocaleDateString("en-GB", { month: "short" }), value: formatTotals(totals(thisMonth, g), g) });
+      if (thisMonth.some((e) => e.amount)) out.push({ key: "month", icon: "calendar", label: "Spent in " + now.toLocaleDateString("en-GB", { month: "short" }), value: formatTotals(totals(thisMonth, g), g) });
     }
     if (g.mainLabel && g.mainTags.length && g.cards !== "title") {
       const per = {};
       (g.cards === "none" ? list.map((e) => ({ tag: refIn(e, g.id).tag })) : tagged).forEach((c) => { if (c.tag && tagOf(g, c.tag)) per[c.tag] = (per[c.tag] || 0) + 1; });
       const top = Object.entries(per).sort((a, b) => b[1] - a[1])[0];
-      if (top) out.push({ key: "top", icon: "star", label: "Top " + g.mainLabel.toLowerCase(), value: tagOf(g, top[0]).name + " (" + top[1] + ")" });
+      const unit = g.cards === "none" ? (top && top[1] === 1 ? "entry" : "entries") : (g.cardWord || "visit").toLowerCase() + (top && top[1] === 1 ? "" : "s");
+      if (top) out.push({ key: "top", icon: "star", label: "Top " + g.mainLabel.toLowerCase() + " \u00b7 " + top[1] + " " + unit, value: tagOf(g, top[0]).name });
     }
     if (g.fields.rating) {
       const rated = list.filter((e) => e.rating);
@@ -351,7 +361,7 @@
     uid, normalizeGroup, normalizeEntry, normalizeTagName, groupFromTemplate,
     toMinor, formatMoney, formatTotals, totals, entryCurrency, formatNumber, plural,
     refIn, subOf, tagOf, sameDay, monthKey, inGroup, inSub, filterEntries, entryText, counts,
-    buildCards, titleSummary, stats,
+    buildCards, titleSummary, stats, countsAsVisit,
     templateFromGroup, validateTemplate, encodeTemplate, decodeTemplate
   };
 })();

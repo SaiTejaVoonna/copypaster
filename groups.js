@@ -22,8 +22,12 @@
   let groups = [];
   let entries = [];
   let enabled = false;
-  const ui = { screen: null, g: null, s: "all", tag: null, sort: "newest", q: "", open: new Set(), selected: null, flash: null, menu: false, drafts: {} };
-  let prefs = { lastSub: {}, lastTag: {}, snapDest: null, collapsed: [] };
+  const ui = { screen: null, g: null, s: "all", tag: null, q: "", tools: false, open: new Set(), selected: null, flash: null, menu: false, drafts: {} };
+  let prefs = { lastSub: {}, lastTag: {}, snapDest: null, collapsed: [], sort: {} };
+  const TRASH_DAYS = 30;
+  // Each group remembers its own sort; a new group starts at Newest first.
+  const sortOf = (g) => (prefs.sort && prefs.sort[g.id]) || "newest";
+  function setSort(g, v) { prefs.sort = prefs.sort || {}; if (v === "newest") delete prefs.sort[g.id]; else prefs.sort[g.id] = v; savePrefs(); }
   let pane, mainEl, headEl, filtersEl, timelineEl, dropEl, detailEl;
 
   // ---------- Small helpers ----------
@@ -67,7 +71,8 @@
   const toLocalInput = (t) => { const d = new Date(t); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
   const fromLocalInput = (v) => { const t = new Date(v).getTime(); return Number.isFinite(t) ? t : null; };
   const groupById = (id) => groups.find((g) => g.id === id) || null;
-  const entryById = (id) => entries.find((e) => e.id === id) || null;
+  const entryById = (id) => entries.find((e) => e.id === id && !e.deletedAt) || null;
+  const live = () => entries.filter((e) => !e.deletedAt);
   const curGroup = () => (ui.screen === "group" ? groupById(ui.g) : null);
   const money = (e, g) => C.formatMoney(e.amount, C.entryCurrency(e, g));
   function stars(n, small) {
@@ -86,7 +91,15 @@
 
   async function saveGroup(g) { g.updatedAt = Date.now(); await api.put(GROUPS_STORE, g); }
   async function saveEntry(e) { e.updatedAt = Date.now(); await api.put(ENTRIES_STORE, e); }
+  // Gone for good (after it was moved to Notes, or emptied from Trash).
   async function deleteEntry(e) { entries = entries.filter((x) => x !== e); await api.remove(ENTRIES_STORE, e.id); }
+  // Delete = Trash for 30 days, with Undo, like notes.
+  async function trashEntry(e) {
+    e.deletedAt = Date.now();
+    await saveEntry(e);
+    api.showToast("Moved to Trash", { action: { label: "Undo", onClick: async () => { e.deletedAt = null; await saveEntry(e); render(); renderSettings(); } } });
+    renderSettings();
+  }
 
   // Photos: shrunk to 1600px and re-encoded as JPEG, which also strips location data.
   function shrinkPhoto(file) {
@@ -196,6 +209,8 @@
       console.error("[Groups] could not load", err);
       groups = []; entries = [];
     }
+    // Empty the Trash of anything older than 30 days.
+    for (const e of entries.filter((x) => x.deletedAt && Date.now() - x.deletedAt > TRASH_DAYS * C.DAY)) await deleteEntry(e);
     buildPane();
     // The phone tab bar lives in the notes list; move it up so it still shows while a group screen is open.
     const tabBar = document.getElementById("tab-bar");
@@ -247,7 +262,9 @@
   async function openGroup(gid, sid = "all", opts = {}) {
     if (!groupById(gid)) return;
     await api.leaveNotes();
-    if (ui.g !== gid || ui.s !== sid) { ui.tag = null; ui.q = ""; ui.menu = false; }
+    // A doctor/place filter and search stay while you switch tabs in the same group.
+    if (ui.g !== gid) { ui.tag = null; ui.q = ""; ui.tools = false; }
+    ui.menu = false;
     if (ui.g !== gid) ui.open = new Set();
     ui.screen = "group"; ui.g = gid; ui.s = sid;
     if (!opts.keepSelection) ui.selected = null;
@@ -380,6 +397,7 @@
       h("button", { class: "btn icon ghost gp-menu-btn", "aria-label": "Menu", onclick: () => api.openSidebarDrawer() }, ic("menu", "icon-lg")),
       groupTile(g, "xl"),
       h("div", { class: "gp-id-text" }, h("h1", null, g.name, sub ? h("span", { class: "gp-dim" }, " / " + sub.name) : null), g.desc ? h("p", null, g.desc) : null),
+      h("button", { class: "btn icon ghost gp-tools-btn" + (ui.tools ? " on" : ""), "aria-label": "Search and sort", "aria-expanded": String(ui.tools), onclick: () => { ui.tools = !ui.tools; render(); if (ui.tools) focusLater("gp-search"); } }, ic("search")),
       h("button", { class: "btn icon ghost", "aria-label": "Edit group", title: "Edit group", onclick: () => openEditGroup(g) }, ic("edit"))));
     const statsEl = h("div", { class: "gp-stats" });
     for (const s of C.stats(entries, g, ui.s, list)) statsEl.append(h("div", { class: "gp-stat" }, ic(s.icon), h("div", null, h("b", null, s.value), h("span", null, s.label))));
@@ -408,20 +426,16 @@
       line.append(chips);
     }
     const tools = h("div", { class: "gp-tools" });
-    if (ui.tag) {
-      const name = ui.tag === "__none" ? "No " + g.mainLabel.toLowerCase() : (C.tagOf(g, ui.tag) || {}).name;
-      tools.append(h("span", { class: "gp-filtered" }, "Filtered: " + name, h("button", { "aria-label": "Clear filter", onclick: () => setTag(null) }, ic("close", "icon-sm"))));
-    }
-    const search = h("input", { class: "input gp-search", type: "search", placeholder: "Search " + g.name, "aria-label": "Search in " + g.name, value: ui.q,
+    const search = h("input", { class: "input gp-search", id: "gp-search", type: "search", placeholder: "Search " + g.name, "aria-label": "Search in " + g.name, value: ui.q,
       oninput: (e) => { ui.q = e.target.value; clearTimeout(search._t); search._t = setTimeout(() => { const list = C.filterEntries(entries, g, ui.s, ui.tag, ui.q); headEl.replaceChildren(); renderHead(g, list); timelineEl.replaceChildren(); renderTimeline(g, list); }, 150); } });
     tools.append(search);
-    const sortSel = h("select", { class: "input gp-select", "aria-label": "Sort", onchange: (e) => { ui.sort = e.target.value; render(); } });
+    const sortSel = h("select", { class: "input gp-select", "aria-label": "Sort", onchange: (e) => { setSort(g, e.target.value); render(); } });
     const sorts = [["newest", "Newest first"], ["oldest", "Oldest first"]];
     if (g.fields.amount.on) sorts.push(["amount", "Highest amount"]);
     if (g.fields.rating) sorts.push(["rating", "Highest rated"]);
-    if (!sorts.some(([k]) => k === ui.sort)) ui.sort = "newest";
+    if (!sorts.some(([k]) => k === sortOf(g))) setSort(g, "newest");
     sorts.forEach(([k, l]) => sortSel.append(h("option", { value: k }, l)));
-    sortSel.value = ui.sort;
+    sortSel.value = sortOf(g);
     tools.append(sortSel);
     const jump = h("select", { class: "input gp-select", id: "gp-jump", "aria-label": "Jump to month", hidden: true, onchange: (e) => {
       const target = document.getElementById("gp-m-" + e.target.value);
@@ -431,19 +445,34 @@
     tools.append(jump);
     line.append(tools);
     filtersEl.append(line);
+    filtersEl.classList.toggle("tools-open", ui.tools);
+
+    // What's applied right now, each removable with one tap.
+    const active = [];
+    if (ui.tag) active.push({ label: ui.tag === "__none" ? "No " + g.mainLabel.toLowerCase() : (C.tagOf(g, ui.tag) || {}).name, clear: () => { ui.tag = null; } });
+    if (ui.q) active.push({ label: "\u201c" + ui.q + "\u201d", clear: () => { ui.q = ""; } });
+    const sortLabel = { oldest: "Oldest first", amount: "Highest amount", rating: "Highest rated" }[sortOf(g)];
+    if (sortLabel) active.push({ label: sortLabel, clear: () => setSort(g, "newest") });
+    if (active.length) {
+      const row = h("div", { class: "gp-active", "aria-label": "Active filters" });
+      active.forEach((a) => row.append(h("span", { class: "gp-filtered" }, a.label, h("button", { "aria-label": "Remove " + a.label, onclick: () => { a.clear(); render(); } }, ic("close", "icon-sm")))));
+      if (active.length > 1) row.append(h("button", { class: "gp-clear-all", onclick: () => { active.forEach((a) => a.clear()); render(); } }, "Clear all"));
+      filtersEl.append(row);
+    }
   }
   function setTag(t) { ui.tag = t; render(); }
 
   // ---------- Timeline ----------
   function renderTimeline(g, list) {
     const cards = C.buildCards(list, g, ui.s);
-    const byDate = ui.sort === "newest" || ui.sort === "oldest";
+    const sort = sortOf(g);
+    const byDate = sort === "newest" || sort === "oldest";
     const score = (c) => {
-      if (ui.sort === "amount") return c.items.reduce((t, e) => t + (e.amount || 0), 0);
-      if (ui.sort === "rating") return c.kind === "title" ? (C.titleSummary(c, g).rating || 0) : Math.max(0, ...c.items.map((e) => e.rating || 0));
+      if (sort === "amount") return c.items.reduce((t, e) => t + (e.amount || 0), 0);
+      if (sort === "rating") return c.kind === "title" ? (C.titleSummary(c, g).rating || 0) : Math.max(0, ...c.items.map((e) => e.rating || 0));
       return c.anchor;
     };
-    cards.sort((a, b) => (ui.sort === "oldest" ? a.anchor - b.anchor : score(b) - score(a) || b.anchor - a.anchor));
+    cards.sort((a, b) => (sort === "oldest" ? a.anchor - b.anchor : score(b) - score(a) || b.anchor - a.anchor));
 
     const cnt = C.counts(entries, g, ui.s);
     if (g.mainLabel && cnt.noTagNeeded && ui.tag !== "__none" && !ui.q) {
@@ -516,9 +545,9 @@
       card.append(h("button", { class: "gp-card-head", "aria-expanded": String(open), onclick: toggle },
         photo ? thumb(photo.photos[0]) : tile(g.icon, t.color, false, "lg"),
         h("span", { class: "gp-card-main" },
-          h("span", { class: "gp-card-title" }, t.name + " " + word.toLowerCase()),
+          h("span", { class: "gp-card-title" }, t.name),
           t.info ? h("span", { class: "gp-card-sub" }, t.info) : null,
-          h("span", { class: "gp-row-tags" }, h("span", { class: "gp-tagchip main", style: "--c:" + t.color }, t.name),
+          h("span", { class: "gp-row-tags" }, h("span", { class: "gp-tagchip main", style: "--c:" + t.color }, word + " \u00b7 " + c.items.length + " items"),
             ...[...new Set(c.items.map((e) => C.subOf(g, C.refIn(e, g.id).s)).filter(Boolean))].map((s) => h("span", { class: "gp-typepill" }, s.label)))),
         h("span", { class: "gp-card-side" }, h("span", { class: "gp-count num" }, c.items.length + " items"), hasMoney ? h("span", { class: "gp-amount" }, C.formatTotals(total, g)) : null, ic("chevron-right", "gp-chev"))));
     }
@@ -548,7 +577,7 @@
     if (!C.sameDay(e.addedOn, e.happenedOn)) meta.append(h("span", { class: "gp-added" }, "added " + fmtDay(e.addedOn)));
     if (fields.length) meta.append(h("span", null, fields.join(" · ")));
     const tags = h("span", { class: "gp-row-tags" });
-    if (!opts.inCard && t) tags.append(h("span", { class: "gp-tagchip main", style: "--c:" + t.color }, t.name));
+    if (!opts.inCard && t && ui.tag !== t.id) tags.append(h("span", { class: "gp-tagchip main", style: "--c:" + t.color }, t.name));
     e.tags.forEach((x) => tags.append(h("span", { class: "gp-tagchip" }, "#" + x)));
     if (e.refs.length > 1) tags.append(h("span", { class: "gp-tagchip link" }, ic("link", "icon-sm"), "Also in " + e.refs.filter((x) => x.g !== g.id).map((x) => (groupById(x.g) || {}).name).filter(Boolean).join(", ")));
     const showSubPill = s && (opts.inCard || ui.s === "all") && e.title !== s.label;
@@ -566,10 +595,19 @@
     if (!needsTag) return row;
     const wrap = h("div");
     const assign = h("div", { class: "gp-assign" }, h("span", { class: "gp-dim" }, g.mainLabel + ":"));
-    g.mainTags.forEach((tg) => assign.append(h("button", { class: "gp-mini", style: "--c:" + tg.color, onclick: async () => { r.tag = tg.id; await saveEntry(e); api.showToast(g.mainLabel + ": " + tg.name); render(); } }, h("span", { class: "dot" }), tg.name)));
-    assign.append(h("button", { class: "gp-mini", onclick: () => newMainTag(g, async (tg) => { r.tag = tg.id; await saveEntry(e); render(); }) }, ic("plus", "icon-sm"), "New"));
+    g.mainTags.forEach((tg) => assign.append(h("button", { class: "gp-mini", style: "--c:" + tg.color, onclick: () => assignTag(e, g, tg) }, h("span", { class: "dot" }), tg.name)));
+    assign.append(h("button", { class: "gp-mini", onclick: () => newMainTag(g, (tg) => assignTag(e, g, tg)) }, ic("plus", "icon-sm"), "New"));
     wrap.append(row, assign);
     return wrap;
+  }
+
+  async function assignTag(e, g, tg) {
+    C.refIn(e, g.id).tag = tg.id;
+    await saveEntry(e);
+    const left = C.counts(entries, g, ui.s).noTagNeeded;
+    if (ui.tag === "__none" && !left) { ui.tag = null; api.showToast("Every entry has a " + g.mainLabel.toLowerCase() + " now"); }
+    else api.showToast(g.mainLabel + ": " + tg.name);
+    render();
   }
 
   // ---------- Send bar ----------
@@ -800,7 +838,10 @@
       const strip = h("div", { class: "gp-d-strip" });
       e.photos.forEach((p, i) => strip.append(h("span", { class: "gp-attach" },
         h("button", { class: "gp-ph", "aria-label": "Show photo " + (i + 1), onclick: () => { big.firstChild.src = p; big.dataset.i = i; } }, h("img", { src: p, alt: "" })),
-        h("button", { class: "gp-x", "aria-label": "Remove photo " + (i + 1), onclick: async () => { e.photos.splice(i, 1); await saveEntry(e); renderDetail(); rerender(); } }, ic("close", "icon-sm")))));
+        h("button", { class: "gp-x", "aria-label": "Remove photo " + (i + 1), onclick: async () => {
+          const [removed] = e.photos.splice(i, 1); await saveEntry(e); renderDetail(); rerender();
+          api.showToast("Photo removed", { action: { label: "Undo", onClick: async () => { e.photos.splice(i, 0, removed); await saveEntry(e); renderDetail(); rerender(); } } });
+        } }, ic("close", "icon-sm")))));
       strip.append(h("button", { class: "gp-add-photo", "aria-label": "Add photo", onclick: async () => { const ps = await pickPhotos(); if (ps.length) { e.photos.push(...ps); await saveEntry(e); renderDetail(); rerender(); } } }, ic("plus")));
       sc.append(strip);
     }
@@ -906,9 +947,9 @@
         api.showToast("Removed from " + g.name + ". Still in " + others.join(", ") + "."); render();
       } }, ic("unlink"), h("span", null, "Remove from " + g.name, h("small", null, "Stays in " + others.join(", ") + "."))));
       body.append(h("button", { class: "gp-choice danger", onclick: async () => {
-        await deleteEntry(e); close(); ui.selected = null;
-        api.showToast("Deleted"); render();
-      } }, ic("trash"), h("span", null, others.length ? "Delete everywhere" : "Delete", h("small", null, others.length ? "Also removes it from " + others.join(", ") + ". This can't be undone." : "This can't be undone. Use Move to Notes to keep it."))));
+        close(); ui.selected = null;
+        await trashEntry(e); render();
+      } }, ic("trash"), h("span", null, others.length ? "Delete everywhere" : "Delete", h("small", null, (others.length ? "Also removes it from " + others.join(", ") + ". " : "") + "Kept in Trash for " + TRASH_DAYS + " days (Settings \u2192 Groups)."))));
       body.append(h("button", { class: "gp-choice", onclick: () => { close(); moveEntryToNotes(e); } }, ic("note"), h("span", null, "Move to Notes instead", h("small", null, "Keeps the text and photos as a normal note."))));
     });
   }
@@ -957,7 +998,7 @@
     });
   }
   function openLinkExisting(g) {
-    const pool = entries.filter((e) => !C.refIn(e, g.id)).sort((a, b) => b.happenedOn - a.happenedOn);
+    const pool = live().filter((e) => !C.refIn(e, g.id)).sort((a, b) => b.happenedOn - a.happenedOn);
     sheet("Link an entry into " + g.name, (body, close) => {
       if (!pool.length) { body.append(h("p", { class: "gp-hint" }, "Nothing in other groups yet. To bring in a note, open it in Notes and choose Move to group.")); return; }
       body.append(h("p", { class: "gp-hint" }, "It stays where it is and also shows here. Notes can be brought in from a note's ⋯ menu: Move to group."));
@@ -1365,11 +1406,37 @@
     const toggle = h("label", { class: "settings-check" }, h("input", { type: "checkbox", id: "groups-enabled", checked: enabled, onchange: (e) => setEnabled(e.target.checked) }), " Show Groups");
     box.append(h("div", { class: "settings-group" }, toggle,
       h("div", { class: "settings-hint" }, "Groups are timelines for topics like Hospital, Food or your bike. They're separate from your notes. Turning this off only hides them; nothing is deleted.")));
-    const stats = groups.length ? groups.length + (groups.length === 1 ? " group, " : " groups, ") + entries.length + (entries.length === 1 ? " entry" : " entries") + ". Included in Back up." : "No groups yet.";
+    const stats = groups.length ? groups.length + (groups.length === 1 ? " group, " : " groups, ") + live().length + (live().length === 1 ? " entry" : " entries") + ". Included in Back up." : "No groups yet.";
+    const trashed = entries.filter((e) => e.deletedAt);
     box.append(h("div", { class: "settings-group padded" }, h("div", { class: "settings-hint" }, stats),
       h("div", { class: "settings-row-actions" },
         h("button", { onclick: () => { api.closeSettings(); openNewGroup(); } }, "+ New group"),
-        h("button", { onclick: () => importTemplateFile() }, "Import template…"))));
+        h("button", { onclick: () => importTemplateFile() }, "Import template\u2026"),
+        trashed.length ? h("button", { onclick: openTrash }, "Trash (" + trashed.length + ")") : null)));
+  }
+  function openTrash() {
+    sheet("Groups Trash", (body) => {
+      const draw = () => {
+        body.replaceChildren();
+        const list = entries.filter((e) => e.deletedAt).sort((a, b) => b.deletedAt - a.deletedAt);
+        if (!list.length) { body.append(h("p", { class: "gp-hint" }, "Trash is empty.")); return; }
+        body.append(h("p", { class: "gp-hint" }, "Deleted entries stay here for " + TRASH_DAYS + " days."));
+        list.forEach((e) => {
+          const g = groupById(e.refs[0] && e.refs[0].g);
+          const days = Math.max(0, TRASH_DAYS - Math.floor((Date.now() - e.deletedAt) / C.DAY));
+          body.append(h("div", { class: "gp-choice" }, e.photos.length ? thumb(e.photos[0], "sm") : ic("trash"),
+            h("span", { class: "gp-grow" }, e.title || "Entry", h("small", null, (g ? g.name + " \u00b7 " : "") + fmtDate(e.happenedOn) + " \u00b7 " + days + " days left")),
+            h("button", { class: "btn gp-small", onclick: async () => {
+              e.deletedAt = null;
+              e.refs = e.refs.filter((r) => groupById(r.g));
+              if (!e.refs.length && groups[0]) e.refs = [{ g: groups[0].id, s: null, tag: null }];
+              await saveEntry(e); api.showToast("Restored"); draw(); render(); renderSettings();
+            } }, "Restore"),
+            h("button", { class: "btn icon ghost", "aria-label": "Delete forever", onclick: async () => { await deleteEntry(e); draw(); renderSettings(); } }, ic("trash"))));
+        });
+      };
+      draw();
+    });
   }
 
   // ---------- Search, backup ----------
@@ -1377,7 +1444,7 @@
     if (!enabled || !q) return [];
     const needle = q.toLowerCase();
     const out = [];
-    for (const e of entries) {
+    for (const e of live()) {
       const g = groupById(e.refs[0] && e.refs[0].g);
       if (!g) continue;
       if (!C.entryText(e, g).includes(needle)) continue;

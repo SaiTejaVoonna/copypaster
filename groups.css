@@ -358,3 +358,15 @@ body.group-mode #list-pane, body.group-mode #resize-list, body.group-mode #detai
 /* Toasts move to the top while a group is open, clear of the send bar. */
 body.group-mode #toast { top: calc(14px + env(safe-area-inset-top)); bottom: auto !important; }
 .gp-sheet-body > *, .gp-d-scroll > * { flex-shrink: 0; }
+
+/* ---------- Active filters + phone search/sort toggle ---------- */
+.gp-active { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.gp-clear-all { border: none; background: none; color: var(--text-2); font-size: var(--fs-sm); cursor: pointer; padding: 4px 6px; }
+.gp-clear-all:hover { color: var(--text); text-decoration: underline; }
+.gp-tools-btn { display: none !important; }
+.gp-tools-btn.on { color: var(--accent); background: var(--accent-soft); }
+.gp-assign { flex-wrap: wrap; overflow: visible; }
+@media (max-width: 720px) {
+  .gp-tools-btn { display: inline-flex !important; }
+  .gp-filters:not(.tools-open) .gp-tools { display: none; }
+}
