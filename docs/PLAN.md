@@ -95,7 +95,7 @@ Versions 2.1–2.4 were never released. From now on there are no gaps.
 5. Every captured source keeps its available capture details: time, location, origin and original file name.
 6. Every suggestion (OCR, AI, web lookup) keeps where it came from, how confident it is, and whether it is confirmed.
 7. One entry can sit in several groups without being copied.
-8. People, places and things are reusable records with a stable identity. Renaming one or changing its type never creates a new one,, and a detail like a specialty never becomes its identity. A page inside a group is a view of that identity, never a second copy.
+8. People, places and things are reusable records with a stable identity. Renaming one or changing its type never creates a new one, and a detail like a specialty never becomes its identity. A page inside a group is a view of that identity, never a second copy.
 9. Groups give context; they don't own entries.
 10. Views never duplicate data.
 11. Outside services enrich or import; they are never the source of truth.
