@@ -13,9 +13,9 @@ This file sets out what CopyPaster's data means and what the code is allowed to 
 | **Sub-chat** | A kind of entry inside a group (Prescriptions, Bills) | `group.subs` |
 | **Entity** | A reusable person, place or thing with one identity | `entities` store |
 | **Type** | What kind of entity it is (Doctor, Restaurant, Vehicle). Defines its fields. | `entity.type` |
-| **Page** | A group's view of an entity: the entity's entries in that group, its stats, its tabs | `group.mainTags[]`, each `{ id: entityId, color }` |
+| **Page** | A group's view of an entity: the entity's entries in that group, its stats, its tabs | `group.mainTags[]`, each `{ id, entity, color }` plus a display copy of the name and one-line summary |
 | **Entry** | Something that happened, or a document | `entries` store, linked to groups by `refs` |
-| **Source** | The original thing captured (a photo, a file) plus how and when it was captured | the photo on an entry or note, with `capture` details |
+| **Source** | The original thing captured (a photo, a file) plus how and when it was captured | `capture` on a note or entry: the original, time, origin, file name, location |
 | **Field** | A value that describes an entity or an entry, from the one field engine | `group.fields.custom`, `entity.fields` |
 | **Tag** | A quick label shared by notes and entries | `tags` store; entries keep the key |
 | **Suggestion** | A value the app guessed. It is not a fact until confirmed. | not built yet (2.7) |
@@ -82,8 +82,9 @@ Adding a field to one entity asks whether to add it to the type. If yes, future 
 ## Snap
 
 - Snap saves the source first. Nothing is required before saving.
-- A global snap lands in the Inbox as a captured note.
+- A global snap lands in the Inbox as a note marked `captured`, shown under Inbox → Captured. Giving it a title, text, folder or tag counts as sorting it out.
 - A snap from inside a group, page or sub-chat saves straight into that context.
 - Location is fetched in the background and added when it arrives. It never delays the save.
 - Coordinates are evidence; a map match would only be a suggestion. The place a person picks is what counts.
-- Organising later links the existing source. It never copies it.
+- "From Inbox" in a group moves the captured note into that group as an entry, with its capture details. It is moved, never copied.
+- The photo shown in lists is a smaller copy; `capture.original` keeps the file as it was picked (up to 15 MB).
