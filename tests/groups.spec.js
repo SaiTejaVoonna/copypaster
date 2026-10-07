@@ -22,9 +22,17 @@ async function createGroup(page, template, name) {
 async function addMainTag(page, name, info) {
   await page.click("#gp-text");
   await page.click(".gp-extras .gp-mini:has-text('New')");
-  await page.fill("#dialog-name", name);
-  if (info) await page.fill("#dialog-info", info);
-  await page.click("#dialog button.primary");
+  await page.fill("#gp-page-name", name);
+  await page.click("#gp-page-create");
+  if (info) {
+    // Details live on the person's page now.
+    await page.locator(".gp-person", { hasText: name }).click();
+    await page.click("#gp-page-edit");
+    await page.fill("#gp-ent-note", info);
+    await page.click("#gp-ent-save");
+    await page.locator(".gp-person.all").click();
+    await page.click("#gp-text");
+  }
   await expect(page.locator(".gp-extras .gp-mini.active", { hasText: name })).toBeVisible();
 }
 
@@ -104,7 +112,7 @@ test("filtering by doctor changes the header totals and can be cleared", async (
   await addMainTag(page, "Dental");
   await send(page, "Cleaning", { type: "Bill", amount: 1500 });
   await expect(stat(page, "Total spent")).toHaveText("₹2,100");
-  await page.locator(".gp-chip", { hasText: "Eye" }).click();
+  await page.locator(".gp-person", { hasText: "Eye" }).click();
   await expect(stat(page, "Total spent")).toHaveText("₹600");
   await expect(page.locator(".gp-filtered")).toContainText("Eye");
   await page.click(".gp-filtered button");
@@ -315,7 +323,7 @@ test("each group keeps its own sort; a filter stays while switching tabs", async
   await expect(page.locator("select[aria-label='Sort']")).toHaveValue("amount");
   await expect(page.locator(".gp-active")).toContainText("Highest amount");
 
-  await page.locator(".gp-chip", { hasText: "Eye" }).click();
+  await page.locator(".gp-person", { hasText: "Eye" }).click();
   await page.locator(".gp-nav-sub", { hasText: "Bills" }).first().click();
   await expect(page.locator(".gp-active")).toContainText("Eye");
   await expect(stat(page, "Total spent")).toHaveText("₹600");

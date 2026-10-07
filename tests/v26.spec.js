@@ -61,8 +61,8 @@ test("group message bar: pick tags and a rating, new names get capitals, a photo
   await page.click("#gp-text");
   // New place typed in small letters.
   await page.locator(".gp-extras .gp-mini", { hasText: "New" }).first().click();
-  await page.fill("#dialog-name", "roadside bbq");
-  await page.click("#dialog button.primary");
+  await page.fill("#gp-page-name", "roadside bbq");
+  await page.click("#gp-page-create");
   await expect(page.locator(".gp-extras .gp-mini.active", { hasText: "Roadside Bbq" })).toBeVisible();
   // Tags: create one from the Tag sheet.
   await page.click("#gp-tag-more");

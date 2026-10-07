@@ -1107,6 +1107,14 @@
   .settings-group.padded > * { padding: 0; border: none; }
   .settings-line { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: 44px; }
   .settings-line.dock-line { flex-direction: column; align-items: stretch; }
+  .due-box { margin: var(--s-2) var(--s-2) var(--s-1); display: flex; flex-direction: column; gap: 4px; }
+  .due-head { font-size: var(--fs-2xs); color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; padding: 0 var(--s-2); }
+  .due-row { display: flex; gap: var(--s-2); align-items: center; padding: 8px var(--s-3); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface-1); color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+  .due-row .icon { color: var(--accent); flex: none; }
+  .due-row.due .icon, .due-row.due .due-when { color: var(--danger); }
+  .due-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .due-main small { color: var(--text-3); font-size: var(--fs-xs); }
+  .due-when { font-size: var(--fs-xs); color: var(--text-2); white-space: nowrap; }
   .dock-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); }
   .dock-slot-wrap { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--text-3); }
   .dock-slot { height: 36px; }
@@ -1738,6 +1746,7 @@
 <div id="toast"></div>
 
 <script src="groups-core.js"></script>
+<script src="entities-core.js"></script>
 <script src="groups.js"></script>
 <script src="search-core.js"></script>
 <script src="password-core.js"></script>
@@ -1775,7 +1784,7 @@
   const saveProfiles = () => localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
 
   const DB_NAME = profileDbName(currentProfile.id);
-  const DB_VERSION = 5; // v5 adds the Groups stores (groups, entries); nothing else changes
+  const DB_VERSION = 6; // v5 added the Groups stores (groups, entries); v6 adds entities (people, places, things)
   const ITEMS_STORE = "items";
   const META_STORE = "meta"; // one record per setting that must live with the data (the Vault's wrapped key)
   const TAGS_STORE = "tags";
@@ -1848,6 +1857,7 @@
         // Groups (see groups.js): separate from items, so notes are never touched.
         if (!database.objectStoreNames.contains("groups")) database.createObjectStore("groups", { keyPath: "id" });
         if (!database.objectStoreNames.contains("entries")) database.createObjectStore("entries", { keyPath: "id" });
+        if (!database.objectStoreNames.contains("entities")) database.createObjectStore("entities", { keyPath: "id" });
       };
       // Another tab or window still has an older version open, and the
       // browser won't upgrade the storage until it lets go. Say so; this
@@ -2827,7 +2837,7 @@
     switch (key) {
       case "all": return cache.filter(live).length;
       case "timeline": return cache.filter(live).length + (groupsApi ? groupsApi.timelineRows().length : 0);
-      case "reminders": return cache.filter((i) => i.remindAt && live(i)).length;
+      case "reminders": return cache.filter((i) => i.remindAt && live(i)).length + (groupsApi ? groupsApi.dueRows().length : 0);
       case "unread": return cache.filter((i) => i.unread && live(i)).length;
       case "saved": return cache.filter((i) => i.starred && live(i)).length;
       case "pinned": return cache.filter((i) => i.pinned && live(i)).length;
@@ -4109,6 +4119,7 @@
 
     itemsEl.innerHTML = "";
     renderBackupBanner();
+    if (remindersMode && !searchQuery) renderDueDates();
 
     // A tag is shared with group entries: say how many more are there.
     if (typeof currentView === "object" && currentView.tag && groupsApi) {
@@ -5732,7 +5743,33 @@
     });
     btn("Cancel", () => renderRemindRow(item, row, false), "expire-link");
   }
+  // Reminders view: expiry dates from groups (insurance, service, warranty) above the notes.
+  function renderDueDates() {
+    const rows = groupsApi ? groupsApi.dueRows() : [];
+    if (!rows.length) return;
+    const box = document.createElement("div");
+    box.className = "due-box";
+    const h = document.createElement("div");
+    h.className = "due-head";
+    h.textContent = "Dates from your groups";
+    box.appendChild(h);
+    for (const d of rows) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "due-row" + (d.due ? " due" : "");
+      b.innerHTML = icon("bell") + "<span class=\"due-main\"><b></b><small></small></span><span class=\"due-when\"></span>";
+      b.querySelector("b").textContent = d.title;
+      b.querySelector("small").textContent = d.sub;
+      const days = Math.round((new Date(d.at).setHours(0, 0, 0, 0) - new Date().setHours(0, 0, 0, 0)) / 86400000);
+      b.querySelector(".due-when").textContent = days < 0 ? (-days === 1 ? "1 day ago" : -days + " days ago") : days === 0 ? "Today" : days === 1 ? "Tomorrow" : "In " + days + " days";
+      b.addEventListener("click", () => { closeTimeline(); d.open(); });
+      box.appendChild(b);
+    }
+    itemsEl.appendChild(box);
+  }
+
   async function checkReminders() {
+    if (groupsApi) for (const d of groupsApi.takeDue()) showToast("\u23f0 " + d.title + ": " + d.sub, { sticky: true, action: { label: "Open", onClick: () => { closeTimeline(); d.open(); } } });
     const now = Date.now();
     const due = cache.filter((i) => i.remindAt && !i.reminded && i.remindAt <= now && !i.deletedAt && !i._locked);
     if (!due.length) return;
@@ -5995,7 +6032,7 @@
     // Groups ride along; older versions of the app ignore these two keys.
     if (groupsApi) {
       const g = groupsApi.exportData();
-      if (g.groups.length || g.entries.length) { payload.cpsVersion = 2; payload.groups = g.groups; payload.entries = g.entries; }
+      if (g.groups.length || g.entries.length || g.entities.length) { payload.cpsVersion = 2; payload.groups = g.groups; payload.entries = g.entries; payload.entities = g.entities; payload.entityTypes = g.entityTypes; }
     }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -6079,7 +6116,7 @@
         addedItems++;
       }
       await saveItems(batch);
-      const addedGroups = groupsApi && (data.groups || data.entries) ? await groupsApi.importData(data) : { groups: 0, entries: 0 };
+      const addedGroups = groupsApi && (data.groups || data.entries || data.entities) ? await groupsApi.importData(data) : { groups: 0, entries: 0 };
 
       if (progress) progress.close();
       renderAllViews();

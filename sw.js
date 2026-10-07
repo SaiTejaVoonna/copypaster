@@ -17,6 +17,7 @@ const APP_SHELL = [
   "./icons/apple-touch-icon.png",
   "./icons/favicon-32.png",
   "./groups-core.js",
+  "./entities-core.js",
   "./groups.js",
   "./groups.css",
   "./search-core.js",
@@ -28,7 +29,7 @@ const APP_SHELL = [
 ];
 // The app's own code beside index.html. Like the page, fetched network-first
 // so an update never pairs a new page with old code; the saved copy is for offline.
-const CODE_FILES = ["./groups-core.js", "./groups.js", "./groups.css", "./search-core.js", "./password-core.js", "./totp-core.js", "./tools.js", "./tools.css", "./timeline.js"];
+const CODE_FILES = ["./groups-core.js", "./entities-core.js", "./groups.js", "./groups.css", "./search-core.js", "./password-core.js", "./totp-core.js", "./tools.js", "./tools.css", "./timeline.js"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));

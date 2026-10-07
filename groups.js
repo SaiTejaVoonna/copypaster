@@ -94,6 +94,70 @@
   const changed = () => { if (api.changed) api.changed(); };
   async function saveGroup(g) { g.updatedAt = Date.now(); await api.put(GROUPS_STORE, g); changed(); }
   async function saveEntry(e) { e.updatedAt = Date.now(); await api.put(ENTRIES_STORE, e); changed(); }
+  // ---------- Entities: people, places and things (see entities-core.js) ----------
+  // A group's main tags are its pages; each page points at an entity. The entity
+  // is the identity; the page's name and info are a display copy kept in sync here.
+  const E = window.CPEntities;
+  const ENTITIES_STORE = "entities";
+  const META_STORE = "meta";
+  let entities = [];
+  let typeStore = { extra: {}, custom: [] };
+  let types = E.mergeTypes(typeStore);
+  let review = []; // names to check after moving 2.5 main tags to entities
+  const entityById = (id) => entities.find((x) => x.id === id) || null;
+  const pageEntity = (t) => (t && t.entity ? entityById(t.entity) : null);
+  const groupType = (g) => E.typeOf(types, g.mainType || E.typeForLabel(g.mainLabel, g.name) || "thing");
+  const entSummary = (ent) => E.summary(ent, types, entityById);
+  function hydrate(g) {
+    let dirty = false;
+    for (const t of g.mainTags) {
+      const ent = pageEntity(t);
+      if (!ent) continue;
+      const info = entSummary(ent).slice(0, C.MAX.desc);
+      if (t.name !== ent.name.slice(0, C.MAX.name) || t.info !== info) { t.name = ent.name.slice(0, C.MAX.name); t.info = info; dirty = true; }
+    }
+    return dirty;
+  }
+  async function hydrateAll() { for (const g of groups) if (hydrate(g)) await api.put(GROUPS_STORE, g); }
+  async function saveEntity(ent) {
+    ent.updatedAt = Date.now();
+    await api.put(ENTITIES_STORE, ent);
+    if (!entities.includes(ent)) entities.push(ent);
+    await hydrateAll();
+    changed();
+  }
+  async function saveTypes() { types = E.mergeTypes(typeStore); await api.put(META_STORE, { id: "entityTypes", extra: typeStore.extra, custom: typeStore.custom }); }
+  async function saveReview() { await api.put(META_STORE, { id: "entityReview", items: review }); }
+  async function loadEntities() {
+    try {
+      const meta = await api.getAll(META_STORE);
+      const t = meta.find((m) => m.id === "entityTypes");
+      if (t) typeStore = { extra: t.extra && typeof t.extra === "object" ? t.extra : {}, custom: Array.isArray(t.custom) ? t.custom : [] };
+      const r = meta.find((m) => m.id === "entityReview");
+      review = r && Array.isArray(r.items) ? r.items : [];
+    } catch {}
+    types = E.mergeTypes(typeStore);
+    try { entities = (await api.getAll(ENTITIES_STORE)).map((x) => E.normalizeEntity(x, types)); } catch { entities = []; }
+  }
+  // 2.5 → 2.6: every main tag becomes (or joins) an entity. Runs once per tag; safe to repeat.
+  async function migrateMainTags() {
+    if (!groups.some((g) => g.mainLabel && (!g.mainType || g.mainTags.some((t) => !t.entity || !entityById(t.entity))))) return;
+    const plan = E.planMigration(groups, entities, types);
+    for (const ent of plan.entities) if (!entities.includes(ent)) { entities.push(ent); await api.put(ENTITIES_STORE, ent); }
+    for (const g of groups) {
+      if (!g.mainLabel) continue;
+      let dirty = false;
+      if (!g.mainType) { g.mainType = groupType(g).key; dirty = true; }
+      for (const l of plan.links.filter((x) => x.g === g.id)) {
+        const t = g.mainTags.find((x) => x.id === l.tagId);
+        if (t && t.entity !== l.entity) { t.entity = l.entity; dirty = true; }
+      }
+      if (hydrate(g)) dirty = true;
+      if (dirty) await api.put(GROUPS_STORE, g);
+    }
+    if (plan.review.length) { review = [...review, ...plan.review.filter((r) => !review.some((x) => x.entity === r.entity))]; await saveReview(); }
+  }
+
   // Gone for good (after it was moved to Notes, or emptied from Trash).
   async function deleteEntry(e) { entries = entries.filter((x) => x !== e); await api.remove(ENTRIES_STORE, e.id); changed(); }
   // Delete = Trash for 30 days, with Undo, like notes.
@@ -208,6 +272,8 @@
     try {
       groups = (await api.getAll(GROUPS_STORE)).map(C.normalizeGroup).sort((a, b) => a.order - b.order);
       entries = (await api.getAll(ENTRIES_STORE)).map(C.normalizeEntry);
+      await loadEntities();
+      await migrateMainTags();
     } catch (err) {
       console.error("[Groups] could not load", err);
       groups = []; entries = [];
@@ -284,7 +350,7 @@
   }
   function exit() {
     ui.screen = null; ui.selected = null; ui.menu = false;
-    closeSheet();
+    closeAllSheets();
     document.body.classList.remove("group-mode", "group-open", "group-detail");
     pane.hidden = true;
     renderSidebar();
@@ -293,7 +359,7 @@
   }
   // Phone back button / Escape: closes the top-most thing only.
   function stepBack() {
-    if (document.getElementById("gp-sheet-overlay")) { closeSheet(); return true; }
+    if (sheetStack.length) { closeSheet(); return true; }
     if (!ui.screen) return false;
     if (ui.menu) { ui.menu = false; renderComposerTop(); return true; }
     if (ui.selected) { selectEntry(null); return true; }
@@ -404,6 +470,8 @@
       h("div", { class: "gp-id-text" }, h("h1", null, g.name, sub ? h("span", { class: "gp-dim" }, " / " + sub.name) : null), g.desc ? h("p", null, g.desc) : null),
       h("button", { class: "btn icon ghost gp-tools-btn" + (ui.tools ? " on" : ""), "aria-label": "Search and sort", "aria-expanded": String(ui.tools), onclick: () => { ui.tools = !ui.tools; render(); if (ui.tools) focusLater("gp-search"); } }, ic("search")),
       h("button", { class: "btn icon ghost", "aria-label": "Edit group", title: "Edit group", onclick: () => openEditGroup(g) }, ic("edit"))));
+    const page = ui.tag && ui.tag !== "__none" ? C.tagOf(g, ui.tag) : null;
+    if (page) { headEl.append(renderPageHead(g, page)); return; }
     const statsEl = h("div", { class: "gp-stats" });
     for (const s of C.stats(entries, g, ui.s, list)) statsEl.append(h("div", { class: "gp-stat" }, ic(s.icon), h("div", null, h("b", null, s.value), h("span", null, s.label))));
     headEl.append(statsEl);
@@ -419,16 +487,21 @@
     }
     const line = h("div", { class: "gp-filter-line" });
     if (g.mainLabel) {
-      const chips = h("div", { class: "gp-chips" });
-      chips.append(h("button", { class: "gp-chip all" + (!ui.tag ? " active" : ""), onclick: () => setTag(null) }, "Every " + g.mainLabel.toLowerCase(), h("span", { class: "num" }, cnt.base)));
-      g.mainTags.forEach((t) => {
-        const n = cnt.byTag[t.id] || 0;
-        if (!n && ui.tag !== t.id) return;
-        chips.append(h("button", { class: "gp-chip" + (ui.tag === t.id ? " active" : ""), style: "--c:" + t.color, onclick: () => setTag(ui.tag === t.id ? null : t.id) }, h("span", { class: "dot" }), t.name, h("span", { class: "num" }, n)));
-      });
-      if (cnt.noTag) chips.append(h("button", { class: "gp-chip" + (cnt.noTagNeeded ? " warn" : " plain") + (ui.tag === "__none" ? " active" : ""), onclick: () => setTag(ui.tag === "__none" ? null : "__none") },
-        h("span", { class: "dot" }), "No " + g.mainLabel.toLowerCase(), h("span", { class: "num" }, cnt.noTag)));
-      line.append(chips);
+      // Circles: tap one to open its page in this group.
+      const people = h("div", { class: "gp-people", "aria-label": plural(g.mainLabel) });
+      people.append(h("button", { class: "gp-person all" + (!ui.tag ? " active" : ""), title: "Every " + g.mainLabel.toLowerCase(), onclick: () => setTag(null) },
+        h("span", { class: "gp-ava md all" }, ic("layers")), h("span", { class: "gp-person-name" }, "All"), h("span", { class: "num" }, cnt.base)));
+      g.mainTags.forEach((t) => people.append(h("button", { class: "gp-person" + (ui.tag === t.id ? " active" : ""), "data-page": t.id, title: t.name + (t.info ? " · " + t.info : ""), onclick: () => setTag(ui.tag === t.id ? null : t.id) },
+        avatar(t, "md"), h("span", { class: "gp-person-name" }, t.name), h("span", { class: "num" }, cnt.byTag[t.id] || 0))));
+      people.append(h("button", { class: "gp-person add", id: "gp-page-new", title: "New " + g.mainLabel.toLowerCase(), onclick: () => newMainTag(g, (t) => setTag(t.id)) },
+        h("span", { class: "gp-ava md add" }, ic("plus")), h("span", { class: "gp-person-name" }, "New")));
+      line.append(people);
+      if (cnt.noTag) {
+        const chips = h("div", { class: "gp-chips" });
+        chips.append(h("button", { class: "gp-chip" + (cnt.noTagNeeded ? " warn" : " plain") + (ui.tag === "__none" ? " active" : ""), onclick: () => setTag(ui.tag === "__none" ? null : "__none") },
+          h("span", { class: "dot" }), "No " + g.mainLabel.toLowerCase(), h("span", { class: "num" }, cnt.noTag)));
+        line.append(chips);
+      }
     }
     const tools = h("div", { class: "gp-tools" });
     const search = h("input", { class: "input gp-search", id: "gp-search", type: "search", placeholder: "Search " + g.name, "aria-label": "Search in " + g.name, value: ui.q,
@@ -480,6 +553,9 @@
     cards.sort((a, b) => (sort === "oldest" ? a.anchor - b.anchor : score(b) - score(a) || b.anchor - a.anchor));
 
     const cnt = C.counts(entries, g, ui.s);
+    const toCheck = reviewFor(g).length;
+    if (toCheck && !ui.q) timelineEl.append(h("button", { class: "gp-banner", id: "gp-review-banner", onclick: () => openReview(g) }, ic("users"),
+      h("span", null, toCheck + (toCheck === 1 ? " name to check" : " names to check") + " after the update."), h("b", null, "Check")));
     if (g.mainLabel && cnt.noTagNeeded && ui.tag !== "__none" && !ui.q) {
       timelineEl.append(h("button", { class: "gp-banner", onclick: () => setTag("__none") }, ic("tag"),
         h("span", null, cnt.noTagNeeded + (cnt.noTagNeeded === 1 ? " entry has" : " entries have") + " no " + g.mainLabel.toLowerCase() + " yet."), h("b", null, "Review")));
@@ -568,7 +644,8 @@
   function fieldText(f, v) {
     if (v === undefined || v === null || v === "") return "";
     if (f.type === "number") return C.formatNumber(Number(v)) + (f.unit ? " " + f.unit : "");
-    if (f.type === "date") { const t = new Date(v).getTime(); return Number.isFinite(t) ? fmtDate(t) : String(v); }
+    if (f.type === "date" || f.type === "expiry") { const t = new Date(v).getTime(); return Number.isFinite(t) ? fmtDate(t) : String(v); }
+    if (f.type === "place" || f.type === "person") { const ent = entityById(v); return ent ? ent.name : ""; }
     return String(v) + (f.unit ? " " + f.unit : "");
   }
 
@@ -717,8 +794,7 @@
       if (g.fields.custom.length) {
         const row = h("div", { class: "gp-xrow wrap" });
         g.fields.custom.forEach((f) => row.append(h("label", { class: "gp-field-mini" }, h("span", null, f.name),
-          h("input", { type: f.type === "number" ? "number" : f.type === "date" ? "date" : "text", inputmode: f.type === "number" ? "decimal" : null, step: f.type === "number" ? "any" : null, value: d.fields[f.id] || "", placeholder: f.unit || "",
-            oninput: (e) => { d.fields[f.id] = e.target.value; syncSend(); } }))));
+          fieldInput(f, d.fields[f.id], (v) => { d.fields[f.id] = v === "" || v == null ? "" : String(v); syncSend(); }, { cls: "", redraw: renderComposerTop }))));
         ex.append(row);
       }
       if (d.showAmount && g.fields.amount.on) {
@@ -762,6 +838,7 @@
       const v = d.fields[f.id];
       if (v === undefined || v === "") return;
       if (f.type === "number") { const n = Number(String(v).replace(/,/g, "")); if (Number.isFinite(n)) fields[f.id] = n; }
+      else if ((f.type === "place" || f.type === "person") && !entityById(v)) return;
       else fields[f.id] = String(v).slice(0, 500);
     });
     const tagKeys = d.tags.slice();
@@ -789,33 +866,339 @@
     if (!window.matchMedia("(pointer: coarse)").matches) focusLater("gp-text");
   }
 
-  // "roadside bbq" → "Roadside Bbq"; names someone typed with capitals stay as they are.
-  function tidyName(raw) {
-    const name = String(raw || "").trim().replace(/\s+/g, " ");
-    if (!name || name !== name.toLowerCase()) return name;
-    return name.replace(/(^|[\s(/-])(\p{L})/gu, (m, pre, ch) => pre + ch.toUpperCase());
+  // ---------- Pages: a group's view of a person, place or thing ----------
+  const initials = (name) => String(name || "?").replace(/^(dr|doctor|prof|mr|mrs|ms)\.?\s+/i, "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase() || "?";
+  function avatar(t, size) {
+    const ent = pageEntity(t);
+    return h("span", { class: "gp-ava " + (size || "md"), style: "--c:" + (t.color || "var(--accent)"), "aria-hidden": "true" },
+      ent && ent.photo ? h("img", { src: ent.photo, alt: "" }) : initials(t.name));
   }
-  function newMainTag(g, done) {
-    api.openDialog({
-      title: "New " + (g.mainLabel || "tag").toLowerCase(),
-      iconName: "tag",
-      fields: [{ name: "name", label: "Name", placeholder: g.mainLabel === "Doctor" ? "Dermatology" : g.mainLabel === "Place" ? "Nimrah Cafe" : "" },
-        { name: "info", label: "Details (optional)", placeholder: g.mainLabel === "Doctor" ? "Dr. M. Khan · Skin clinic" : "Area, platform, anything" }],
-      submitLabel: "Add",
-      onSubmit: async ({ name, info }) => {
-        name = tidyName(name);
-        if (!name) return "Give it a name.";
-        let t = g.mainTags.find((x) => x.name.toLowerCase() === name.toLowerCase());
-        if (t) api.showToast(name + " is already here, picked it");
-        if (!t) {
-          if (g.mainTags.length >= C.MAX.tags) return "This group already has " + C.MAX.tags + ".";
-          t = { id: C.uid(), name: name.slice(0, C.MAX.name), color: C.COLORS[g.mainTags.length % (C.COLORS.length - 1)], info: info.trim().slice(0, C.MAX.desc) };
-          g.mainTags.push(t);
-          await saveGroup(g);
-        }
+  // The page for an entity in a group, adding one if the group doesn't have it yet.
+  function pageFor(g, ent) {
+    let t = g.mainTags.find((x) => x.entity === ent.id);
+    if (!t) {
+      t = { id: C.uid(), entity: ent.id, name: ent.name.slice(0, C.MAX.name), info: entSummary(ent).slice(0, C.MAX.desc), color: C.COLORS[g.mainTags.length % (C.COLORS.length - 1)] };
+      g.mainTags.push(t);
+    }
+    return t;
+  }
+  // Which groups have a page for this entity, with how many entries each.
+  function pagesOf(ent) {
+    const out = [];
+    for (const g of groups) for (const t of g.mainTags) if (t.entity === ent.id) out.push({ g, t, n: C.filterEntries(entries, g, "all", t.id, "").length });
+    return out;
+  }
+
+  // "New doctor": find someone you already have (in any group) or make a new one.
+  // target is the group, or Edit group's working copy (then nothing is saved here).
+  function newMainTag(target, done, opts = {}) {
+    const type0 = groupType(target);
+    const label = (target.mainLabel || type0.name).trim();
+    sheet("New " + label.toLowerCase(), (body, close) => {
+      let typeKey = type0.key;
+      const input = h("input", { class: "input gp-input", id: "gp-page-name", placeholder: type0.key === "doctor" ? "Dr Madhavi Pudi" : type0.key === "restaurant" ? "Nimrah Cafe" : "Name", autocomplete: "off", "aria-label": "Name", maxlength: E.MAX.name });
+      const typeSel = h("select", { class: "input gp-input", id: "gp-page-type", "aria-label": "Type", onchange: (e) => { typeKey = e.target.value; draw(); } });
+      types.forEach((t) => typeSel.append(h("option", { value: t.key }, t.name)));
+      typeSel.value = typeKey;
+      const list = h("div", { class: "tl-pick-list", id: "gp-page-matches" });
+      const use = async (ent) => {
+        const t = pageFor(target, ent);
+        close();
+        if (!opts.workingCopy) { await saveGroup(target); render(); }
         done(t);
-      }
+      };
+      const draw = () => {
+        list.replaceChildren();
+        const raw = input.value.trim();
+        const kind = E.typeOf(types, typeKey).kind;
+        const hits = raw ? E.similar(raw, entities, { kind }).slice(0, 5) : entities.filter((x) => x.kind === kind && !target.mainTags.some((t) => t.entity === x.id)).slice(0, 5);
+        if (hits.length) list.append(h("div", { class: "tl-pick-sec" }, raw ? "Did you mean" : "You already have"));
+        hits.forEach((ent) => {
+          const where = pagesOf(ent).map((p) => p.g.name).filter((n, i, a) => a.indexOf(n) === i);
+          const here = target.mainTags.some((t) => t.entity === ent.id);
+          list.append(h("button", { class: "tl-pick gp-match", "data-entity": ent.id, onclick: () => use(ent) },
+            h("span", { class: "gp-ava sm", style: "--c:var(--accent)" }, initials(ent.name)),
+            h("span", { class: "gp-match-main" }, h("b", null, ent.name), h("small", null, [entSummary(ent), here ? "Already in this group" : where.length ? "In " + where.join(", ") : ""].filter(Boolean).join(" · ")))));
+        });
+        if (raw) list.append(h("button", { class: "tl-pick", id: "gp-page-create", onclick: async () => {
+          const ent = E.normalizeEntity({ name: E.tidy(raw), type: typeKey }, types);
+          await saveEntity(ent);
+          await use(ent);
+          api.showToast("Added " + ent.name);
+        } }, ic("plus"), "New " + E.typeOf(types, typeKey).name.toLowerCase() + " “" + E.tidy(raw) + "”"));
+      };
+      input.addEventListener("input", draw);
+      input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); const b = list.querySelector(".gp-match") && E.fold(list.querySelector(".gp-match b").textContent) === E.fold(input.value) ? list.querySelector(".gp-match") : list.querySelector("#gp-page-create"); if (b) b.click(); } });
+      body.append(h("label", { class: "gp-label", for: "gp-page-name" }, "Name"), input,
+        h("label", { class: "gp-label", for: "gp-page-type" }, "Type"), typeSel, list,
+        h("p", { class: "gp-hint" }, "Only the name is needed. Add details any time from the page."));
+      draw();
+      setTimeout(() => input.focus(), 30);
+    }, { stack: !!opts.workingCopy });
+  }
+
+  // One input for any field type. onChange gets the value ("" to clear).
+  function fieldInput(fd, value, onChange, opts = {}) {
+    const id = opts.id || null;
+    if (fd.type === "place" || fd.type === "person") {
+      const sel = h("select", { class: opts.cls || "input", id, "aria-label": fd.name, onchange: (e) => {
+        if (e.target.value === "__new") {
+          e.target.value = value || "";
+          api.openDialog({ title: "New " + fd.type, iconName: fd.type === "place" ? "map-pin" : "user", fields: [{ name: "name", label: "Name" }], submitLabel: "Add",
+            onSubmit: async ({ name }) => {
+              name = E.tidy(name); if (!name) return "Give it a name.";
+              const hit = E.similar(name, entities, { kind: fd.type }).find((x) => E.fold(x.name) === E.fold(name));
+              const ent = hit || E.normalizeEntity({ name, type: fd.type === "place" ? "place" : "person" }, types);
+              if (!hit) await saveEntity(ent);
+              onChange(ent.id);
+              if (opts.redraw) opts.redraw();
+            } });
+          return;
+        }
+        onChange(e.target.value);
+      } });
+      sel.append(h("option", { value: "" }, "Not set"));
+      entities.filter((x) => x.kind === fd.type && x.id !== opts.selfId).sort((a, b) => a.name.localeCompare(b.name)).forEach((x) => sel.append(h("option", { value: x.id }, x.name)));
+      sel.append(h("option", { value: "__new" }, "+ New " + fd.type + "…"));
+      sel.value = value || "";
+      return sel;
+    }
+    const kind = { number: "number", date: "date", expiry: "date", phone: "tel" }[fd.type] || "text";
+    return h("input", { class: opts.cls || "input", id, type: kind, inputmode: fd.type === "number" ? "decimal" : fd.type === "phone" ? "tel" : null, step: fd.type === "number" ? "any" : null,
+      "aria-label": fd.name, placeholder: opts.placeholder || fd.unit || "", value: value == null ? "" : value,
+      oninput: (e) => onChange(fd.type === "number" && e.target.value !== "" ? Number(e.target.value) : e.target.value) });
+  }
+
+  // Edit a person, place or thing. Saves to the entity, so every page updates.
+  function openEntity(ent, opts = {}) {
+    const w = JSON.parse(JSON.stringify(ent));
+    sheet(ent.name, (body, close) => {
+      const draw = () => {
+        const st = body.scrollTop;
+        body.replaceChildren();
+        const type = E.typeOf(types, w.type);
+        body.append(h("label", { class: "gp-label", for: "gp-ent-name" }, "Name"),
+          h("input", { class: "input gp-input", id: "gp-ent-name", value: w.name, maxlength: E.MAX.name, oninput: (e) => { w.name = e.target.value; } }));
+        const typeSel = h("select", { class: "input gp-input", id: "gp-ent-type", "aria-label": "Type", onchange: (e) => { w.type = e.target.value; w.kind = E.typeOf(types, w.type).kind; draw(); } });
+        types.forEach((t) => typeSel.append(h("option", { value: t.key }, t.name)));
+        typeSel.value = type.key;
+        body.append(h("label", { class: "gp-label", for: "gp-ent-type" }, "Type"), typeSel);
+        const grid = h("div", { class: "gp-ent-fields" });
+        const all = [...type.fields, ...w.extra.filter((x) => !type.fields.some((y) => y.id === x.id))];
+        all.forEach((fd) => grid.append(h("label", { class: "gp-ent-field" }, h("span", null, fd.name + (fd.type === "expiry" ? " ⏰" : "")),
+          fieldInput(fd, w.fields[fd.id], (v) => { if (v === "" || v == null) delete w.fields[fd.id]; else w.fields[fd.id] = v; }, { id: "gp-ent-f-" + fd.id, selfId: w.id, redraw: draw }))));
+        body.append(h("span", { class: "gp-label" }, "Details"), grid,
+          h("button", { class: "btn ghost gp-small", id: "gp-ent-add-detail", onclick: () => addDetail(w, draw) }, ic("plus", "icon-sm"), "Add detail"));
+        body.append(h("label", { class: "gp-label", for: "gp-ent-aka" }, "Also known as"),
+          h("input", { class: "input gp-input", id: "gp-ent-aka", value: w.aka.join(", "), placeholder: "Other spellings, separated by commas", oninput: (e) => { w.aka = e.target.value.split(",").map((x) => x.trim()).filter(Boolean); } }),
+          h("label", { class: "gp-label", for: "gp-ent-note" }, "Notes"),
+          h("textarea", { class: "input gp-input", id: "gp-ent-note", rows: "3", value: w.note, oninput: (e) => { w.note = e.target.value; } }));
+        const where = pagesOf(ent);
+        if (where.length) body.append(h("p", { class: "gp-hint" }, "Shown in " + where.map((p) => p.g.name + " (" + p.n + ")").join(", ") + ". Changes show everywhere."));
+        body.append(h("div", { class: "gp-sheet-actions sticky" },
+          h("button", { class: "btn", id: "gp-ent-merge", onclick: () => pickMergeTarget(ent, close) }, "Merge into…"),
+          h("button", { class: "btn danger ghost", onclick: () => askDeleteEntity(ent, close) }, ic("trash"), "Delete"),
+          h("span", { class: "gp-grow" }),
+          h("button", { class: "btn", onclick: close }, "Cancel"),
+          h("button", { class: "btn primary", id: "gp-ent-save", onclick: async () => {
+            const name = E.tidy(w.name);
+            if (!name) { api.showToast("Give it a name"); return; }
+            const twin = entities.find((x) => x.id !== ent.id && x.kind === E.typeOf(types, w.type).kind && E.fold(x.name) === E.fold(name));
+            Object.assign(ent, E.normalizeEntity({ ...w, name }, types));
+            await saveEntity(ent);
+            close();
+            render();
+            api.showToast(twin ? "Saved. There's another " + twin.name + "; use Merge if they're the same." : "Saved");
+            if (opts.onSaved) opts.onSaved(ent);
+          } }, "Save")));
+        body.scrollTop = st;
+      };
+      draw();
+    }, { stack: true, wide: true });
+  }
+
+  // "+ Add detail": a field for this one, or for every entity of its type.
+  function addDetail(w, redraw) {
+    const type = E.typeOf(types, w.type);
+    sheet("Add detail", (body, close) => {
+      const name = h("input", { class: "input gp-input", id: "gp-detail-name", placeholder: "Consultation fee, Website, Warranty…", maxlength: 24, "aria-label": "Detail name" });
+      const kind = h("select", { class: "input gp-input", id: "gp-detail-type", "aria-label": "Kind of detail" });
+      E.FIELD_TYPES.forEach((t) => kind.append(h("option", { value: t }, E.FIELD_TYPE_LABELS[t])));
+      const add = async (forAll) => {
+        const n = name.value.trim();
+        if (!n) { name.focus(); return; }
+        const fd = E.normalizeField({ id: C.uid(), name: n, type: kind.value });
+        if (forAll) {
+          if (type.builtin) (typeStore.extra[type.key] = typeStore.extra[type.key] || []).push(fd);
+          else { const c = typeStore.custom.find((x) => x.key === type.key); if (c) c.fields = [...(c.fields || []), fd]; }
+          await saveTypes();
+        } else w.extra.push(fd);
+        close();
+        redraw();
+        setTimeout(() => { const el = document.getElementById("gp-ent-f-" + fd.id); if (el) el.focus(); }, 30);
+      };
+      body.append(h("label", { class: "gp-label", for: "gp-detail-name" }, "Name"), name, h("label", { class: "gp-label", for: "gp-detail-type" }, "Kind"), kind,
+        h("div", { class: "gp-sheet-actions" },
+          h("button", { class: "btn", id: "gp-detail-one", onclick: () => add(false) }, "Only " + (w.name || "this one")),
+          h("button", { class: "btn primary", id: "gp-detail-all", onclick: () => add(true) }, "All " + plural(type.name))));
+      body.append(h("p", { class: "gp-hint" }, "“All " + plural(type.name) + "” adds it to new and existing ones as an empty box you can fill when you want."));
+      setTimeout(() => name.focus(), 30);
+    }, { stack: true });
+  }
+  const plural = (w) => (/y$/i.test(w) ? w.slice(0, -1) + "ies" : /s$/i.test(w) ? w : w + "s");
+
+  // Merge: every page and entry of `from` moves to `to`; `from` is deleted.
+  function pickMergeTarget(from, closeEditor) {
+    sheet("Merge " + from.name + " into", (body, close) => {
+      const list = h("div", { class: "tl-pick-list" });
+      const others = entities.filter((x) => x.id !== from.id && x.kind === from.kind);
+      const ranked = [...E.similar(from.name, others), ...others].filter((x, i, a) => a.indexOf(x) === i);
+      if (!ranked.length) list.append(h("p", { class: "gp-hint" }, "Nothing of the same kind to merge with."));
+      ranked.forEach((to) => list.append(h("button", { class: "tl-pick", "data-entity": to.id, onclick: async () => { close(); closeEditor(); await mergeEntities(from, to); } },
+        h("span", { class: "gp-ava sm", style: "--c:var(--accent)" }, initials(to.name)), h("span", { class: "gp-match-main" }, h("b", null, to.name), h("small", null, entSummary(to))))));
+      body.append(list, h("p", { class: "gp-hint" }, "Entries, groups and details move over; details already set on the one you keep win."));
+    }, { stack: true });
+  }
+  async function mergeEntities(from, to) {
+    for (const g of groups) {
+      const a = g.mainTags.find((t) => t.entity === from.id);
+      if (!a) continue;
+      const b = g.mainTags.find((t) => t.entity === to.id);
+      if (b) {
+        for (const e of C.inGroup(entries, g.id)) { const r = C.refIn(e, g.id); if (r.tag === a.id) { r.tag = b.id; await saveEntry(e); } }
+        g.mainTags = g.mainTags.filter((t) => t !== a);
+        if (ui.tag === a.id) ui.tag = b.id;
+      } else a.entity = to.id;
+      await saveGroup(g);
+    }
+    for (const [k, v] of Object.entries(from.fields)) if (to.fields[k] == null || to.fields[k] === "") to.fields[k] = v;
+    to.aka = [...new Set([...to.aka, from.name, ...from.aka].filter((n) => E.fold(n) !== E.fold(to.name)))].slice(0, E.MAX.aka);
+    to.extra = [...to.extra, ...from.extra.filter((x) => !to.extra.some((y) => y.id === x.id))];
+    if (from.note && !to.note.includes(from.note)) to.note = [to.note, from.note].filter(Boolean).join("\n").slice(0, E.MAX.note);
+    for (const other of entities) for (const [k, v] of Object.entries(other.fields)) if (v === from.id) { other.fields[k] = to.id; await api.put(ENTITIES_STORE, other); }
+    entities = entities.filter((x) => x !== from);
+    await api.remove(ENTITIES_STORE, from.id);
+    review = review.filter((r) => r.entity !== from.id);
+    await saveReview();
+    await saveEntity(to);
+    render();
+    api.showToast("Merged into " + to.name);
+  }
+  function askDeleteEntity(ent, closeEditor) {
+    const where = pagesOf(ent);
+    sheet("Delete " + ent.name + "?", (body, close) => {
+      const n = where.reduce((t, p) => t + p.n, 0);
+      body.append(h("p", null, where.length ? "It's removed from " + where.map((p) => p.g.name).join(", ") + ". " + (n ? n + (n === 1 ? " entry stays" : " entries stay") + " in those groups, just without it." : "") : "It isn't used in any group."),
+        h("div", { class: "gp-sheet-actions" }, h("button", { class: "btn", onclick: close }, "Cancel"),
+          h("button", { class: "btn danger", id: "gp-ent-delete", onclick: async () => {
+            for (const p of where) {
+              for (const e of C.inGroup(entries, p.g.id)) { const r = C.refIn(e, p.g.id); if (r.tag === p.t.id) { r.tag = null; await saveEntry(e); } }
+              p.g.mainTags = p.g.mainTags.filter((t) => t !== p.t);
+              if (ui.tag === p.t.id) ui.tag = null;
+              await saveGroup(p.g);
+            }
+            entities = entities.filter((x) => x !== ent);
+            await api.remove(ENTITIES_STORE, ent.id);
+            review = review.filter((r) => r.entity !== ent.id); await saveReview();
+            close(); closeEditor(); render(); changed();
+            api.showToast("Deleted " + ent.name);
+          } }, "Delete")));
+    }, { stack: true });
+  }
+
+  // After the update: names that look mixed up (a department as a doctor, the same name twice).
+  function reviewFor(g) { return review.filter((r) => r.group === g.id && entityById(r.entity)); }
+  function openReview(g) {
+    sheet("Check these names", (body, close) => {
+      const draw = () => {
+        body.replaceChildren();
+        const items = reviewFor(g);
+        if (!items.length) { close(); render(); api.showToast("All checked"); return; }
+        body.append(h("p", { class: "gp-hint" }, "2.6 keeps people, places and things as their own records. These looked mixed up; pick what's right. Nothing is lost either way."));
+        items.forEach((r) => {
+          const ent = entityById(r.entity);
+          const done = async () => { review = review.filter((x) => x !== r); await saveReview(); draw(); };
+          const card = h("div", { class: "gp-review", "data-entity": ent.id },
+            h("div", null, h("b", null, ent.name), r.was.info ? h("span", { class: "gp-dim" }, " · " + r.was.info) : null),
+            h("small", { class: "gp-dim" }, r.reason === "same-name" ? "The same name appears twice in this group." : "This looks like a department, with the " + (g.mainLabel || "name").toLowerCase() + " in the details."));
+          const acts = h("div", { class: "gp-review-acts" });
+          if (r.suggest) acts.append(h("button", { class: "btn primary gp-small gp-review-use", onclick: async () => {
+            ent.name = r.suggest.name; Object.assign(ent.fields, r.suggest.fields); if (r.suggest.note !== undefined) ent.note = r.suggest.note;
+            await saveEntity(ent); await done();
+          } }, "Use “" + r.suggest.name + "”" + (r.suggest.fields.specialty ? ", " + r.suggest.fields.specialty : "")));
+          if (r.reason === "same-name") acts.append(h("button", { class: "btn gp-small", onclick: () => pickMergeTarget(ent, () => {}) }, "Merge…"));
+          acts.append(h("button", { class: "btn gp-small", onclick: () => openEntity(ent, { onSaved: done }) }, "Edit"),
+            h("button", { class: "btn ghost gp-small gp-review-keep", onclick: done }, "Keep as is"));
+          card.append(acts);
+          body.append(card);
+        });
+      };
+      draw();
     });
+  }
+
+  // Dates from expiry details (insurance, service, warranty): for Reminders.
+  function dueRows(days = 30) {
+    if (!enabled) return [];
+    const out = E.dueDates(entities, types, Date.now(), days).map((d) => {
+      const p = pagesOf(d.entity)[0];
+      return { key: d.entity.id + ":" + d.field.id + ":" + d.entity.fields[d.field.id], title: d.field.name, sub: d.entity.name, at: d.at, due: d.due,
+        open: p ? () => { openGroup(p.g.id, "all"); ui.tag = p.t.id; render(); } : () => openEntity(d.entity) };
+    });
+    for (const e of live()) for (const r of e.refs) {
+      const g = groupById(r.g); if (!g) continue;
+      for (const fd of g.fields.custom.filter((x) => x.type === "expiry")) {
+        const v = e.fields[fd.id]; if (!v) continue;
+        const at = new Date(String(v) + "T09:00").getTime();
+        if (Number.isFinite(at) && at - Date.now() <= days * C.DAY) out.push({ key: e.id + ":" + fd.id + ":" + v, title: fd.name, sub: e.title || g.name, at, due: at <= Date.now(), open: () => { openGroup(g.id, "all"); selectEntry(e.id); } });
+      }
+    }
+    return out.sort((a, b) => a.at - b.at);
+  }
+  // Newly due dates, each reported once (remembered with the space's settings).
+  function takeDue() {
+    const seen = new Set(prefs.dueSeen || []);
+    const fresh = dueRows(0).filter((d) => d.due && !seen.has(d.key));
+    if (fresh.length) { prefs.dueSeen = [...seen, ...fresh.map((d) => d.key)].slice(-200); savePrefs(); }
+    return fresh;
+  }
+
+  function pageStats(g, t, ent) {
+    const list = C.filterEntries(entries, g, "all", t.id, "");
+    const out = [];
+    const word = g.cardWord || "Entry";
+    if (g.cards === "day") {
+      const days = new Set(list.map((e) => new Date(e.happenedOn).toDateString())).size;
+      out.push({ icon: "calendar", value: String(days), label: days === 1 ? word : plural(word) });
+    } else out.push({ icon: "layers", value: String(list.length), label: list.length === 1 ? "Entry" : "Entries" });
+    if (g.fields.amount.on) { const tot = C.totals(list, g); if (Object.keys(tot).length) out.push({ icon: "wallet", value: C.formatTotals(tot, g), label: "Total spent" }); }
+    if (g.fields.rating) { const rs = list.filter((e) => e.rating); if (rs.length) out.push({ icon: "star", value: (rs.reduce((a, e) => a + e.rating, 0) / rs.length).toFixed(1), label: "Avg rating" }); }
+    if (list.length) {
+      const first = Math.min(...list.map((e) => e.happenedOn)), last = Math.max(...list.map((e) => e.happenedOn));
+      out.push({ icon: "clock", value: fmtDate(last), label: list.length > 1 ? "Last · since " + fmtDay(first) + " " + new Date(first).getFullYear() : "Last" });
+    }
+    if (ent) for (const d of dueRows(60).filter((x) => x.sub === ent.name && x.key.startsWith(ent.id))) out.push({ icon: "bell", value: fmtDate(d.at), label: d.title + (d.due ? " (due)" : "") });
+    return out;
+  }
+  function renderPageHead(g, t) {
+    const ent = pageEntity(t);
+    const type = ent ? E.typeOf(types, ent.type) : groupType(g);
+    const phoneField = ent && E.fieldsOf(ent, types).find((fd) => fd.type === "phone" && ent.fields[fd.id]);
+    const card = h("div", { class: "gp-page", "data-page": t.id },
+      h("div", { class: "gp-page-top" }, avatar(t, "xl"),
+        h("div", { class: "gp-page-id" }, h("h2", null, t.name), h("p", null, [type.name, t.info].filter(Boolean).join(" · ")),
+          phoneField ? h("button", { class: "gp-page-phone", onclick: () => api.copy(String(ent.fields[phoneField.id]), "Phone number copied") }, ic("copy", "icon-sm"), String(ent.fields[phoneField.id])) : null),
+        ent ? h("button", { class: "btn gp-small", id: "gp-page-edit", onclick: () => openEntity(ent) }, ic("edit", "icon-sm"), "Edit") : null));
+    const statsEl = h("div", { class: "gp-stats" });
+    for (const s of pageStats(g, t, ent)) statsEl.append(h("div", { class: "gp-stat" }, ic(s.icon), h("div", null, h("b", null, s.value), h("span", null, s.label))));
+    card.append(statsEl);
+    const elsewhere = ent ? pagesOf(ent).filter((p) => p.g.id !== g.id) : [];
+    if (elsewhere.length) {
+      const row = h("div", { class: "gp-page-also" }, h("span", { class: "gp-dim" }, "Also in"));
+      elsewhere.forEach((p) => row.append(h("button", { class: "gp-mini", onclick: async () => { await openGroup(p.g.id, "all"); ui.tag = p.t.id; render(); } }, groupTile(p.g, "xs"), p.g.name, h("span", { class: "num" }, p.n))));
+      card.append(row);
+    }
+    return card;
   }
 
   // ---------- Entry details ----------
@@ -913,9 +1296,10 @@
       for (let i = 1; i <= 5; i++) rs.append(h("button", { "aria-label": i + " stars", onclick: async () => { e.rating = e.rating === i ? null : i; await saveEntry(e); renderDetail(); rerender(); } }, ic("star", i <= (e.rating || 0) ? "on" : "off")));
       cell("Rating", rs);
     }
-    g.fields.custom.forEach((f) => cell(f.name + (f.unit ? " (" + f.unit + ")" : ""), h("input", { type: f.type === "number" ? "number" : f.type === "date" ? "date" : "text", step: f.type === "number" ? "any" : null, inputmode: f.type === "number" ? "decimal" : null,
-      "aria-label": f.name, value: e.fields[f.id] !== undefined ? e.fields[f.id] : "",
-      oninput: (ev) => { const v = ev.target.value; if (v === "") delete e.fields[f.id]; else e.fields[f.id] = f.type === "number" ? Number(v) : v; rerender(); } })));
+    g.fields.custom.forEach((f) => cell(f.name + (f.unit ? " (" + f.unit + ")" : ""), fieldInput(f, e.fields[f.id], (v) => {
+      if (v === "" || v == null) delete e.fields[f.id]; else e.fields[f.id] = v;
+      if (f.type === "place" || f.type === "person") saveEntry(e).then(() => render()); else rerender();
+    }, { cls: "", redraw: () => render() })));
     const tagBox = h("div", { class: "gp-tagedit" });
     const drawTags = () => {
       tagBox.replaceChildren();
@@ -1265,18 +1649,25 @@
         if (w.subs.length < C.MAX.subs) subsBox.append(h("button", { class: "btn ghost gp-small", onclick: () => { w.subs.push({ id: C.uid(), name: "", label: "", icon: "note", color: C.COLORS[w.subs.length % C.COLORS.length], _new: true }); draw(); focusLastSub(body); } }, ic("plus", "icon-sm"), "Add sub-chat"));
         body.append(subsBox);
 
-        // Main tag
-        body.append(h("span", { class: "gp-label" }, "Main tag"), h("p", { class: "gp-hint" }, "What this group revolves around: a doctor, a place, a show, a bike. Leave empty to turn it off."));
+        // Who or what the group is about: its pages (people, places, things).
+        body.append(h("span", { class: "gp-label" }, "About"), h("p", { class: "gp-hint" }, "Who or what this group revolves around: doctors, places, a bike, shows. Each one gets a page here. Leave \u201cCalled\u201d empty to turn it off."));
         const mt = h("div", { class: "gp-edit-list" });
         mt.append(h("div", { class: "gp-edit-row" }, h("span", { class: "gp-dim gp-row-label" }, "Called"),
-          h("input", { class: "input", value: w.mainLabel, placeholder: "Doctor, Place, Title, Bike…", maxlength: C.MAX.label, "aria-label": "Main tag name", oninput: (e) => { const had = !!w.mainLabel; w.mainLabel = e.target.value; if (had !== !!w.mainLabel.trim()) draw(); } })));
+          h("input", { class: "input", id: "gp-edit-main-label", value: w.mainLabel, placeholder: "Doctor, Place, Title, Bike…", maxlength: C.MAX.label, "aria-label": "What they're called", oninput: (e) => { const had = !!w.mainLabel; w.mainLabel = e.target.value; if (had !== !!w.mainLabel.trim()) draw(); } })));
         if (w.mainLabel.trim()) {
-          w.mainTags.forEach((t, i) => mt.append(h("div", { class: "gp-edit-row" },
-            h("button", { class: "gp-color sm", "aria-label": "Colour of " + t.name, style: "--c:" + t.color, onclick: () => { t.color = C.COLORS[(C.COLORS.indexOf(t.color) + 1) % C.COLORS.length]; draw(); } }),
-            h("input", { class: "input", value: t.name, "aria-label": "Name", maxlength: C.MAX.name, oninput: (e) => { t.name = e.target.value; } }),
-            h("input", { class: "input", value: t.info, "aria-label": "Details", placeholder: "Details", maxlength: C.MAX.desc, oninput: (e) => { t.info = e.target.value; } }),
-            h("button", { class: "btn icon ghost", "aria-label": "Remove " + t.name, onclick: () => { w.mainTags.splice(i, 1); draw(); } }, ic("trash")))));
-          mt.append(h("button", { class: "btn ghost gp-small", onclick: () => { w.mainTags.push({ id: C.uid(), name: "", color: C.COLORS[w.mainTags.length % C.COLORS.length], info: "" }); draw(); } }, ic("plus", "icon-sm"), "Add " + (w.mainLabel.trim() || "tag").toLowerCase()));
+          const typeSel = h("select", { class: "input", id: "gp-edit-main-type", "aria-label": "Type", onchange: (e) => { w.mainType = e.target.value; } });
+          types.forEach((t) => typeSel.append(h("option", { value: t.key }, t.name)));
+          typeSel.value = groupType(w).key;
+          mt.append(h("div", { class: "gp-edit-row" }, h("span", { class: "gp-dim gp-row-label" }, "Type"), typeSel));
+          w.mainTags.forEach((t, i) => {
+            const ent = pageEntity(t);
+            mt.append(h("div", { class: "gp-edit-row gp-edit-page", "data-page": t.id },
+              h("button", { class: "gp-color sm", "aria-label": "Colour of " + t.name, style: "--c:" + t.color, onclick: () => { t.color = C.COLORS[(C.COLORS.indexOf(t.color) + 1) % C.COLORS.length]; draw(); } }),
+              h("span", { class: "gp-edit-page-name" }, h("b", null, t.name), t.info ? h("small", { class: "gp-dim" }, t.info) : null),
+              ent ? h("button", { class: "btn ghost gp-small", "aria-label": "Edit " + t.name, onclick: () => openEntity(ent, { onSaved: () => { hydrate(w); draw(); } }) }, ic("edit", "icon-sm"), "Edit") : null,
+              h("button", { class: "btn icon ghost", "aria-label": "Remove " + t.name + " from this group", title: "Remove from this group (stays in your other groups)", onclick: () => { w.mainTags.splice(i, 1); draw(); } }, ic("trash"))));
+          });
+          mt.append(h("button", { class: "btn ghost gp-small", id: "gp-edit-add-page", onclick: () => { if (!w.mainType) w.mainType = groupType(w).key; newMainTag(w, () => draw(), { workingCopy: true }); } }, ic("plus", "icon-sm"), "Add " + (w.mainLabel.trim() || "tag").toLowerCase()));
         }
         body.append(mt);
 
@@ -1290,7 +1681,8 @@
         fl.append(h("label", { class: "gp-edit-row gp-check" }, h("input", { type: "checkbox", checked: w.fields.rating, onchange: (e) => { w.fields.rating = e.target.checked; } }), h("span", { class: "gp-grow" }, "Rating (stars)")));
         w.fields.custom.forEach((f, i) => {
           const type = h("select", { class: "input gp-narrow", "aria-label": "Type", onchange: (e) => { f.type = e.target.value; draw(); } },
-            h("option", { value: "number" }, "Number"), h("option", { value: "text" }, "Text"), h("option", { value: "date" }, "Date"));
+            h("option", { value: "number" }, "Number"), h("option", { value: "text" }, "Text"), h("option", { value: "date" }, "Date"),
+            h("option", { value: "expiry" }, "Expiry date"), h("option", { value: "phone" }, "Phone"), h("option", { value: "place" }, "Place"), h("option", { value: "person" }, "Person"));
           type.value = f.type;
           const stat = h("select", { class: "input gp-narrow", "aria-label": "Show in header", onchange: (e) => { f.stat = e.target.value; } },
             h("option", { value: "none" }, "Not in header"), h("option", { value: "sum" }, "Header: total"), h("option", { value: "latest" }, "Header: latest"));
@@ -1298,12 +1690,12 @@
           fl.append(h("div", { class: "gp-edit-row wrap" },
             h("input", { class: "input", value: f.name, placeholder: "Odometer, Litres, Weight…", "aria-label": "Field name", maxlength: C.MAX.label, oninput: (e) => { f.name = e.target.value; } }),
             type,
-            f.type !== "date" ? h("input", { class: "input gp-tiny", value: f.unit, placeholder: "unit", "aria-label": "Unit", maxlength: C.MAX.unit, oninput: (e) => { f.unit = e.target.value; } }) : null,
+            f.type === "number" || f.type === "text" ? h("input", { class: "input gp-tiny", value: f.unit, placeholder: "unit", "aria-label": "Unit", maxlength: C.MAX.unit, oninput: (e) => { f.unit = e.target.value; } }) : null,
             f.type === "number" ? stat : null,
             h("button", { class: "btn icon ghost", "aria-label": "Remove field", onclick: () => { w.fields.custom.splice(i, 1); draw(); } }, ic("trash"))));
         });
         if (w.fields.custom.length < C.MAX.custom) fl.append(h("button", { class: "btn ghost gp-small", onclick: () => { w.fields.custom.push({ id: C.uid(), name: "", type: "number", unit: "", stat: "none" }); draw(); } }, ic("plus", "icon-sm"), "Add field"));
-        fl.append(h("p", { class: "gp-hint" }, "Field types: number (with a unit like km or L), text and date. Removing a field hides its values; they come back if you add it again before saving."));
+        fl.append(h("p", { class: "gp-hint" }, "Field types: number (with a unit like km or L), text, date, expiry date (reminds you), phone, and a link to a place or person. Removing a field hides its values; they come back if you add it again before saving."));
         body.append(fl);
 
         // Cards
@@ -1448,20 +1840,30 @@
   }
 
   // ---------- Sheets ----------
-  let sheetClose = null;
+  // Sheets stack: one opened with { stack: true } sits on top of the one below
+  // (editing a doctor from inside Edit group). Back closes the top one.
+  const sheetStack = [];
   function sheet(title, build, opts = {}) {
-    closeSheet();
+    if (!opts.stack) closeAllSheets();
     const body = h("div", { class: "gp-sheet-body" });
-    const close = () => { overlay.remove(); if (sheetClose === close) sheetClose = null; };
-    const overlay = h("div", { id: "gp-sheet-overlay", onmousedown: (e) => { if (e.target === overlay) close(); } },
-      h("div", { class: "gp-sheet" + (opts.wide ? " wide" : ""), role: "dialog", "aria-modal": "true", "aria-label": title },
+    const close = () => {
+      overlay.remove();
+      const i = sheetStack.indexOf(close);
+      if (i !== -1) sheetStack.splice(i, 1);
+      if (opts.onClose) opts.onClose();
+    };
+    const depth = sheetStack.length;
+    const overlay = h("div", { id: depth ? "gp-sheet-overlay-" + (depth + 1) : "gp-sheet-overlay", class: "gp-overlay" + (depth ? " stacked" : ""), style: depth ? "z-index:" + (230 + depth * 2) : null,
+      onmousedown: (e) => { if (e.target === overlay) close(); } },
+      h("div", { class: "gp-sheet" + (opts.wide ? " wide" : "") + (opts.cls ? " " + opts.cls : ""), role: "dialog", "aria-modal": "true", "aria-label": title },
         h("div", { class: "gp-sheet-head" }, h("h2", null, title), h("button", { class: "btn icon ghost", "aria-label": "Close", onclick: close }, ic("close"))), body));
     document.body.append(overlay);
-    sheetClose = close;
+    sheetStack.push(close);
     build(body, close);
     return close;
   }
-  function closeSheet() { if (sheetClose) sheetClose(); }
+  function closeSheet() { const top = sheetStack[sheetStack.length - 1]; if (top) top(); }
+  function closeAllSheets() { while (sheetStack.length) sheetStack[sheetStack.length - 1](); }
 
   // ---------- Settings ----------
   function setEnabled(on) {
@@ -1531,7 +1933,7 @@
       run: async () => { await openGroup(g.id, "all"); selectEntry(e.id); }
     }));
   }
-  function exportData() { return { groups, entries }; }
+  function exportData() { return { groups, entries, entities, entityTypes: { extra: typeStore.extra, custom: typeStore.custom } }; }
   async function importData(data) {
     let addedGroups = 0, addedEntries = 0;
     const haveG = new Set(groups.map((g) => g.id)), haveE = new Set(entries.map((e) => e.id));
@@ -1546,6 +1948,22 @@
       if (!e.refs.length) continue;
       await api.put(ENTRIES_STORE, e); entries.push(e); haveE.add(e.id); addedEntries++;
     }
+    const haveN = new Set(entities.map((x) => x.id));
+    if (data.entityTypes && typeof data.entityTypes === "object") {
+      const inc = data.entityTypes;
+      for (const c of Array.isArray(inc.custom) ? inc.custom : []) if (c && c.key && !typeStore.custom.some((x) => x.key === c.key)) typeStore.custom.push(c);
+      for (const [k, list] of Object.entries(inc.extra && typeof inc.extra === "object" ? inc.extra : {})) {
+        const mine = typeStore.extra[k] || (typeStore.extra[k] = []);
+        for (const fd of Array.isArray(list) ? list : []) if (fd && fd.id && !mine.some((x) => x.id === fd.id)) mine.push(E.normalizeField(fd));
+      }
+      await saveTypes();
+    }
+    for (const raw of Array.isArray(data.entities) ? data.entities : []) {
+      if (!raw || !raw.id || haveN.has(raw.id)) continue;
+      const ent = E.normalizeEntity(raw, types);
+      await api.put(ENTITIES_STORE, ent); entities.push(ent); haveN.add(ent.id);
+    }
+    await migrateMainTags();
     if (addedGroups && !enabled) setEnabled(true);
     renderSidebar(); renderSettings(); changed();
     if (ui.screen) render();
@@ -1623,6 +2041,7 @@
     onHome: () => ui.screen === "home",
     stepBack, exit, showHome, openSnap, openNewGroup, paletteItems, exportData, importData, moveNoteToGroup, focusComposer,
     timelineRows, openEntry, tagCounts, renameTag, removeTag, openComposer, groupList, setEnabled,
+    dueRows, takeDue,
     hasGroups: () => groups.length > 0
   };
   // Add the icons now, so the static markup (Settings) can use them right away.

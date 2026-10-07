@@ -28,7 +28,7 @@
     { code: "GBP", symbol: "£" }, { code: "AED", symbol: "AED" }, { code: "JPY", symbol: "¥" },
     { code: "AUD", symbol: "A$" }, { code: "CAD", symbol: "C$" }, { code: "SGD", symbol: "S$" }
   ];
-  const FIELD_TYPES = ["number", "text", "date"];
+  const FIELD_TYPES = ["number", "text", "date", "expiry", "phone", "place", "person"];
   const FIELD_STATS = ["none", "sum", "latest"];
   const CARD_MODES = ["none", "day", "title"];
   const MAX = { name: 40, desc: 120, subs: 12, custom: 8, unit: 8, tags: 60, label: 24 };
@@ -46,15 +46,15 @@
     { key: "hospital", name: "Hospital", desc: "Prescriptions, lab reports, medicines and bills", icon: "cross", color: "#ef4444",
       subs: [sub("Prescriptions", "Prescription", "clipboard", "#22c55e"), sub("Lab Reports", "Lab Report", "flask", "#8b5cf6", { late: true }),
         sub("Medicines", "Medicine", "pill", "#ec4899", { late: true }), sub("Bills", "Bill", "receipt", "#f5b544", { late: true })],
-      mainLabel: "Doctor", fields: { amount: { on: true, currency: "INR" }, rating: false, custom: [] }, cards: "day", cardWord: "Visit" },
+      mainLabel: "Doctor", mainType: "doctor", fields: { amount: { on: true, currency: "INR" }, rating: false, custom: [] }, cards: "day", cardWord: "Visit" },
     { key: "food", name: "Food", desc: "Places I ate, bills, recipes and places to try", icon: "cup", color: "#f97316",
       subs: [sub("Dishes", "Dish", "utensils", "#14b8a6"), sub("Bills", "Bill", "receipt", "#f5b544"),
         sub("Recipes", "Recipe", "book", "#8b5cf6", { noTag: true }), sub("Wishlist", "Wishlist", "heart", "#ec4899")],
-      mainLabel: "Place", fields: { amount: { on: true, currency: "INR" }, rating: true, custom: [] }, cards: "day", cardWord: "Outing" },
+      mainLabel: "Place", mainType: "restaurant", fields: { amount: { on: true, currency: "INR" }, rating: true, custom: [] }, cards: "day", cardWord: "Outing" },
     { key: "movies", name: "Movies & Anime", desc: "What I watch, my thoughts, and what to watch next", icon: "film", color: "#8b5cf6",
       subs: [sub("Watching", "Watching", "play", "#4c8dff"), sub("Watched", "Watched", "check", "#22c55e"),
         sub("Watchlist", "Watchlist", "bookmark", "#f5b544"), sub("Thoughts", "Thought", "quote", "#8b5cf6", { noStatus: true })],
-      mainLabel: "Title", fields: { amount: { on: false, currency: "INR" }, rating: true, custom: [{ name: "Episode", type: "number", unit: "", stat: "none" }] },
+      mainLabel: "Title", mainType: "title", fields: { amount: { on: false, currency: "INR" }, rating: true, custom: [{ name: "Episode", type: "number", unit: "", stat: "none" }] },
       cards: "title", cardWord: "Title" },
     { key: "bike", name: "Bike", desc: "Service, spare parts, petrol and rides", icon: "bike", color: "#14b8a6",
       subs: [sub("Service", "Service", "wrench", "#4c8dff"), sub("Spare parts", "Spare part", "cog", "#8b5cf6"),
@@ -70,7 +70,7 @@
     return normalizeGroup({
       id: uid(), name: name || t.name, desc: t.desc || "", icon: t.icon, color: t.color, cover: null,
       subs: (t.subs || []).map((s) => ({ ...s, id: uid() })),
-      mainLabel: t.mainLabel || "", mainTags: [],
+      mainLabel: t.mainLabel || "", mainType: t.mainType || "", mainTags: [],
       fields: { amount: { ...(t.fields && t.fields.amount) }, rating: !!(t.fields && t.fields.rating),
         custom: ((t.fields && t.fields.custom) || []).map((f) => ({ ...f, id: uid() })) },
       cards: t.cards, cardWord: t.cardWord || "",
@@ -99,8 +99,12 @@
         late: !!s.late, noTag: !!s.noTag, noStatus: !!s.noStatus
       })),
       mainLabel: clampStr(g.mainLabel, MAX.label),
+      // Each main tag is this group's page for an entity (see entities-core.js). name and info are
+      // a copy for display and for older versions; the entity is what counts.
+      mainType: /^[a-z0-9-]{1,40}$/.test(g.mainType || "") ? g.mainType : "",
       mainTags: (Array.isArray(g.mainTags) ? g.mainTags : []).slice(0, MAX.tags).map((t) => ({
-        id: t.id || uid(), name: clampStr(t.name, MAX.name) || "Untitled", color: isColor(t.color) ? t.color : COLORS[5], info: clampStr(t.info, MAX.desc)
+        id: t.id || uid(), name: clampStr(t.name, MAX.name) || "Untitled", color: isColor(t.color) ? t.color : COLORS[5], info: clampStr(t.info, MAX.desc),
+        entity: typeof t.entity === "string" && t.entity ? t.entity.slice(0, 80) : null
       })),
       fields: {
         amount: { on: amount.on !== false, currency: currencyOk(amount.currency) ? amount.currency : "INR" },
@@ -328,7 +332,7 @@
       cpTemplate: 1,
       name: g.name, desc: g.desc, icon: g.icon, color: g.color,
       subs: g.subs.map((s) => ({ name: s.name, label: s.label, icon: s.icon, color: s.color, late: s.late || undefined, noTag: s.noTag || undefined, noStatus: s.noStatus || undefined })),
-      mainLabel: g.mainLabel,
+      mainLabel: g.mainLabel, mainType: g.mainType || undefined,
       fields: { amount: { on: g.fields.amount.on, currency: g.fields.amount.currency }, rating: g.fields.rating,
         custom: g.fields.custom.map((f) => ({ name: f.name, type: f.type, unit: f.unit, stat: f.stat })) },
       cards: g.cards, cardWord: g.cardWord
@@ -339,7 +343,7 @@
     if (!raw || typeof raw !== "object" || raw.cpTemplate !== 1) throw new Error("This isn't a CopyPaster template.");
     const g = normalizeGroup({ ...raw, id: "preview", mainTags: [], cover: null });
     return { name: g.name, desc: g.desc, icon: g.icon, color: g.color,
-      subs: g.subs.map(({ id, ...s }) => s), mainLabel: g.mainLabel,
+      subs: g.subs.map(({ id, ...s }) => s), mainLabel: g.mainLabel, mainType: g.mainType,
       fields: { amount: g.fields.amount, rating: g.fields.rating, custom: g.fields.custom.map(({ id, ...f }) => f) },
       cards: g.cards, cardWord: g.cardWord };
   }
