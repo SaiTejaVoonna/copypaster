@@ -50,6 +50,21 @@ Versions 2.1–2.4 were never released. From now on there are no gaps.
 - **Date fields** (insurance expiry, follow-up) become reminders and calendar dots automatically.
 - **Migration:** old "Main tag" choices become people, places or things, with a one-time Review screen.
 
+**Snap: capture now, organise later**
+- **Capture → Save → Done.** No group, person, place or tag is required to save. No waiting for OCR, AI, location or the network. Works offline once the app is installed.
+- **Global Snap** (from the + menu): the photo lands in **Inbox, under a "Captured" filter**, until you organise it. This reuses Inbox instead of adding a new area.
+- **Contextual Snap** (from inside a group, page or sub-chat): it saves with that context already filled in, with no extra form.
+- **Saved with each snap:** time, where it came from (camera, photo library, file), original file name, and location if available.
+  - Location is asked for in the background and never delays the save.
+  - Location keeps its accuracy and source.
+  - Raw coordinates are evidence. A map match is only a suggestion. The place you choose is what counts.
+- **Organise later:** open a page's sub-chat and pick "Add captured item". This links the same original; it's never copied.
+- **"Snap another"** for multi-page papers.
+- Today's "Snap to group" asks where to save before saving. It will change to save first, with that choice optional.
+- Suggestions ("Looks like a prescription for Dr X. Add it?") come in Phase 2. They are never needed for saving and never become facts without ✓.
+
+**Pages and identities:** a person, place or thing has one identity. Each group shows its own **page** for it (Hospital page, Insurance page), and every page points to the same identity. A page is a view, never a copy.
+
 ## Phase 2 (2.7): Documents and Safety
 
 - Import PDFs and photos and keep the originals, with their capture details (time, location, origin, original file name) where available.
@@ -80,7 +95,7 @@ Versions 2.1–2.4 were never released. From now on there are no gaps.
 5. Every captured source keeps its available capture details: time, location, origin and original file name.
 6. Every suggestion (OCR, AI, web lookup) keeps where it came from, how confident it is, and whether it is confirmed.
 7. One entry can sit in several groups without being copied.
-8. People, places and things are reusable records with a stable identity. Renaming one or changing its type never creates a new one, and a detail like a specialty never becomes its identity.
+8. People, places and things are reusable records with a stable identity. Renaming one or changing its type never creates a new one,, and a detail like a specialty never becomes its identity. A page inside a group is a view of that identity, never a second copy.
 9. Groups give context; they don't own entries.
 10. Views never duplicate data.
 11. Outside services enrich or import; they are never the source of truth.
