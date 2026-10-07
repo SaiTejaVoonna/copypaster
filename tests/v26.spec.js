@@ -233,3 +233,77 @@ test("a detail added for all of a type shows on every one; an expiry date shows 
   await page.click(".due-row");
   await expect(page.locator(".gp-page h2")).toHaveText("Activa");
 });
+
+// ---------- Snap ----------
+const PNG = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
+async function pickFile(page, click, name = "IMG_0042.png") {
+  const chooser = page.waitForEvent("filechooser");
+  await click();
+  await (await chooser).setFiles({ name, mimeType: "image/png", buffer: PNG });
+}
+
+test("Snap saves to Inbox at once, keeps the original and when and where it was taken", async ({ page, context }) => {
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 17.385, longitude: 78.4867, accuracy: 12 });
+  await page.click("#new-btn");
+  await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
+  await expect(lastToast(page)).toContainText("Saved to Inbox");
+  await expect(page.locator('#filter-chips .chip[data-kind="captured"]')).toContainText("Captured 1");
+  await expect.poll(async () => {
+    const items = await page.evaluate(async () => {
+      const db = await new Promise((r) => { const q = indexedDB.open("copypaster"); q.onsuccess = () => r(q.result); });
+      const all = await new Promise((r) => { const q = db.transaction("items").objectStore("items").getAll(); q.onsuccess = () => r(q.result); });
+      db.close(); return all;
+    });
+    return items[0] && items[0].capture && items[0].capture.location ? items[0].capture.location.lat : null;
+  }).toBe(17.385);
+  // Shown with the note, with the original one tap away.
+  await page.click('#filter-chips .chip[data-kind="captured"]');
+  await page.locator(".item-row").first().click();
+  await page.locator("#detail-properties .props-head").click().catch(() => {});
+  await expect(page.locator("#capture-meta")).toContainText("Camera · IMG_0042.png");
+  await expect(page.locator("#capture-meta")).toContainText("17.3850, 78.4867 (±12 m)");
+  await expect(page.locator("#open-original")).toBeVisible();
+  // Writing something on it counts as sorting it out.
+  await page.fill("#title-input", "Pharmacy bill");
+  await page.dispatchEvent("#title-input", "input");
+  await expect.poll(() => page.locator('#filter-chips .chip[data-kind="captured"]').count(), { timeout: 4000 }).toBe(0);
+});
+
+test("Snap inside a group saves straight to that page and sub-chat; From Inbox moves an earlier snap in", async ({ page }) => {
+  await page.click("#new-btn");
+  await pickFile(page, () => page.click('#new-menu [data-new="snap"]'), "earlier.png");
+  await expect(lastToast(page)).toContainText("Saved to Inbox");
+
+  await createGroup(page, "Food");
+  await page.click("#gp-page-new");
+  await page.fill("#gp-page-name", "Nimrah Cafe");
+  await page.click("#gp-page-create");
+  await page.locator(".gp-nav-sub", { hasText: "Dishes" }).first().click();
+  await page.click("#gp-b-plus");
+  await pickFile(page, () => page.locator(".gp-plus-menu button", { hasText: "Saved here right away" }).click(), "chai.png");
+  await expect(lastToast(page)).toContainText("Saved to Food → Nimrah Cafe → Dishes");
+  let all = await storedEntries(page);
+  expect(all).toHaveLength(1);
+  expect(all[0].title).toBe("Photo");
+  expect(all[0].capture.fileName).toBe("chai.png");
+  expect(all[0].refs[0].s).not.toBeNull();
+  expect(all[0].refs[0].tag).not.toBeNull();
+
+  await page.click("#gp-b-plus");
+  await page.locator(".gp-plus-menu button", { hasText: "From Inbox" }).click();
+  await page.locator(".gp-captured-item").first().click();
+  await expect(lastToast(page)).toContainText("Moved here from Inbox");
+  all = await storedEntries(page);
+  expect(all).toHaveLength(2);
+  expect(all.map((x) => x.capture.fileName).sort()).toEqual(["chai.png", "earlier.png"]);
+  // Moved, not copied: Inbox has nothing captured left.
+  const notes = await page.evaluate(async () => {
+    const db = await new Promise((r) => { const q = indexedDB.open("copypaster"); q.onsuccess = () => r(q.result); });
+    const items = await new Promise((r) => { const q = db.transaction("items").objectStore("items").getAll(); q.onsuccess = () => r(q.result); });
+    db.close(); return items;
+  });
+  expect(notes.filter((n) => n.captured)).toHaveLength(0);
+  await page.locator(".gp-entry", { hasText: "Photo" }).first().click();
+  await expect(page.locator("#gp-capture")).toContainText("Camera");
+});

@@ -752,7 +752,8 @@
       const menu = h("div", { class: "gp-plus-menu", role: "menu" });
       const opt = (iconName, label, hint, fn) => menu.append(h("button", { role: "menuitem", onclick: () => { ui.menu = false; fn(); } }, tile(iconName, "var(--accent)", true), h("span", null, label, h("small", null, hint))));
       opt("note", "Text", "Type and send", () => { d.extras = true; renderComposerTop(); focusLater("gp-text"); });
-      opt("camera", "Take photo", "Opens the camera", async () => { const ps = await pickPhotos({ camera: true, multiple: false }); if (ps.length) { d.photos.push(...ps); d.extras = true; } renderComposerTop(); });
+      opt("camera", "Snap", "Saved here right away", () => snapHere({ withLocation: api.snapLocationOn ? api.snapLocationOn() : true }));
+      opt("inbox", "From Inbox", "Move a snap you took earlier", () => addCaptured(g));
       opt("image", "Photos", "From your gallery", async () => { const ps = await pickPhotos(); if (ps.length) { d.photos.push(...ps); d.extras = true; } renderComposerTop(); });
       opt("link", "Link", "Saved as text, nothing is fetched", () => { d.showLink = true; d.extras = true; renderComposerTop(); focusLater("gp-link"); });
       if (g.fields.amount.on) opt("wallet", "Amount", "Adds to the totals", () => { d.showAmount = true; d.extras = true; renderComposerTop(); focusLater("gp-amount"); });
@@ -1286,6 +1287,8 @@
       e.happenedOn = t; await saveEntry(e); api.showToast("Moved to " + fmtDate(t)); render();
     } })));
     cell("Added on", h("span", { class: "gp-v" }, fmtDate(e.addedOn) + ", " + fmtTime(e.addedOn)));
+    if (e.capture && window.CPSnap) cell("Snapped", h("span", { class: "gp-v gp-capture", id: "gp-capture" }, window.CPSnap.describe(e.capture),
+      e.capture.original ? h("button", { class: "btn gp-small", id: "gp-open-original", onclick: () => api.openPhoto(e.capture.original) }, "Open original") : null), true);
     if (g.fields.amount.on || e.amount) {
       const cur = h("select", { class: "gp-cur-select", "aria-label": "Currency", onchange: (ev) => { e.currency = ev.target.value === g.fields.amount.currency ? null : ev.target.value; rerender(); } });
       C.CURRENCIES.forEach((c) => cur.append(h("option", { value: c.code }, c.symbol)));
@@ -1480,7 +1483,7 @@
         const title = (item.title || "").trim() || content.split("\n")[0].slice(0, 120);
         const note = item.title ? content : content.split("\n").slice(1).join("\n");
         const photos = (item.images || []).filter((p) => typeof p === "string" && /^data:image\/(jpeg|png|webp|gif);/.test(p));
-        const e = C.normalizeEntry({ refs: [{ g: d.g, s: d.s, tag: null }], title, note, photos, happenedOn: item.createdAt || Date.now(), addedOn: Date.now() });
+        const e = C.normalizeEntry({ refs: [{ g: d.g, s: d.s, tag: null }], title, note, photos, capture: item.capture, happenedOn: (item.capture && item.capture.at) || item.createdAt || Date.now(), addedOn: Date.now() });
         try { await saveEntry(e); } catch (err) { console.error(err); api.showToast("Couldn't move it"); return; }
         entries.push(e);
         changed();
@@ -1787,57 +1790,57 @@
   }
 
   // ---------- Snap: camera first, then a quick save sheet ----------
-  async function openSnap() {
-    if (!enabled) return;
-    if (!groups.length) { openNewGroup(); return; }
-    const photos = await pickPhotos({ camera: true, multiple: false });
-    if (!photos.length) return;
-    snapSheet(photos);
+  // ---------- Snap ----------
+  // Where a snap taken right now would go: the open group, sub-chat and page.
+  function snapContext() {
+    const g = curGroup();
+    if (!g) return null;
+    const sub = ui.s !== "all" ? C.subOf(g, ui.s) : null;
+    const page = ui.tag && ui.tag !== "__none" ? C.tagOf(g, ui.tag) : null;
+    return [g.name, page && page.name, sub && sub.name].filter(Boolean).join(" \u2192 ");
   }
-  function snapSheet(photos) {
-    const dests = destinations();
-    let dest = prefs.snapDest && dests.find((d) => d.g === prefs.snapDest.g && d.s === prefs.snapDest.s) ? prefs.snapDest : { g: dests[0].g, s: dests[0].s };
-    const draft = { caption: "", amount: "", tag: undefined };
-    sheet("Save photo", (body, close) => {
-      const draw = () => {
-        body.replaceChildren();
-        const g = groupById(dest.g);
-        if (draft.tag === undefined) draft.tag = prefs.lastTag[g.id] && C.tagOf(g, prefs.lastTag[g.id]) ? prefs.lastTag[g.id] : null;
-        const sel = h("select", { class: "input gp-input", id: "gp-snap-dest", "aria-label": "Save to", onchange: (e) => { const [gg, ss] = e.target.value.split("|"); dest = { g: gg, s: ss || null }; draft.tag = undefined; draw(); } });
-        dests.forEach((d) => sel.append(h("option", { value: d.g + "|" + (d.s || "") }, d.label)));
-        sel.value = dest.g + "|" + (dest.s || "");
-        const strip = h("div", { class: "gp-xrow" });
-        photos.forEach((p) => strip.append(thumb(p, "lg")));
-        strip.append(h("button", { class: "gp-add-photo", "aria-label": "Add another photo", onclick: async () => { const ps = await pickPhotos({ camera: true, multiple: false }); photos.push(...ps); draw(); } }, ic("camera")));
-        body.append(strip, h("label", { class: "gp-label", for: "gp-snap-dest" }, "Save to"), sel);
-        body.append(h("label", { class: "gp-label", for: "gp-snap-cap" }, "One line about it"),
-          h("input", { class: "input gp-input", id: "gp-snap-cap", value: draft.caption, placeholder: "Helps you find it later", oninput: (e) => { draft.caption = e.target.value; } }));
-        if (g.mainLabel) {
-          const row = h("div", { class: "gp-xrow wrap" });
-          g.mainTags.forEach((t) => row.append(h("button", { class: "gp-mini" + (draft.tag === t.id ? " active" : ""), style: "--c:" + t.color, onclick: () => { draft.tag = draft.tag === t.id ? null : t.id; draw(); } }, h("span", { class: "dot" }), t.name)));
-          row.append(h("button", { class: "gp-mini", onclick: () => newMainTag(g, (t) => { draft.tag = t.id; draw(); }) }, ic("plus", "icon-sm"), "New"));
-          body.append(h("span", { class: "gp-label" }, g.mainLabel), row);
-        }
-        if (g.fields.amount.on) body.append(h("label", { class: "gp-label", for: "gp-snap-amt" }, "Amount (" + g.fields.amount.currency + ", optional)"),
-          h("input", { class: "input gp-input", id: "gp-snap-amt", inputmode: "decimal", value: draft.amount, placeholder: "0", oninput: (e) => { draft.amount = e.target.value; } }));
-        const save = async (again) => {
-          const sub = C.subOf(g, dest.s);
-          const e = C.normalizeEntry({ refs: [{ g: g.id, s: dest.s, tag: draft.tag || null }], title: draft.caption.trim() || (sub ? sub.label : "Photo"),
-            photos, amount: g.fields.amount.on ? C.toMinor(draft.amount) : null, happenedOn: Date.now(), addedOn: Date.now() });
-          try { await saveEntry(e); } catch (err) { console.error(err); api.showToast("Couldn't save the photo"); return; }
-          entries.push(e);
-          changed();
-          prefs.snapDest = dest; prefs.lastTag[g.id] = draft.tag || null; savePrefs();
-          close();
-          api.showToast("Saved to " + g.name + (sub ? " / " + sub.name : ""));
-          if (ui.screen) render(); else renderSidebar();
-          if (again) openSnap();
-        };
-        body.append(h("div", { class: "gp-sheet-actions" },
-          h("button", { class: "btn", onclick: () => save(true) }, ic("camera"), "Save and snap another"),
-          h("button", { class: "btn primary", onclick: () => save(false) }, "Save")));
-      };
-      draw();
+  // Saves the photo straight into the open group, page and sub-chat. No form first.
+  async function snapHere(opts = {}) {
+    const g = curGroup();
+    if (!g || !window.CPSnap) return;
+    const where = { g: g.id, s: ui.s !== "all" ? ui.s : null, tag: ui.tag && ui.tag !== "__none" ? ui.tag : null };
+    const shot = await window.CPSnap.capture({ camera: true });
+    if (!shot) return;
+    const sub = C.subOf(g, where.s);
+    const e = C.normalizeEntry({ refs: [where], title: "Photo", photos: [shot.display], capture: shot.capture, happenedOn: shot.capture.at, addedOn: Date.now() });
+    try { await saveEntry(e); } catch (err) { console.error(err); api.showToast("Couldn't save. Is the phone out of storage?"); return; }
+    entries.push(e);
+    changed();
+    if (ui.screen === "group" && ui.g === g.id) { ui.flash = e.id; render(); setTimeout(() => { ui.flash = null; }, 1600); }
+    api.showToast("Saved to " + [g.name, (C.tagOf(g, where.tag) || {}).name, sub && sub.name].filter(Boolean).join(" \u2192 "),
+      { action: { label: "Snap another", onClick: () => { if (curGroup() && curGroup().id === g.id) snapHere(opts); } } });
+    if (opts.withLocation !== false) {
+      const loc = await window.CPSnap.locate();
+      if (loc && e.capture && !e.capture.location) { e.capture = { ...e.capture, location: loc }; await saveEntry(e); }
+    }
+  }
+  // "From Inbox": snaps waiting in Inbox move into this group (moved, not copied).
+  function addCaptured(g) {
+    const list = api.capturedNotes ? api.capturedNotes() : [];
+    sheet("Add from Inbox", (body, close) => {
+      if (!list.length) { body.append(h("p", { class: "gp-hint" }, "Nothing captured yet. Snap from the + menu and it waits in Inbox until you put it somewhere.")); return; }
+      body.append(h("p", { class: "gp-hint" }, "It moves here with its original photo and when and where it was taken."));
+      const grid = h("div", { class: "gp-captured" });
+      list.forEach((n) => grid.append(h("button", { class: "gp-captured-item", "data-note": n.id, onclick: async () => {
+        close();
+        const where = { g: g.id, s: ui.s !== "all" ? ui.s : null, tag: ui.tag && ui.tag !== "__none" ? ui.tag : null };
+        const photos = (n.images || []).filter((p) => typeof p === "string" && /^data:image\/(jpeg|png|webp|gif);/.test(p));
+        const e = C.normalizeEntry({ refs: [where], title: (n.title || "").trim() || (n.content || "").split("\n")[0].slice(0, 120) || "Photo", note: n.title ? n.content || "" : (n.content || "").split("\n").slice(1).join("\n"),
+          photos, capture: n.capture, happenedOn: (n.capture && n.capture.at) || n.createdAt || Date.now(), addedOn: Date.now() });
+        try { await saveEntry(e); } catch (err) { console.error(err); api.showToast("Couldn't move it"); return; }
+        entries.push(e);
+        changed();
+        await api.deleteNote(n.id);
+        ui.flash = e.id; render(); setTimeout(() => { ui.flash = null; }, 1600);
+        api.showToast("Moved here from Inbox");
+      } }, n.images && n.images[0] ? h("img", { src: n.images[0], alt: "" }) : ic("image"),
+        h("small", null, fmtDay((n.capture && n.capture.at) || n.createdAt) + " \u00b7 " + fmtTime((n.capture && n.capture.at) || n.createdAt)))));
+      body.append(grid);
     });
   }
 
@@ -2041,7 +2044,7 @@
     enabled: () => enabled,
     isActive: () => !!ui.screen,
     onHome: () => ui.screen === "home",
-    stepBack, exit, showHome, openSnap, openNewGroup, paletteItems, exportData, importData, moveNoteToGroup, focusComposer,
+    stepBack, exit, showHome, snapContext, snapHere, openNewGroup, paletteItems, exportData, importData, moveNoteToGroup, focusComposer,
     timelineRows, openEntry, tagCounts, renameTag, removeTag, openComposer, groupList, setEnabled,
     dueRows, takeDue,
     hasGroups: () => groups.length > 0

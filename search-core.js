@@ -20,7 +20,7 @@
     voice: "Voice notes", sketch: "Sketches", sketches: "Sketches" };
   const TYPE_KEYS = { notes: "note", commands: "command", links: "link", photos: "photo", passwords: "password", entries: "entry", checklists: "checklist", sketches: "sketch" };
   const IS = { fav: "Favorites", favorite: "Favorites", favourite: "Favorites", starred: "Favorites", pinned: "Pinned", unread: "Unread",
-    todo: "To do", doing: "In progress", done: "Done", reminder: "Has a reminder", archived: "Archived" };
+    todo: "To do", doing: "In progress", done: "Done", reminder: "Has a reminder", archived: "Archived", captured: "Captured" };
   const IS_KEYS = { favorite: "fav", favourite: "fav", starred: "fav" };
 
   const normalizeTag = (t) => (window.CPGroupsCore ? window.CPGroupsCore.normalizeTagName(t)

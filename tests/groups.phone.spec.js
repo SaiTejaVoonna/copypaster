@@ -43,19 +43,24 @@ test("Groups tab, a group screen, Snap, and back steps out one screen at a time"
   await expect(page.locator(".gp-home-title h1")).toHaveText("Groups");
   await expect(page.locator("#tab-bar")).toBeVisible();
 
-  // Snap (in the dock's + menu): photo first, then a quick save sheet.
+  // Snap from the dock's + menu with no group open: saved to Inbox at once, no questions.
   await page.click("#tab-bar [data-tab='new']");
   const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.click("#new-menu [data-new='snap']")]);
   await chooser.setFiles(pngFile());
-  await page.fill("#gp-snap-cap", "Tyre receipt");
-  await page.selectOption("#gp-snap-dest", { label: "Bike / Spare parts" });
-  await page.click(".gp-sheet button:text-is('Save')");
-  await expect(lastToast(page)).toContainText("Saved to Bike / Spare parts");
+  await expect(lastToast(page)).toContainText("Saved to Inbox");
+
+  // Inside a sub-chat, Snap saves straight there.
+  await page.locator(".gp-home-sub", { hasText: "Spare parts" }).click();
+  await page.click("#gp-b-plus");
+  const [chooser2] = await Promise.all([page.waitForEvent("filechooser"), page.locator(".gp-plus-menu button", { hasText: "Saved here right away" }).click()]);
+  await chooser2.setFiles(pngFile());
+  await expect(lastToast(page)).toContainText("Saved to Bike → Spare parts");
+  await page.goBack();
   await expect(page.locator(".gp-home-sub", { hasText: "Spare parts" })).toContainText("1");
 
   // Open the photo entry, then back closes it before leaving the group.
   await page.locator(".gp-home-sub", { hasText: "Spare parts" }).click();
-  await page.locator(".gp-entry", { hasText: "Tyre receipt" }).click();
+  await page.locator(".gp-entry", { hasText: "Photo" }).click();
   await expect(page.locator(".gp-d-photo img")).toHaveAttribute("src", /^data:image\/jpeg/);
   await page.goBack();
   await expect(page.locator(".gp-detail")).toBeHidden();

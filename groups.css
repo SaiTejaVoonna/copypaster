@@ -423,3 +423,10 @@ body.group-mode #toast { top: calc(14px + env(safe-area-inset-top)); bottom: aut
 .gp-review { display: flex; flex-direction: column; gap: 6px; padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface-1); }
 .gp-review-acts { display: flex; gap: 6px; flex-wrap: wrap; }
 .gp-xrow .gp-rate { display: inline-flex; }
+
+/* Snap: picking a captured photo from Inbox */
+.gp-captured { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: var(--s-2); }
+.gp-captured-item { display: flex; flex-direction: column; gap: 4px; padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; background: var(--surface-1); color: var(--text-2); cursor: pointer; font: inherit; }
+.gp-captured-item img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+.gp-captured-item small { padding: 0 6px 6px; font-size: var(--fs-2xs); }
+.gp-capture { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }

@@ -142,6 +142,8 @@
       fields: e.fields && typeof e.fields === "object" ? { ...e.fields } : {},
       photos: (Array.isArray(e.photos) ? e.photos : []).filter((p) => typeof p === "string" && /^data:image\/(jpeg|png|webp|gif);/.test(p)),
       link: e.link ? String(e.link).slice(0, 2000) : null,
+      // A snap's original photo and how, when and where it was taken (see snap.js).
+      capture: e.capture && window.CPSnap ? window.CPSnap.normalizeCapture(e.capture) : null,
       happenedOn: typeof e.happenedOn === "number" ? e.happenedOn : (e.addedOn || now),
       addedOn: typeof e.addedOn === "number" ? e.addedOn : now,
       updatedAt: e.updatedAt || now,

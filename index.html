@@ -1107,6 +1107,7 @@
   .settings-group.padded > * { padding: 0; border: none; }
   .settings-line { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: 44px; }
   .settings-line.dock-line { flex-direction: column; align-items: stretch; }
+  .capture-meta { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
   .due-box { margin: var(--s-2) var(--s-2) var(--s-1); display: flex; flex-direction: column; gap: 4px; }
   .due-head { font-size: var(--fs-2xs); color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; padding: 0 var(--s-2); }
   .due-row { display: flex; gap: var(--s-2); align-items: center; padding: 8px var(--s-3); border-radius: var(--r-lg); border: 1px solid var(--line); background: var(--surface-1); color: var(--text); text-align: left; cursor: pointer; font: inherit; }
@@ -1705,6 +1706,7 @@
           <div class="settings-group">
             <div class="settings-line"><span>Back up<small id="last-backup">Download a .cps file with everything, Vault items still encrypted.</small></span><button id="export-btn" class="btn"><svg class="icon"><use href="#icon-download"></use></svg>Export</button></div>
             <div class="settings-line"><span>Restore<small>Add items from a .cps backup. Nothing is overwritten.</small></span><button id="import-btn" class="btn"><svg class="icon"><use href="#icon-upload"></use></svg>Import</button></div>
+            <label class="settings-line"><span>Location on snaps<small>Saves where a snap was taken, on this device only. It's added after the photo is saved and never holds it up.</small></span><input type="checkbox" id="snap-location"></label>
             <div class="settings-line"><label for="backup-remind">Remind me to back up<small>A gentle note at the top of your Inbox.</small></label>
               <select id="backup-remind" class="settings-inline-select"><option value="7">Every week</option><option value="14">Every 2 weeks</option><option value="30">Every month</option><option value="0">Never</option></select></div>
           </div>
@@ -1747,6 +1749,7 @@
 
 <script src="groups-core.js"></script>
 <script src="entities-core.js"></script>
+<script src="snap.js"></script>
 <script src="groups.js"></script>
 <script src="search-core.js"></script>
 <script src="password-core.js"></script>
@@ -1936,6 +1939,7 @@
 
   async function saveItems(items) {
     if (!items.length) return items;
+    for (const item of items) if (item.captured && (item.folderId || item.tags.length || (item.title || "").trim() || (item.content || "").trim() || item.vaulted)) item.captured = false;
     // Vault items are encrypted here, on the way to disk; everything else is
     // stored as is. The in-memory item stays readable while the Vault is open.
     let records;
@@ -2256,6 +2260,9 @@
     item.reminded = !!item.reminded;
     item.audio = Array.isArray(item.audio) ? item.audio.filter((a) => a && typeof a.src === "string" && /^data:audio\//.test(a.src)) : [];
     item.sketches = Array.isArray(item.sketches) ? item.sketches.filter((x) => typeof x === "string").slice(-50) : []; // ends of images drawn here (for type:sketch)
+    // v2.6: a snap waits in Inbox as "captured" until it's organised; capture keeps the original and how/when/where it was taken.
+    item.captured = !!item.captured;
+    item.capture = window.CPSnap && item.capture ? window.CPSnap.normalizeCapture(item.capture) : null;
     if (item.type === "password") item.login = { url: "", username: "", password: "", ...(item.login || {}) };
     item.order = (typeof item.order === "number") ? item.order : item.createdAt || Date.now();
     migrateItem(item);
@@ -2347,7 +2354,7 @@
     // Pages whose contents depend on your data are drawn when shown.
     if (page === "tags") renderTagSettings();
     if (page === "appearance") renderDockSettings();
-    if (page === "data") { renderBackupInfo(); renderStorage(); }
+    if (page === "data") { renderBackupInfo(); renderStorage(); const sl = document.getElementById("snap-location"); if (sl) sl.checked = snapLocationOn(); }
     try { localStorage.setItem(SETTINGS_PAGE_KEY, page); } catch {}
     if (push && settingsIsStacked()) {
       settingsPanel.classList.add("at-page");
@@ -3505,7 +3512,7 @@
   // Note flags for is:… words.
   function noteFlags(item) {
     return { fav: item.starred, pinned: item.pinned, unread: item.unread, archived: !!item.archivedAt, reminder: !!item.remindAt,
-      todo: item.status === "todo", doing: item.status === "doing", done: item.status === "done" };
+      todo: item.status === "todo", doing: item.status === "doing", done: item.status === "done", captured: !!item.captured };
   }
   // What a note counts as for type:… words.
   function noteTypes(item) {
@@ -4036,7 +4043,7 @@
 
   // What a row is, for its icon and the filter chips. Links and photos are
   // Notes whose content is a web address or pictures.
-  const KIND_ICONS = { note: "note", command: "command", password: "key", link: "link", image: "image" };
+  const KIND_ICONS = { note: "note", command: "command", password: "key", link: "link", image: "image", captured: "camera" };
   const KIND_LABELS = { note: "Note", command: "Command", password: "Password", link: "Link", image: "Photo" };
   const KIND_FILTERS = [["all", "All"], ["note", "Notes"], ["command", "Commands"], ["link", "Links"], ["image", "Photos"], ["password", "Passwords"]];
   let kindFilter = "all";
@@ -4051,12 +4058,14 @@
   function renderFilterChips(inView) {
     const bar = document.getElementById("filter-chips");
     const present = new Set(inView.filter((i) => !i._locked).map(itemKind));
+    const captured = currentView === "all" ? inView.filter((i) => i.captured && !i._locked).length : 0;
+    if (captured) present.add("captured");
     if (kindFilter !== "all" && !present.has(kindFilter)) kindFilter = "all";
-    const show = present.size > 1 || kindFilter !== "all";
+    const show = present.size > 1 || kindFilter !== "all" || captured > 0;
     bar.classList.toggle("hidden", !show || selectMode);
     if (!show) { bar.innerHTML = ""; return; }
     bar.innerHTML = "";
-    for (const [key, label] of KIND_FILTERS) {
+    for (const [key, label] of [["all", "All"], ...(captured ? [["captured", "Captured " + captured]] : []), ...KIND_FILTERS.slice(1)]) {
       if (key !== "all" && !present.has(key)) continue;
       const chip = document.createElement("button");
       chip.type = "button";
@@ -4098,7 +4107,8 @@
 
     let filtered = cache.filter((i) => matchesView(i) && matchesSearch(i));
     renderFilterChips(filtered);
-    if (kindFilter !== "all") filtered = filtered.filter((i) => !i._locked && itemKind(i) === kindFilter);
+    if (kindFilter === "captured") filtered = filtered.filter((i) => !i._locked && i.captured);
+    else if (kindFilter !== "all") filtered = filtered.filter((i) => !i._locked && itemKind(i) === kindFilter);
     const folderMode = isFolderView() && !searchQuery;
     const remindersMode = currentView === "reminders";
     if (folderMode) {
@@ -5143,6 +5153,25 @@
     dates.textContent = "Created " + new Date(item.createdAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) + " \u00b7 Updated " + timeAgo(item.updatedAt);
     dates.title = "Created " + formatFullDate(item.createdAt) + "\nUpdated " + formatFullDate(item.updatedAt);
     body.appendChild(dates);
+    // A snap keeps how, when and where it was taken, and the original photo.
+    if (item.capture && window.CPSnap) {
+      const cap = document.createElement("div");
+      cap.className = "props-meta capture-meta";
+      cap.id = "capture-meta";
+      const line = document.createElement("span");
+      line.textContent = "Snapped: " + window.CPSnap.describe(item.capture);
+      cap.appendChild(line);
+      if (item.capture.original) {
+        const open = document.createElement("button");
+        open.type = "button";
+        open.className = "btn gp-small";
+        open.id = "open-original";
+        open.textContent = "Open original";
+        open.addEventListener("click", () => openImageLightbox(item.capture.original));
+        cap.appendChild(open);
+      }
+      body.appendChild(cap);
+    }
     return panel;
   }
   // Opens or closes Organise: the card on phones, the right-hand panel on computers.
@@ -5768,6 +5797,36 @@
     itemsEl.appendChild(box);
   }
 
+  // ---------- Snap: save the photo first, sort it out later ----------
+  const SNAP_LOC_KEY = "copypaster-snap-location";
+  const snapLocationOn = () => { try { return localStorage.getItem(SNAP_LOC_KEY) !== "0"; } catch { return true; } };
+  async function snapNow() {
+    if (!window.CPSnap) return;
+    // Inside a group, page or sub-chat: it goes straight there.
+    if (groupsApi && groupsApi.snapContext()) { groupsApi.snapHere({ withLocation: snapLocationOn() }); return; }
+    const shot = await window.CPSnap.capture({ camera: true });
+    if (!shot) return;
+    const now = Date.now();
+    const item = normalize({ id: uuid(), type: "note", title: "", content: "", images: [shot.display], captured: true, capture: shot.capture, createdAt: now, updatedAt: now });
+    try { await saveItem(item); } catch { return; }
+    renderAllViews();
+    showToast("Saved to Inbox", { action: { label: "Snap another", onClick: () => snapNow() } });
+    if (snapLocationOn()) addSnapLocation(item.id);
+  }
+  document.getElementById("snap-location").addEventListener("change", (e) => {
+    try { localStorage.setItem(SNAP_LOC_KEY, e.target.checked ? "1" : "0"); } catch {}
+    showToast(e.target.checked ? "Snaps will include where they were taken" : "Snaps won't include a location");
+  });
+  // Location arrives later (or never); the snap is already safe.
+  async function addSnapLocation(id) {
+    const loc = await window.CPSnap.locate();
+    if (!loc) return;
+    const item = cache.find((i) => i.id === id);
+    if (!item || !item.capture || item._locked || item.capture.location) return;
+    item.capture = { ...item.capture, location: loc };
+    await saveItem(item);
+  }
+
   async function checkReminders() {
     if (groupsApi) for (const d of groupsApi.takeDue()) showToast("\u23f0 " + d.title + ": " + d.sub, { sticky: true, action: { label: "Open", onClick: () => { closeTimeline(); d.open(); } } });
     const now = Date.now();
@@ -6148,7 +6207,10 @@
     ];
     if (!inVault && groupsApi && groupsApi.enabled()) {
       entries.push({ key: "entry", label: "Group entry", hint: groupsApi.hasGroups() ? "Into a group's timeline" : "Make your first group", icon: "layers", cls: "cm-folder", letter: "G", run: () => { closeTimeline(); groupsApi.openComposer(); } });
-      if (groupsApi.hasGroups()) entries.push({ key: "snap", label: "Snap to group", hint: "Camera first, then pick a group", icon: "camera", cls: "cm-image", letter: "A", run: () => groupsApi.openSnap() });
+    }
+    if (!inVault) {
+      const here = groupsApi && groupsApi.snapContext();
+      entries.push({ key: "snap", label: "Snap", hint: here ? "Saved straight into " + here : "Saved to Inbox right away; sort it later", icon: "camera", cls: "cm-image", letter: "A", run: () => snapNow() });
     }
     if (!inVault) entries.push({ key: "folder", label: "Folder", hint: "Group items together", icon: "folder-plus", cls: "cm-folder", letter: "F", run: () => openFolderPopover(document.getElementById("new-btn"), null) });
     if (inVault) { const pw = entries.splice(3, 1)[0]; entries.unshift(pw); }
@@ -9023,7 +9085,8 @@
     if (!window.CPGroups) return;
     try {
       groupsApi = await window.CPGroups.init({
-        getAll, put, remove, profileKey, showToast, openDialog, motionOK,
+        getAll, put, remove, profileKey, showToast, openDialog, motionOK, snapLocationOn,
+        capturedNotes: () => cache.filter((i) => i.captured && !i.deletedAt && !i._locked && !i.vaulted).sort((a, b) => b.createdAt - a.createdAt),
         closeSidebarOnMobile, openSidebarDrawer, renderTabBar, renderAllViews, closeSettings,
         tags: tagsWithCounts, ensureTag, tagLabel, openTag, renderNav,
         changed: () => { renderTagsList(); renderNav(); if (timelineApi) timelineApi.refresh(); },

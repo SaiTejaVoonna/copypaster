@@ -1,4 +1,4 @@
-// Upgrading the storage (DB v4 → v5 for Groups) must never touch existing notes.
+// Upgrading the storage (DB v4 → v6: Groups, then entities) must never touch existing notes.
 const { test, expect, openApp } = require("./fixtures");
 
 test("notes saved by the previous version are all there after the upgrade", async ({ page }) => {
@@ -32,8 +32,8 @@ test("notes saved by the previous version are all there after the upgrade", asyn
     db.close();
     return out;
   });
-  expect(info.version).toBe(5);
-  expect(info.stores).toEqual(["entries", "folders", "groups", "items", "meta", "tags"]);
+  expect(info.version).toBe(6);
+  expect(info.stores).toEqual(["entities", "entries", "folders", "groups", "items", "meta", "tags"]);
   expect(info.count).toBe(25);
   expect(info.n3).toMatchObject({ title: "Old 3", content: "text 3", type: "note" });
 });
