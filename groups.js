@@ -527,7 +527,8 @@
 
     // What's applied right now, each removable with one tap.
     const active = [];
-    if (ui.tag) active.push({ label: ui.tag === "__none" ? "No " + g.mainLabel.toLowerCase() : (C.tagOf(g, ui.tag) || {}).name, clear: () => { ui.tag = null; } });
+    // An open page has its own close button; only "No doctor" shows here.
+    if (ui.tag === "__none") active.push({ label: "No " + g.mainLabel.toLowerCase(), clear: () => { ui.tag = null; } });
     if (ui.q) active.push({ label: "\u201c" + ui.q + "\u201d", clear: () => { ui.q = ""; } });
     const sortLabel = { oldest: "Oldest first", amount: "Highest amount", rating: "Highest rated" }[sortOf(g)];
     if (sortLabel) active.push({ label: sortLabel, clear: () => setSort(g, "newest") });
@@ -1188,7 +1189,8 @@
       h("div", { class: "gp-page-top" }, avatar(t, "xl"),
         h("div", { class: "gp-page-id" }, h("h2", null, t.name), h("p", null, [type.name, t.info].filter(Boolean).join(" · ")),
           phoneField ? h("button", { class: "gp-page-phone", onclick: () => api.copy(String(ent.fields[phoneField.id]), "Phone number copied") }, ic("copy", "icon-sm"), String(ent.fields[phoneField.id])) : null),
-        ent ? h("button", { class: "btn gp-small", id: "gp-page-edit", onclick: () => openEntity(ent) }, ic("edit", "icon-sm"), "Edit") : null));
+        ent ? h("button", { class: "btn gp-small", id: "gp-page-edit", onclick: () => openEntity(ent) }, ic("edit", "icon-sm"), "Edit") : null,
+        h("button", { class: "btn icon ghost gp-page-close", "aria-label": "Back to every " + (g.mainLabel || "one").toLowerCase(), title: "Back to every " + (g.mainLabel || "one").toLowerCase(), onclick: () => setTag(null) }, ic("close"))));
     const statsEl = h("div", { class: "gp-stats" });
     for (const s of pageStats(g, t, ent)) statsEl.append(h("div", { class: "gp-stat" }, ic(s.icon), h("div", null, h("b", null, s.value), h("span", null, s.label))));
     card.append(statsEl);

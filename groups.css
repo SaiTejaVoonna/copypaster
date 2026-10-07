@@ -400,7 +400,9 @@ body.group-mode #toast { top: calc(14px + env(safe-area-inset-top)); bottom: aut
 .gp-ava.add { --c: var(--text-3); background: none; border: 1.5px dashed var(--line-strong); }
 .gp-ava .icon { width: 20px; height: 20px; }
 
-.gp-page { display: flex; flex-direction: column; gap: var(--s-3); }
+.gp-page { display: flex; flex-direction: column; gap: var(--s-3); flex: 1 1 100%; min-width: 0; padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-xl); background: var(--surface-1); }
+.gp-page .gp-stat { background: var(--bg); }
+.gp-page-close { flex: none; }
 .gp-page-top { display: flex; gap: var(--s-3); align-items: center; }
 .gp-page-id { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .gp-page-id h2 { margin: 0; font-size: var(--fs-xl); font-weight: var(--fw-bold); line-height: 1.2; overflow-wrap: anywhere; }

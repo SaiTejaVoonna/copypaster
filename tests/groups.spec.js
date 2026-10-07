@@ -114,8 +114,8 @@ test("filtering by doctor changes the header totals and can be cleared", async (
   await expect(stat(page, "Total spent")).toHaveText("₹2,100");
   await page.locator(".gp-person", { hasText: "Eye" }).click();
   await expect(stat(page, "Total spent")).toHaveText("₹600");
-  await expect(page.locator(".gp-filtered")).toContainText("Eye");
-  await page.click(".gp-filtered button");
+  await expect(page.locator(".gp-page h2")).toHaveText("Eye");
+  await page.click(".gp-page-close");
   await expect(stat(page, "Total spent")).toHaveText("₹2,100");
 });
 
@@ -325,9 +325,10 @@ test("each group keeps its own sort; a filter stays while switching tabs", async
 
   await page.locator(".gp-person", { hasText: "Eye" }).click();
   await page.locator(".gp-nav-sub", { hasText: "Bills" }).first().click();
-  await expect(page.locator(".gp-active")).toContainText("Eye");
+  await expect(page.locator(".gp-page h2")).toHaveText("Eye");
   await expect(stat(page, "Total spent")).toHaveText("₹600");
-  await page.click(".gp-clear-all");
+  await page.click(".gp-page-close");
+  await page.click(".gp-active .gp-filtered button");
   await expect(page.locator(".gp-active")).toHaveCount(0);
 });
 
