@@ -43,7 +43,7 @@ Versions 2.1–2.4 were never released. From now on there are no gaps.
 - **Profiles inside groups, Instagram-style:**
   - Circles at the top of a group open a profile page.
   - The group's sub-chats become the profile's tabs.
-  - Stats come from the fields.
+  - Stats (visits, total spent, average rating, first and last visit) are worked out from entries and fields, never stored by hand.
   - "Also in" links to other groups.
   - No duplicates, and a Merge option.
 - **Saving needs only a name and a type.** "+ Add detail" comes later. Adding a field to one profile asks "Add to all Doctors?"; it's optional and leaves no empty boxes.
@@ -52,7 +52,9 @@ Versions 2.1–2.4 were never released. From now on there are no gaps.
 
 ## Phase 2 (2.7): Documents and Safety
 
-- Import PDFs and photos and keep the originals. Split pages, then group them into visits by date and place.
+- Import PDFs and photos and keep the originals, with their capture details (time, location, origin, original file name) where available.
+- Show and index each page of a PDF separately while the original PDF stays untouched.
+- **Visit bundles:** related originals (prescription, pharmacy bill, lab report, payment) are grouped into one visit by date and place. The bundle is only a link between them; the originals are never merged or changed.
 - Read printed text, used **only as a search index**. Suggested values (person, date, items, amount, follow-up) need a ✓.
 - Match a printed pharmacy bill to a handwritten prescription. The bill gives exact names; the prescription gives the dosage.
 - Review queue: "8 new, 3 need review".
@@ -67,27 +69,38 @@ Versions 2.1–2.4 were never released. From now on there are no gaps.
 - Calendar, Home tiles (On this day, Due soon) and Insights.
 - Automations (repeating entries, auto-tags), with catch-up when the app opens.
 - Connections: AniList, TMDB, Google Calendar, Plex.
-- AI with the user's own key. Each request shows a preview and asks "Allow once".
+- AI with the user's own key. It receives only the records the question needs; each request shows a preview and asks "Allow once".
 
 ## Engine rules
 
 1. The original evidence is never changed, but it can always be fully deleted.
 2. Saving never waits for understanding: capture first, understand later.
-3. OCR or AI output is a suggestion until confirmed with ✓.
-4. Important facts keep their origin (typed, read from a photo, imported) and a confirmed flag.
-5. One entry can sit in several groups without being copied.
-6. People, places and things are reusable records.
-7. Groups give context; they don't own entries.
-8. Views never duplicate data.
-9. Outside services enrich or import; they are never the source of truth.
-10. AI asks the engine; AI doesn't own the memory.
-11. OCR is a throwaway search index. Search helps you find it; the original tells you what it is.
-12. Private by default. Nothing leaves the device unless the user picks a destination and sees exactly what goes.
-13. Nothing is discoverable: no public profiles, no user directory.
-14. Sharing is explicit, per person, time-limited and revocable. A Card is a copy, not a published profile.
-15. Deleting here is not deleting there (data already sent to AI or cloud).
+3. Capture succeeds even when OCR, AI, location, enrichment or the network fail. The photo is saved; the rest may come later.
+4. OCR or AI output is a suggestion until confirmed with ✓.
+5. Every captured source keeps its available capture details: time, location, origin and original file name.
+6. Every suggestion (OCR, AI, web lookup) keeps where it came from, how confident it is, and whether it is confirmed.
+7. One entry can sit in several groups without being copied.
+8. People, places and things are reusable records with a stable identity. Renaming one or changing its type never creates a new one, and a detail like a specialty never becomes its identity.
+9. Groups give context; they don't own entries.
+10. Views never duplicate data.
+11. Outside services enrich or import; they are never the source of truth.
+12. AI asks the engine; AI doesn't own the memory. AI receives only the records needed for the current request, never the whole collection by default.
+13. OCR is a throwaway search index. Search helps you find it; the original tells you what it is.
+14. Private by default. Nothing leaves the device unless the user explicitly turns on a destination or connection. Before sensitive data is sent, CopyPaster shows what will be sent and where.
+15. Nothing is discoverable: no public profiles, no user directory.
+16. Sharing is explicit, per person, time-limited and revocable. A Card is a copy, not a published profile.
+17. Deleting here is not deleting there (data already sent to AI or cloud).
 
 **Field or entry?** If it describes the thing, it's a field. If it happened on a date, it's an entry.
+
+```
+Doctor → Specialty: Dermatology        field
+Doctor → Clinic: Skin clinic           field
+Bike → Insurance expiry: 14 Mar 2027   field (also becomes a reminder)
+Visit on 7 Oct 2026                    entry
+Prescription on 7 Oct 2026             entry
+Payment on 7 Oct 2026                  entry
+```
 
 ## Privacy
 
