@@ -128,7 +128,7 @@ test("profile switcher opens as a sheet on phones", async ({ page }) => {
   await menuBtn(page).tap();
   await page.tap("#profile-btn");
   await expect(page.locator("#action-sheet")).toContainText("Personal");
-  await page.locator("#action-sheet button", { hasText: "New profile" }).tap();
+  await page.locator("#action-sheet button", { hasText: "New space" }).tap();
   await page.fill("#dialog-name", "Work");
   await page.locator("#dialog button[type=submit]").tap();
   await page.waitForLoadState("load");

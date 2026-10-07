@@ -1523,7 +1523,7 @@
     <div id="brand"><span id="brand-dot"><svg class="icon"><use href="#icon-logo"></use></svg></span><span id="brand-label">CopyPaster</span>
       <button id="sidebar-collapse-btn" title="Collapse sidebar" aria-label="Collapse sidebar"><svg class="icon"><use href="#icon-sidebar"></use></svg></button>
     </div>
-    <button id="profile-btn" type="button" title="Switch profile"><span class="profile-avatar" id="profile-avatar"></span><span id="profile-name"></span><span id="profile-caret"><svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></span></button>
+    <button id="profile-btn" type="button" title="Switch space"><span class="profile-avatar" id="profile-avatar"></span><span id="profile-name"></span><span id="profile-caret"><svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></span></button>
     <button id="sidebar-search" type="button" title="Search and commands (Ctrl+K)"><svg class="icon"><use href="#icon-search"></use></svg><span>Search</span><span class="kbd" id="palette-kbd">Ctrl K</span></button>
     <div id="sidebar-scroll">
       <nav id="main-nav"></nav>
@@ -1614,7 +1614,7 @@
     <div id="settings-layout">
       <div id="settings-nav" role="tablist" aria-label="Settings sections">
         <button class="settings-nav-item" data-page="appearance"><span class="sn-icon" style="background:#5b8cff"><svg class="icon"><use href="#icon-palette"></use></svg></span>Appearance<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
-        <button class="settings-nav-item" data-page="profiles"><span class="sn-icon" style="background:#34c759"><svg class="icon"><use href="#icon-users"></use></svg></span>Profiles<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
+        <button class="settings-nav-item" data-page="profiles"><span class="sn-icon" style="background:#34c759"><svg class="icon"><use href="#icon-users"></use></svg></span>Spaces<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="vault"><span class="sn-icon" style="background:#14b8a6"><svg class="icon"><use href="#icon-vault"></use></svg></span>Vault<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="groups"><span class="sn-icon" style="background:#8b5cf6"><svg class="icon"><use href="#icon-layers"></use></svg></span>Groups<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="tags"><span class="sn-icon" style="background:#ec4899"><svg class="icon"><use href="#icon-tag"></use></svg></span>Tags<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
@@ -1648,11 +1648,11 @@
         </section>
 
         <section class="settings-page" data-page="profiles" id="profile-settings">
-          <h2 class="settings-page-title">Profiles</h2>
-          <p class="settings-page-lead">Each profile has its own notes, folders, tags and Vault — for example Work and Personal, or another person. Theme and paste clean-up are shared on this device.</p>
+          <h2 class="settings-page-title">Spaces</h2>
+          <p class="settings-page-lead">Each space has its own notes, groups, folders, tags and Vault — for example Personal, Work or Family. Theme and paste clean-up are shared on this device.</p>
           <div class="settings-section">
             <div class="settings-group" id="profile-list"></div>
-            <div class="settings-row-actions"><button id="new-profile-btn" type="button">+ New profile</button></div>
+            <div class="settings-row-actions"><button id="new-profile-btn" type="button">+ New space</button></div>
           </div>
         </section>
 
@@ -8703,15 +8703,15 @@
   function profileMenuActions() {
     return [
       ...profiles.map((pr) => ({ label: (pr.id === currentProfile.id ? "✓ " : " ") + pr.name, run: () => switchProfile(pr.id) })),
-      { label: "+ New profile", run: newProfileDialog },
-      { label: "Manage profiles…", run: () => openSettings("profiles") }
+      { label: "+ New space", run: newProfileDialog },
+      { label: "Manage spaces…", run: () => openSettings("profiles") }
     ];
   }
 
   document.getElementById("profile-btn").addEventListener("click", (e) => {
     e.stopPropagation();
     const actions = profileMenuActions();
-    if (isDrawerMode()) { openSheet("Profiles", actions, false); return; }
+    if (isDrawerMode()) { openSheet("Spaces", actions, false); return; }
     const r = e.currentTarget.getBoundingClientRect();
     showContextMenu(r.left, r.bottom + 4, actions.map((a) => ({ label: a.label, onClick: a.run })));
     const menu = document.querySelector(".context-menu");
@@ -8719,15 +8719,15 @@
   });
 
   function profileNameProblem(name, exceptId) {
-    if (!name) return "Give the profile a name.";
+    if (!name) return "Give the space a name.";
     if (name.length > 40) return "Keep it under 40 characters.";
-    if (profiles.some((pr) => pr.id !== exceptId && pr.name.toLowerCase() === name.toLowerCase())) return "There's already a profile called “" + name + "”.";
+    if (profiles.some((pr) => pr.id !== exceptId && pr.name.toLowerCase() === name.toLowerCase())) return "There's already a space called “" + name + "”.";
     return null;
   }
 
   function newProfileDialog() {
     openDialog({
-      title: "New profile",
+      title: "New space",
       iconName: "user",
       text: "A separate space with its own notes, folders, tags and Vault. You can switch any time from the top of the sidebar.",
       fields: [{ name: "name", label: "Name", placeholder: "Work, Personal, Alex…" }],
@@ -8748,7 +8748,7 @@
 
   function renameProfileDialog(profile) {
     openDialog({
-      title: "Rename profile",
+      title: "Rename space",
       iconName: "user",
       fields: [{ name: "name", label: "Name" }],
       submitLabel: "Rename",
@@ -8771,12 +8771,12 @@
     openDialog({
       title: "Delete “" + profile.name + "”?",
       iconName: "user",
-      text: "Everything in this profile is deleted from this device forever: notes, folders, tags and its Vault. Export a backup first if you might want it. Type the profile's name to confirm.",
+      text: "Everything in this space is deleted from this device forever: notes, groups, folders, tags and its Vault. Export a backup first if you might want it. Type the space's name to confirm.",
       fields: [{ name: "confirm", label: "Type " + profile.name }],
       submitLabel: "Delete forever",
       danger: true,
       onSubmit: async ({ confirm }) => {
-        if (confirm.trim().toLowerCase() !== profile.name.toLowerCase()) return "Type the profile's name to confirm.";
+        if (confirm.trim().toLowerCase() !== profile.name.toLowerCase()) return "Type the space's name to confirm.";
         const result = await new Promise((resolve) => {
           const req = indexedDB.deleteDatabase(profileDbName(profile.id));
           req.onsuccess = () => resolve("ok");
@@ -8832,7 +8832,7 @@
       del.className = "danger";
       del.textContent = "Delete";
       del.disabled = isCurrent;
-      del.title = isCurrent ? "Switch to another profile first" : "Delete this profile and everything in it";
+      del.title = isCurrent ? "Switch to another space first" : "Delete this space and everything in it";
       del.addEventListener("click", () => deleteProfileDialog(pr));
       row.append(rename, del);
       list.appendChild(row);
