@@ -34,36 +34,52 @@ Versions 2.1–2.4 were never released. From now on there are no gaps.
 - New place capitalisation.
 - Duplicate names in the "Main tag" picker.
 
+**Words used from now on:**
+
+| Word | Means | Example |
+|---|---|---|
+| **Space** | What the app calls "Profile" today: a separate set of data | Personal, Work, Family |
+| **Group** | A part of life, inside a space | Hospital, Food, Bike |
+| **Entity** | A reusable person, place or thing with one identity | Dr X, Nimrah Cafe, the bike |
+| **Page** | A group's view of an entity | Hospital → Dr X |
+| **Sub-chat** | A kind of entry inside a group | Prescriptions, Bills |
+| **Entry / Source** | Something that happened / its original photo or file | A prescription and its photo |
+
+People see it simply as **Personal → Hospital → Dr X → Prescriptions**. Under the hood, a page points to its entity; it never copies it.
+
+**Spaces (today's "Profiles"):**
+- "Profile" is never used for people or places. Doctors, restaurants and vehicles are entities with pages, not profiles.
+- The visible label changes from "Profile" to **"Space"**. This is a text change only: stored data, switching and existing spaces keep working exactly as they do.
+
 **The foundation:**
 - `docs/ENGINE.md`: a short set of rules.
 - **One field engine:** the existing group fields, plus phone, person, place and expiry.
-- **Person / Place / Thing with a Type** (Doctor, Restaurant, Vehicle, Anime, your own).
+- **Entities: Person / Place / Thing with a Type** (Doctor, Restaurant, Vehicle, Anime, your own).
   - Type is the only category, and stays shallow.
   - Specialty is a field of Doctor, not a category.
-- **Profiles inside groups, Instagram-style:**
-  - Circles at the top of a group open a profile page.
-  - The group's sub-chats become the profile's tabs.
+  - One stable identity: renaming or changing the type never creates a new entity.
+- **Pages inside groups, Instagram-style:**
+  - Circles at the top of a group open that entity's page for this group.
+  - The group's sub-chats become the page's tabs.
   - Stats (visits, total spent, average rating, first and last visit) are worked out from entries and fields, never stored by hand.
-  - "Also in" links to other groups.
-  - No duplicates, and a Merge option.
-- **Saving needs only a name and a type.** "+ Add detail" comes later. Adding a field to one profile asks "Add to all Doctors?"; it's optional and leaves no empty boxes.
+  - The same entity in another group has its own page there ("Also in Insurance"). Same identity, different context, no duplicate entries.
+  - Merge for accidental duplicates.
+- **Saving an entity needs only a name and a type.** "+ Add detail" comes later. Adding a field to one entity asks "Add to all Doctors?"; it's optional and leaves no empty boxes.
 - **Date fields** (insurance expiry, follow-up) become reminders and calendar dots automatically.
-- **Migration:** old "Main tag" choices become people, places or things, with a one-time Review screen.
+- **Migration:** old "Main tag" choices become entities with pages, with a one-time Review screen.
 
 **Snap: capture now, organise later**
-- **Capture → Save → Done.** No group, person, place or tag is required to save. No waiting for OCR, AI, location or the network. Works offline once the app is installed.
-- **Global Snap** (from the + menu): the photo lands in **Inbox, under a "Captured" filter**, until you organise it. This reuses Inbox instead of adding a new area.
-- **Contextual Snap** (from inside a group, page or sub-chat): it saves with that context already filled in, with no extra form.
-- **Saved with each snap:** time, where it came from (camera, photo library, file), original file name, and location if available.
+- **Capture → Save → Done.** Boringly reliable, not an "AI camera".
+- Saving works instantly and offline (once the app is installed). No group, entity, place, tag, OCR, AI, GPS, map or network is required. If any of those fail, the capture is still saved.
+- **Global Snap** (from the + menu): saves into **Inbox, under a "Captured" filter**. No new storage area.
+- **Contextual Snap** (from inside a group, page or sub-chat, e.g. Personal → Hospital → Dr X → Prescriptions): saves with that context already filled in. No form appears before saving.
+- **Saved with each snap:** the original, time, origin (camera, photo library, file), original file name, and location with its accuracy and source when available.
   - Location is asked for in the background and never delays the save.
-  - Location keeps its accuracy and source.
-  - Raw coordinates are evidence. A map match is only a suggestion. The place you choose is what counts.
-- **Organise later:** open a page's sub-chat and pick "Add captured item". This links the same original; it's never copied.
-- **"Snap another"** for multi-page papers.
-- Today's "Snap to group" asks where to save before saving. It will change to save first, with that choice optional.
-- Suggestions ("Looks like a prescription for Dr X. Add it?") come in Phase 2. They are never needed for saving and never become facts without ✓.
-
-**Pages and identities:** a person, place or thing has one identity. Each group shows its own **page** for it (Hospital page, Insurance page), and every page points to the same identity. A page is a view, never a copy.
+  - Coordinates are evidence. A map or web match is only a suggestion. The place you choose is what counts.
+- **Snap another** for multi-page papers. Each page stays its own original; nothing is merged.
+- **Organise later:** in a page's sub-chat, "Add captured item" links the existing original. It is never copied.
+- Today's "Snap to group" asks where to save before saving. It changes to save first, with that choice optional.
+- The design leaves room for OCR, AI, location lookup and entity matching to be added later without changing the capture flow. **None of that is built in Phase 1**, and there is no medical intelligence.
 
 ## Phase 2 (2.7): Documents and Safety
 
@@ -102,8 +118,8 @@ Versions 2.1–2.4 were never released. From now on there are no gaps.
 12. AI asks the engine; AI doesn't own the memory. AI receives only the records needed for the current request, never the whole collection by default.
 13. OCR is a throwaway search index. Search helps you find it; the original tells you what it is.
 14. Private by default. Nothing leaves the device unless the user explicitly turns on a destination or connection. Before sensitive data is sent, CopyPaster shows what will be sent and where.
-15. Nothing is discoverable: no public profiles, no user directory.
-16. Sharing is explicit, per person, time-limited and revocable. A Card is a copy, not a published profile.
+15. Nothing is discoverable: no public pages, no user directory.
+16. Sharing is explicit, per person, time-limited and revocable. A Card is a copy, not a published page.
 17. Deleting here is not deleting there (data already sent to AI or cloud).
 
 **Field or entry?** If it describes the thing, it's a field. If it happened on a date, it's an entry.
