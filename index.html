@@ -1106,6 +1106,10 @@
   .settings-group.padded { padding: var(--s-4); gap: var(--s-3); }
   .settings-group.padded > * { padding: 0; border: none; }
   .settings-line { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); min-height: 44px; }
+  .settings-line.dock-line { flex-direction: column; align-items: stretch; }
+  .dock-picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); }
+  .dock-slot-wrap { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--text-3); }
+  .dock-slot { height: 36px; }
   .settings-line > span:first-child { display: flex; flex-direction: column; gap: 2px; }
   .settings-line small { color: var(--text-3); font-size: var(--fs-xs); }
   .settings-row { display: flex; align-items: center; justify-content: space-between; padding: 12px var(--s-4); font-size: var(--fs-md); }
@@ -1631,6 +1635,13 @@
                   <button class="theme-opt" data-theme-pick="dark" role="radio"><svg class="icon"><use href="#icon-moon"></use></svg>Dark</button>
                   <button class="theme-opt" data-theme-pick="system" role="radio"><svg class="icon"><use href="#icon-monitor"></use></svg>Auto</button>
                 </div>
+              </div>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="settings-group">
+              <div class="settings-line dock-line"><span>Dock on phones<small>Pick three tabs. New stays in the middle and More at the end.</small></span>
+                <div id="dock-picker" class="dock-picker"></div>
               </div>
             </div>
           </div>
@@ -2325,6 +2336,7 @@
     document.querySelectorAll(".settings-page").forEach((s) => s.classList.toggle("active", s.dataset.page === page));
     // Pages whose contents depend on your data are drawn when shown.
     if (page === "tags") renderTagSettings();
+    if (page === "appearance") renderDockSettings();
     if (page === "data") { renderBackupInfo(); renderStorage(); }
     try { localStorage.setItem(SETTINGS_PAGE_KEY, page); } catch {}
     if (push && settingsIsStacked()) {
@@ -2875,15 +2887,64 @@
   // Phones: the dock. Inbox, Groups, + (new anything), Search (the
   // Timeline), More (the full menu: folders, tags, Vault, settings…).
   // With Groups switched off, Favorites takes their place.
+  // The phone dock: three tabs you pick, plus New in the middle and More at the end.
+  const DOCK_KEY = "copypaster-dock";
+  const DOCK_CHOICES = [
+    { key: "all", label: "Inbox", icon: "inbox" },
+    { key: "groups", label: "Groups", icon: "layers", needsGroups: true },
+    { key: "timeline", label: "Timeline", icon: "timeline" },
+    { key: "search", label: "Search", icon: "search" },
+    { key: "saved", label: "Favorites", icon: "star" },
+    { key: "reminders", label: "Reminders", icon: "bell" },
+    { key: "unread", label: "Unread", icon: "unread" },
+    { key: "notes", label: "Notes", icon: "note" }
+  ];
+  function dockChoice() {
+    let picked = null;
+    try { picked = JSON.parse(localStorage.getItem(DOCK_KEY) || "null"); } catch {}
+    const valid = Array.isArray(picked) ? picked.filter((k, i) => DOCK_CHOICES.some((c) => c.key === k) && picked.indexOf(k) === i) : [];
+    return valid.length === 3 ? valid : null;
+  }
   function dockTabs() {
     const groupsOn = !!(groupsApi && groupsApi.enabled());
-    return [
-      { key: "all", label: "Inbox", icon: "inbox" },
-      groupsOn ? { key: "groups", label: "Groups", icon: "layers" } : { key: "saved", label: "Favorites", icon: "star" },
-      { key: "new", label: "New", icon: "plus" },
-      { key: "search", label: "Search", icon: "search" },
-      { key: "more", label: "More", icon: "menu" }
-    ];
+    const keys = dockChoice() || ["all", "groups", "search"];
+    const picked = keys.map((k) => DOCK_CHOICES.find((c) => c.key === k))
+      .map((c) => (c.needsGroups && !groupsOn ? DOCK_CHOICES.find((x) => x.key === "saved") : c));
+    return [picked[0], picked[1], { key: "new", label: "New", icon: "plus" }, picked[2], { key: "more", label: "More", icon: "menu" }];
+  }
+  let timelineTab = "search"; // which dock tab opened the Timeline
+  function renderDockSettings() {
+    const box = document.getElementById("dock-picker");
+    if (!box) return;
+    const keys = dockChoice() || ["all", "groups", "search"];
+    box.replaceChildren();
+    [0, 1, 2].forEach((slot) => {
+      const sel = document.createElement("select");
+      sel.className = "input dock-slot";
+      sel.id = "dock-slot-" + slot;
+      sel.setAttribute("aria-label", "Dock tab " + (slot + 1));
+      DOCK_CHOICES.forEach((c) => {
+        const o = document.createElement("option");
+        o.value = c.key; o.textContent = c.label;
+        o.selected = keys[slot] === c.key;
+        sel.appendChild(o);
+      });
+      sel.addEventListener("change", () => {
+        const next = keys.slice();
+        const other = next.indexOf(sel.value);
+        if (other !== -1 && other !== slot) next[other] = keys[slot]; // swap instead of doubling up
+        next[slot] = sel.value;
+        try { localStorage.setItem(DOCK_KEY, JSON.stringify(next)); } catch {}
+        renderDockSettings(); renderTabBar();
+        showToast("Dock updated");
+      });
+      const wrap = document.createElement("label");
+      wrap.className = "dock-slot-wrap";
+      const lab = document.createElement("span");
+      lab.textContent = ["Left", "Second", "Fourth"][slot];
+      wrap.append(lab, sel);
+      box.appendChild(wrap);
+    });
   }
   function renderTabBar() {
     const bar = document.getElementById("tab-bar");
@@ -2891,7 +2952,7 @@
     const inGroups = !!(groupsApi && groupsApi.enabled() && groupsApi.isActive());
     const tlOpen = !!(timelineApi && timelineApi.isOpen());
     const tabs = dockTabs();
-    const activeKey = tlOpen ? "search" : inGroups ? "groups" : currentView;
+    const activeKey = tlOpen ? (tabs.some((t) => t.key === timelineTab) ? timelineTab : tabs.some((t) => t.key === "timeline") ? "timeline" : "search") : inGroups ? "groups" : currentView;
     const onTab = tabs.some((tab) => tab.key === activeKey);
     bar.innerHTML = "";
     for (const tab of tabs) {
@@ -2904,7 +2965,11 @@
       b.addEventListener("click", async () => {
         if (tab.key === "more") { openSidebarDrawer(); return; }
         if (tab.key === "new") { openNewMenu(); return; }
-        if (tab.key === "search") { openTimeline({ focus: true }); return; }
+        if (tab.key === "search") { timelineTab = "search"; openTimeline({ focus: true }); return; }
+        if (tab.key === "timeline") {
+          if (tlOpen && timelineTab === "timeline") { timelineApi.close(); renderTabBar(); renderNav(); return; }
+          timelineTab = "timeline"; openTimeline({ q: tlOpen ? undefined : "" }); return;
+        }
         if (tab.key === "groups") { closeTimeline(); groupsApi.showHome(); return; }
         if (tlOpen) closeTimeline();
         if (inGroups) { groupsApi.exit(); switchView(tab.key); return; }
@@ -3456,6 +3521,8 @@
     const flags = noteFlags(item);
     for (const f of p.is) if (f !== "archived" && !flags[f]) return false;
     if (p.groups.length && !p.notesOnly) return false;
+    if (p.not && !window.CPSearch.passesNot(p, { kind: "note", groups: [], at: item.createdAt, flags,
+      types: noteTypes(item), tags: item.tags.map((id) => tagById(id)).filter(Boolean).map((t) => tagKey(t.name)) })) return false;
     return !searchText() || itemSearchScore(item) >= 0;
   }
 

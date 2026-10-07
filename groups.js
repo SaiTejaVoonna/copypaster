@@ -618,7 +618,7 @@
 
   // ---------- Send bar ----------
   function draftFor(g) {
-    if (!ui.drafts[g.id]) ui.drafts[g.id] = { text: "", link: "", amount: "", currency: null, photos: [], date: "", fields: {}, rating: null, sub: undefined, tag: undefined, showLink: false, showAmount: false, extras: false };
+    if (!ui.drafts[g.id]) ui.drafts[g.id] = { text: "", link: "", amount: "", currency: null, photos: [], date: "", fields: {}, rating: null, tags: [], sub: undefined, tag: undefined, showLink: false, showAmount: false, extras: false };
     const d = ui.drafts[g.id];
     if (ui.s !== "all") d.sub = ui.s;
     if (d.sub === undefined || (d.sub && !C.subOf(g, d.sub))) d.sub = (prefs.lastSub[g.id] && C.subOf(g, prefs.lastSub[g.id]) ? prefs.lastSub[g.id] : (g.subs[0] && g.subs[0].id)) || null;
@@ -699,12 +699,21 @@
       const dateRow = h("div", { class: "gp-xrow" }, h("span", { class: "gp-lbl" }, "Happened"),
         h("input", { type: "datetime-local", id: "gp-date", class: "gp-mini-input", value: d.date || toLocalInput(Date.now()), onchange: (e) => { d.date = e.target.value; } }),
         d.date ? h("button", { class: "gp-mini", onclick: () => { d.date = ""; renderComposerTop(); } }, "Now") : null);
+      ex.append(dateRow);
       if (g.fields.rating) {
         const rs = h("span", { class: "gp-rate" });
         for (let i = 1; i <= 5; i++) rs.append(h("button", { "aria-label": i + " stars", onclick: () => { d.rating = d.rating === i ? null : i; renderComposerTop(); } }, ic("star", i <= (d.rating || 0) ? "on" : "off")));
-        dateRow.append(rs);
+        ex.append(h("div", { class: "gp-xrow" }, h("span", { class: "gp-lbl" }, "Rating"), rs));
       }
-      ex.append(dateRow);
+      // Tags: the ones picked, a few recent ones, and "Tag" to find or create any.
+      {
+        const row = h("div", { class: "gp-xrow", id: "gp-tags-row" }, h("span", { class: "gp-lbl" }, "Tags"));
+        const recent = api.tags().filter((t) => !d.tags.includes(t.key)).slice(0, 4);
+        d.tags.forEach((k) => row.append(h("button", { class: "gp-mini active", "data-tag": k, "aria-label": "Remove tag " + tagLabel(k), onclick: () => { d.tags = d.tags.filter((x) => x !== k); renderComposerTop(); } }, "#" + tagLabel(k), ic("close", "icon-sm"))));
+        recent.forEach((t) => row.append(h("button", { class: "gp-mini", "data-tag": t.key, onclick: () => { d.tags = [...d.tags, t.key].slice(0, 20); renderComposerTop(); } }, "#" + t.name)));
+        row.append(h("button", { class: "gp-mini", id: "gp-tag-more", onclick: () => pickTags(d, () => renderComposerTop(), { draft: true }) }, ic("plus", "icon-sm"), "Tag"));
+        ex.append(row);
+      }
       if (g.fields.custom.length) {
         const row = h("div", { class: "gp-xrow wrap" });
         g.fields.custom.forEach((f) => row.append(h("label", { class: "gp-field-mini" }, h("span", null, f.name),
@@ -747,7 +756,7 @@
     let note = lines.slice(1).join("\n").trim();
     const link = d.link.trim();
     if (!title && link) { try { title = new URL(link).hostname.replace(/^www\./, ""); } catch { title = link.slice(0, 80); } }
-    if (!title) title = sub ? sub.label : (d.photos.length ? "Photo" : "Entry");
+    if (!title) title = d.photos.length ? "Photo" : sub ? sub.label : "Entry";
     const fields = {};
     g.fields.custom.forEach((f) => {
       const v = d.fields[f.id];
@@ -755,7 +764,7 @@
       if (f.type === "number") { const n = Number(String(v).replace(/,/g, "")); if (Number.isFinite(n)) fields[f.id] = n; }
       else fields[f.id] = String(v).slice(0, 500);
     });
-    const tagKeys = [];
+    const tagKeys = d.tags.slice();
     for (const word of hashTags) { const k = await api.ensureTag(word); if (k && !tagKeys.includes(k)) tagKeys.push(k); }
     const e = C.normalizeEntry({ refs: [{ g: g.id, s: d.sub || null, tag: d.tag || null }], title, note, link: link || null, tags: tagKeys,
       amount: g.fields.amount.on ? C.toMinor(d.amount) : null, currency: d.currency, rating: d.rating, fields, photos: d.photos,
@@ -780,6 +789,12 @@
     if (!window.matchMedia("(pointer: coarse)").matches) focusLater("gp-text");
   }
 
+  // "roadside bbq" → "Roadside Bbq"; names someone typed with capitals stay as they are.
+  function tidyName(raw) {
+    const name = String(raw || "").trim().replace(/\s+/g, " ");
+    if (!name || name !== name.toLowerCase()) return name;
+    return name.replace(/(^|[\s(/-])(\p{L})/gu, (m, pre, ch) => pre + ch.toUpperCase());
+  }
   function newMainTag(g, done) {
     api.openDialog({
       title: "New " + (g.mainLabel || "tag").toLowerCase(),
@@ -788,9 +803,10 @@
         { name: "info", label: "Details (optional)", placeholder: g.mainLabel === "Doctor" ? "Dr. M. Khan · Skin clinic" : "Area, platform, anything" }],
       submitLabel: "Add",
       onSubmit: async ({ name, info }) => {
-        name = name.trim();
+        name = tidyName(name);
         if (!name) return "Give it a name.";
         let t = g.mainTags.find((x) => x.name.toLowerCase() === name.toLowerCase());
+        if (t) api.showToast(name + " is already here, picked it");
         if (!t) {
           if (g.mainTags.length >= C.MAX.tags) return "This group already has " + C.MAX.tags + ".";
           t = { id: C.uid(), name: name.slice(0, C.MAX.name), color: C.COLORS[g.mainTags.length % (C.COLORS.length - 1)], info: info.trim().slice(0, C.MAX.desc) };
@@ -875,7 +891,7 @@
         r.tag = ev.target.value || null; await saveEntry(e); render();
       } });
       sel.append(h("option", { value: "" }, "Not set"));
-      g.mainTags.forEach((t) => sel.append(h("option", { value: t.id }, t.name)));
+      g.mainTags.forEach((t) => sel.append(h("option", { value: t.id }, t.name + (t.info && g.mainTags.some((x) => x !== t && x.name.toLowerCase() === t.name.toLowerCase()) ? " · " + t.info : ""))));
       sel.append(h("option", { value: "__new" }, "+ New " + g.mainLabel.toLowerCase() + "…"));
       sel.value = r.tag || "";
       cell(g.mainLabel, sel);
@@ -950,7 +966,8 @@
 
   // Tags are shared with notes: pick from all of them, or make a new one.
   function tagLabel(key) { return api.tagLabel ? api.tagLabel(key) : key; }
-  function pickTags(e, done) {
+  function pickTags(e, done, opts = {}) {
+    const store = async () => { if (!opts.draft) await saveEntry(e); };
     sheet("Tags", (body) => {
       const input = h("input", { class: "input gp-input", id: "gp-tag-find", placeholder: "Find or create a tag", autocomplete: "off", "aria-label": "Find or create a tag" });
       const list = h("div", { class: "tl-pick-list" });
@@ -964,13 +981,13 @@
           const on = e.tags.includes(t.key);
           list.append(h("button", { class: "tl-pick" + (on ? " on" : ""), "aria-pressed": String(on), "data-tag": t.key, onclick: async () => {
             e.tags = on ? e.tags.filter((x) => x !== t.key) : [...e.tags, t.key].slice(0, 20);
-            await saveEntry(e); done(); draw();
+            await store(); done(); draw();
           } }, on ? ic("check") : h("span", { class: "tag-dot", style: "--c:" + (t.color || "var(--text-3)") }), t.name, h("span", { class: "num" }, t.count)));
         });
         if (q && !all.some((t) => t.key === q)) list.append(h("button", { class: "tl-pick", id: "gp-tag-create", onclick: async () => {
           const k = await api.ensureTag(raw);
           if (k && !e.tags.includes(k)) e.tags = [...e.tags, k].slice(0, 20);
-          await saveEntry(e); input.value = ""; done(); draw();
+          await store(); input.value = ""; done(); draw();
         } }, ic("plus"), "Create \u201c" + raw + "\u201d"));
         if (!list.childNodes.length) list.append(h("p", { class: "gp-hint" }, "No tags yet. Type a name to make one."));
       };

@@ -9,6 +9,7 @@
 //   after:2026-01-01  before:2026-02-01
 //   type:note | command | link | photo | password | entry | checklist | voice | sketch
 //   is:fav | pinned | unread | todo | doing | done | reminder | archived
+//   -word:… or -#tag in front of any of these hides matches instead
 // Everything else is plain text.
 (function () {
   "use strict";
@@ -73,54 +74,100 @@
   }
   const unquote = (s) => s.replace(/^"|"$/g, "");
 
+  // One word as a filter token ({ kind, value, label }), or null for plain text.
   // ctx.groups: [{ id, name }] so group:hos finds "Hospital".
+  function readToken(raw, groups) {
+    if (raw.length > 1 && raw[0] === "#") {
+      const key = normalizeTag(unquote(raw.slice(1)));
+      if (key) return { kind: "tag", value: key, label: "#" + key };
+    }
+    const kv = raw.match(/^([a-z]+):(.+)$/i);
+    if (!kv) return null;
+    const k = kv[1].toLowerCase(), v = unquote(kv[2]).trim();
+    if ((k === "group" || k === "g" || k === "in") && v) {
+      if (k === "in" && /^notes?$/i.test(v)) return { kind: "notes", value: true, label: "Notes only" };
+      const vl = v.toLowerCase();
+      const hit = groups.find((g) => g.name.toLowerCase() === vl) || groups.find((g) => g.name.toLowerCase().startsWith(vl)) || groups.find((g) => g.name.toLowerCase().includes(vl));
+      if (hit) return { kind: "group", value: hit.id, label: hit.name };
+      return { kind: "unknown", value: v, label: "No group “" + v + "”" };
+    }
+    if (k === "date" || k === "on" || k === "when") {
+      const r = dateRange(v);
+      if (r) return { kind: "date", value: r, label: r.label };
+    }
+    if (k === "after" || k === "since" || k === "from") {
+      const t = dayStart(v);
+      if (t != null) return { kind: "date", value: null, bound: ["from", t], label: "After " + fmtDay(t) };
+    }
+    if (k === "before" || k === "until" || k === "to") {
+      const t = dayStart(v);
+      if (t != null) return { kind: "date", value: null, bound: ["to", t], label: "Before " + fmtDay(t) };
+    }
+    if (k === "type" || k === "kind") {
+      const key = TYPE_KEYS[v.toLowerCase()] || v.toLowerCase();
+      if (TYPES[key]) return { kind: "type", value: key, label: TYPES[key] };
+    }
+    if (k === "is" || k === "has") {
+      const key = IS_KEYS[v.toLowerCase()] || v.toLowerCase();
+      if (IS[key]) return { kind: "is", value: key, label: IS[key] };
+    }
+    return null;
+  }
+
+  // A minus in front hides matches: -#chai, -group:bike, -type:photo, -is:done, -in:notes.
+  // (A plain -word stays text, so "ls -la" still searches for "-la".)
   function parse(q, ctx = {}) {
     const groups = ctx.groups || [];
-    const out = { text: "", tags: [], groups: [], notesOnly: false, date: null, types: [], is: [], tokens: [] };
+    const out = { text: "", tags: [], groups: [], notesOnly: false, date: null, types: [], is: [], tokens: [],
+      not: { tags: [], groups: [], notes: false, types: [], is: [], dates: [] } };
+    const add = (list, v) => { if (!list.includes(v)) list.push(v); };
     const plain = [];
     for (const raw of words(q)) {
-      const lower = raw.toLowerCase();
-      if (raw.length > 1 && raw[0] === "#") {
-        const key = normalizeTag(unquote(raw.slice(1)));
-        if (key) { if (!out.tags.includes(key)) out.tags.push(key); out.tokens.push({ kind: "tag", value: key, raw, label: "#" + key }); continue; }
+      const neg = raw.length > 2 && raw[0] === "-";
+      const tok = readToken(neg ? raw.slice(1) : raw, groups);
+      if (!tok) { plain.push(unquote(raw)); continue; }
+      if (neg) {
+        if (tok.kind === "unknown") { plain.push(unquote(raw)); continue; }
+        const n = out.not;
+        if (tok.kind === "tag") add(n.tags, tok.value);
+        else if (tok.kind === "group") add(n.groups, tok.value);
+        else if (tok.kind === "notes") n.notes = true;
+        else if (tok.kind === "type") add(n.types, tok.value);
+        else if (tok.kind === "is") add(n.is, tok.value);
+        else if (tok.kind === "date") {
+          if (tok.bound) { plain.push(unquote(raw)); continue; }
+          n.dates.push(tok.value);
+        }
+        out.tokens.push({ kind: tok.kind, value: tok.value, raw, neg: true, label: "not " + tok.label });
+        continue;
       }
-      const kv = raw.match(/^([a-z]+):(.+)$/i);
-      if (kv) {
-        const k = kv[1].toLowerCase(), v = unquote(kv[2]).trim();
-        if ((k === "group" || k === "g" || k === "in") && v) {
-          if (k === "in" && /^notes?$/i.test(v)) { out.notesOnly = true; out.tokens.push({ kind: "notes", value: true, raw, label: "Notes only" }); continue; }
-          const vl = v.toLowerCase();
-          const hit = groups.find((g) => g.name.toLowerCase() === vl) || groups.find((g) => g.name.toLowerCase().startsWith(vl)) || groups.find((g) => g.name.toLowerCase().includes(vl));
-          if (hit) { if (!out.groups.includes(hit.id)) out.groups.push(hit.id); out.tokens.push({ kind: "group", value: hit.id, raw, label: hit.name }); continue; }
-          out.tokens.push({ kind: "unknown", raw, label: "No group “" + v + "”" });
-          out.groups.push("__none__");
-          continue;
-        }
-        if (k === "date" || k === "on" || k === "when") {
-          const r = dateRange(v);
-          if (r) { out.date = r; out.tokens.push({ kind: "date", value: r, raw, label: r.label }); continue; }
-        }
-        if (k === "after" || k === "since" || k === "from") {
-          const t = dayStart(v);
-          if (t != null) { setBound(out, "from", t); out.tokens.push({ kind: "date", value: out.date, raw, label: "After " + fmtDay(t) }); continue; }
-        }
-        if (k === "before" || k === "until" || k === "to") {
-          const t = dayStart(v);
-          if (t != null) { setBound(out, "to", t); out.tokens.push({ kind: "date", value: out.date, raw, label: "Before " + fmtDay(t) }); continue; }
-        }
-        if (k === "type" || k === "kind") {
-          const key = TYPE_KEYS[v.toLowerCase()] || v.toLowerCase();
-          if (TYPES[key]) { if (!out.types.includes(key)) out.types.push(key); out.tokens.push({ kind: "type", value: key, raw, label: TYPES[key] }); continue; }
-        }
-        if (k === "is" || k === "has") {
-          const key = IS_KEYS[v.toLowerCase()] || v.toLowerCase();
-          if (IS[key]) { if (!out.is.includes(key)) out.is.push(key); out.tokens.push({ kind: "is", value: key, raw, label: IS[key] }); continue; }
-        }
+      if (tok.kind === "tag") add(out.tags, tok.value);
+      else if (tok.kind === "group") add(out.groups, tok.value);
+      else if (tok.kind === "unknown") out.groups.push("__none__");
+      else if (tok.kind === "notes") out.notesOnly = true;
+      else if (tok.kind === "type") add(out.types, tok.value);
+      else if (tok.kind === "is") add(out.is, tok.value);
+      else if (tok.kind === "date") {
+        if (tok.bound) { setBound(out, tok.bound[0], tok.bound[1]); tok.value = out.date; }
+        else out.date = tok.value;
       }
-      plain.push(unquote(raw));
+      out.tokens.push({ kind: tok.kind, value: tok.value, raw, label: tok.label });
     }
     out.text = plain.join(" ").trim();
     return out;
+  }
+
+  // Does a row pass the minus words? flags: { fav, … }, types: [...], tags: [keys], groups: [ids], kind, at.
+  function passesNot(p, r) {
+    const n = p.not;
+    if (!n) return true;
+    if (n.notes && r.kind === "note") return false;
+    if (n.groups.length && (r.groups || []).some((g) => n.groups.includes(g))) return false;
+    if (n.tags.length && (r.tags || []).some((t) => n.tags.includes(t))) return false;
+    if (n.types.length && (r.types || []).some((t) => n.types.includes(t))) return false;
+    if (n.is.length && n.is.some((f) => r.flags && r.flags[f])) return false;
+    if (n.dates.length && n.dates.some((d) => r.at >= d.from && r.at < d.to)) return false;
+    return true;
   }
 
   // Rebuilds the query text without one token (for the ✕ on a chip).
@@ -151,5 +198,5 @@
     return text.toLowerCase().split(/\s+/).filter(Boolean).every((w) => h.includes(w));
   }
 
-  window.CPSearch = { DAY, TYPES, IS, parse, dateRange, without, withToken, tokenFor, textMatches, normalizeTag, words };
+  window.CPSearch = { DAY, TYPES, IS, parse, passesNot, dateRange, without, withToken, tokenFor, textMatches, normalizeTag, words };
 })();

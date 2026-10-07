@@ -116,7 +116,7 @@
     if (!p.is.includes("archived") && r.flags.archived) return false;
     for (const f of p.is) if (!r.flags[f]) return false;
     if (p.text && !S.textMatches(r.text, p.text)) return false;
-    return true;
+    return S.passesNot(p, r);
   }
   function sortRows(rows) {
     const by = {
@@ -148,12 +148,13 @@
     const drop = (key, label, on, fn) => h("button", { class: "tl-drop" + (on ? " on" : ""), "data-filter": key, "aria-haspopup": "true", onclick: (e) => fn(e.currentTarget) }, label, ic("chevron-down"));
     const filterCount = p.tokens.length;
     barEl.append(h("button", { class: "tl-drop tl-filter-btn" + (filterCount ? " on" : ""), "data-filter": "all", onclick: () => openAllFilters() }, ic("filter"), "Filter" + (filterCount ? " · " + filterCount : "")));
-    const groupLabel = p.notesOnly ? "Notes only" : p.groups.length ? (p.tokens.find((t) => t.kind === "group") || {}).label || "Group" : "Group";
-    barEl.append(drop("group", groupLabel, p.notesOnly || p.groups.length, (a) => menu(a, "Group", (b, done) => groupMenu(b, done))));
-    barEl.append(drop("tag", p.tags.length ? (p.tags.length === 1 ? "#" + tagName(p.tags[0]) : p.tags.length + " tags") : "Tag", p.tags.length, (a) => menu(a, "Tags", (b, done) => tagMenu(b, done))));
+    const hiddenGroups = p.not.groups.length + (p.not.notes ? 1 : 0);
+    const groupLabel = p.notesOnly ? "Notes only" : p.groups.length ? (p.tokens.find((t) => t.kind === "group" && !t.neg) || {}).label || "Group" : hiddenGroups ? "Hiding " + hiddenGroups : "Group";
+    barEl.append(drop("group", groupLabel, p.notesOnly || p.groups.length || hiddenGroups, (a) => menu(a, "Group", (b, done) => groupMenu(b, done))));
+    barEl.append(drop("tag", p.tags.length ? (p.tags.length === 1 && !p.not.tags.length ? "#" + tagName(p.tags[0]) : p.tags.length + p.not.tags.length + " tags") : p.not.tags.length ? "Hiding " + p.not.tags.length : "Tag", p.tags.length + p.not.tags.length, (a) => menu(a, "Tags", (b, done) => tagMenu(b, done))));
     barEl.append(drop("date", p.date ? p.date.label : "Date", !!p.date, (a) => menu(a, "Date", (b, done) => dateMenu(b, done))));
-    const typeOn = p.types.length + p.is.length;
-    barEl.append(drop("type", typeOn ? (p.types.length === 1 && !p.is.length ? S.TYPES[p.types[0]] : typeOn + " selected") : "Type", typeOn, (a) => menu(a, "Type", (b, done) => typeMenu(b, done))));
+    const typeOn = p.types.length + p.is.length + p.not.types.length + p.not.is.length;
+    barEl.append(drop("type", typeOn ? (p.types.length === 1 && typeOn === 1 ? S.TYPES[p.types[0]] : typeOn + " selected") : "Type", typeOn, (a) => menu(a, "Type", (b, done) => typeMenu(b, done))));
     const sortLabel = (SORTS.find(([k]) => k === ui.sort) || SORTS[0])[1];
     const sortBtn = drop("sort", sortLabel, ui.sort !== "newest", (a) => menu(a, "Sort", (b, done) => sortMenu(b, done)));
     sortBtn.classList.add("tl-sort");
@@ -163,10 +164,10 @@
 
   function renderActive(p) {
     activeEl.replaceChildren();
-    const chips = p.tokens.map((t) => ({ label: t.kind === "tag" ? "#" + tagName(t.value) : t.label, remove: () => setQ(S.without(ui.q, t.raw)) }));
+    const chips = p.tokens.map((t) => ({ label: t.kind === "tag" ? (t.neg ? "not #" : "#") + tagName(t.value) : t.label, neg: !!t.neg, remove: () => setQ(S.without(ui.q, t.raw)) }));
     if (p.text) chips.push({ label: "“" + p.text + "”", remove: () => setQ(p.tokens.map((t) => t.raw).join(" ")) });
     if (ui.sort !== "newest") chips.push({ label: (SORTS.find(([k]) => k === ui.sort) || [])[1], remove: () => setSort("newest") });
-    chips.forEach((c) => activeEl.append(h("span", { class: "gp-filtered" }, c.label, h("button", { "aria-label": "Remove " + c.label, onclick: c.remove }, ic("close", "icon-sm")))));
+    chips.forEach((c) => activeEl.append(h("span", { class: "gp-filtered" + (c.neg ? " neg" : "") }, c.label, h("button", { "aria-label": "Remove " + c.label, onclick: c.remove }, ic("close", "icon-sm")))));
     if (chips.length > 1) activeEl.append(h("button", { class: "gp-clear-all", onclick: () => { ui.sort = "newest"; saveSort(); setQ(""); } }, "Clear all"));
   }
 
@@ -264,8 +265,21 @@
 
   function setGroupToken(raw) {
     let q = ui.q;
-    S.parse(q, ctx()).tokens.filter((t) => t.kind === "group" || t.kind === "notes" || t.kind === "unknown").forEach((t) => { q = S.without(q, t.raw); });
+    S.parse(q, ctx()).tokens.filter((t) => !t.neg && (t.kind === "group" || t.kind === "notes" || t.kind === "unknown")).forEach((t) => { q = S.without(q, t.raw); });
     setQ(raw ? q + " " + raw : q);
+  }
+  // A list row with a small "hide these" button on the right.
+  function withHide(btn, kind, value, raw, name, after) {
+    const hidden = stateOf(kind, value) === "not";
+    const hide = h("button", { class: "tl-hide" + (hidden ? " on" : ""), title: hidden ? "Stop hiding " + name : "Hide " + name, "aria-label": hidden ? "Stop hiding " + name : "Hide " + name, "aria-pressed": String(hidden),
+      onclick: (e) => {
+        e.stopPropagation();
+        const t = S.parse(ui.q, ctx()).tokens.find((x) => x.kind === kind && x.value === value);
+        let q = t ? S.without(ui.q, t.raw) : ui.q;
+        setQ(hidden ? q : q + " -" + raw);
+        after();
+      } }, ic(hidden ? "eye" : "eye-off"));
+    return h("div", { class: "tl-pick-wrap" + (hidden ? " hidden-on" : "") }, btn, hide);
   }
   function groupMenu(body, done) {
     const p = S.parse(ui.q, ctx());
@@ -274,8 +288,8 @@
     list.append(pickBtn([ic("note"), "Notes only", h("span", { class: "num" }, count((r) => r.kind === "note"))], p.notesOnly, () => { setGroupToken("in:notes"); done(); }));
     const groups = api.groups();
     if (groups.length) list.append(h("div", { class: "tl-pick-sec" }, "Groups"));
-    groups.forEach((g) => list.append(pickBtn([h("span", { class: "gp-tile sm", style: "--c:" + g.color }, ic(g.icon)), g.name, h("span", { class: "num" }, count((r) => r.kind === "entry" && r.groups.includes(g.id)))],
-      p.groups.includes(g.id), () => { setGroupToken(S.tokenFor("group", g.name)); done(); })));
+    groups.forEach((g) => list.append(withHide(pickBtn([h("span", { class: "gp-tile sm", style: "--c:" + g.color }, ic(g.icon)), g.name, h("span", { class: "num" }, count((r) => r.kind === "entry" && r.groups.includes(g.id)))],
+      p.groups.includes(g.id), () => { setGroupToken(S.tokenFor("group", g.name)); done(); }), "group", g.id, S.tokenFor("group", g.name), g.name, done)));
     body.append(list);
   }
 
@@ -290,12 +304,12 @@
       if (!tags.length) { list.append(h("div", { class: "gp-hint", style: "padding:8px 10px" }, api.tags().length ? "No tag like that." : "No tags yet. Add tags to notes or group entries.")); return; }
       tags.forEach((t) => {
         const on = p.tags.includes(t.key);
-        list.append(pickBtn([t.emoji ? h("span", null, t.emoji) : h("span", { class: "tag-dot", style: "--c:" + (t.color || "var(--text-3)") }), t.name, h("span", { class: "num" }, t.count)], on, () => {
+        list.append(withHide(pickBtn([t.emoji ? h("span", null, t.emoji) : h("span", { class: "tag-dot", style: "--c:" + (t.color || "var(--text-3)") }), t.name, h("span", { class: "num" }, t.count)], on, () => {
           const raw = S.tokenFor("tag", t.key);
           const tok = S.parse(ui.q, ctx()).tokens.find((x) => x.kind === "tag" && x.value === t.key);
           setQ(tok ? S.without(ui.q, tok.raw) : ui.q + " " + raw);
           if (isPhone()) done(); else { p.tags = S.parse(ui.q, ctx()).tags; draw(); }
-        }, { "data-tag": t.key }));
+        }, { "data-tag": t.key }), "tag", t.key, S.tokenFor("tag", t.key), "#" + t.name, () => { if (isPhone()) done(); else draw(); }));
       });
     };
     input.addEventListener("input", draw);
@@ -306,7 +320,7 @@
 
   function dateMenu(body, done) {
     const p = S.parse(ui.q, ctx());
-    const set = (raw) => { let q = ui.q; S.parse(q, ctx()).tokens.filter((t) => t.kind === "date").forEach((t) => { q = S.without(q, t.raw); }); setQ(raw ? q + " " + raw : q); done(); };
+    const set = (raw) => { let q = ui.q; S.parse(q, ctx()).tokens.filter((t) => t.kind === "date" && !t.neg).forEach((t) => { q = S.without(q, t.raw); }); setQ(raw ? q + " " + raw : q); done(); };
     const list = h("div", { class: "tl-pick-list" });
     list.append(pickBtn("Any time", !p.date, () => set("")));
     [["today", "Today"], ["7d", "Last 7 days"], ["30d", "Last 30 days"], ["3m", "Last 3 months"], ["year", "This year"]].forEach(([k, label]) =>
@@ -322,7 +336,7 @@
         if (from.value) parts.push("after:" + from.value);
         if (to.value) { const end = new Date(to.value + "T00:00"); end.setDate(end.getDate() + 1); parts.push("before:" + iso(end.getTime())); }
         if (!parts.length) { api.showToast("Pick a start or end date"); return; }
-        let q = ui.q; S.parse(q, ctx()).tokens.filter((t) => t.kind === "date").forEach((t) => { q = S.without(q, t.raw); });
+        let q = ui.q; S.parse(q, ctx()).tokens.filter((t) => t.kind === "date" && !t.neg).forEach((t) => { q = S.without(q, t.raw); });
         setQ(q + " " + parts.join(" ")); done();
       } }, "Apply"));
   }
@@ -330,20 +344,38 @@
   const TYPE_OPTIONS = [["type", "note", "Notes", "note"], ["type", "checklist", "Checklists", "checklist"], ["type", "command", "Commands", "command"], ["type", "link", "Links", "link"],
     ["type", "photo", "Photos", "image"], ["type", "voice", "Voice notes", "mic"], ["type", "sketch", "Sketches", "pen"], ["type", "entry", "Group entries", "layers"]];
   const IS_OPTIONS = [["is", "todo", "To do"], ["is", "doing", "In progress"], ["is", "done", "Done"], ["is", "fav", "Favorites"], ["is", "pinned", "Pinned"], ["is", "unread", "Unread"], ["is", "reminder", "Has a reminder"], ["is", "archived", "Archived"]];
+
+  // A chip with three states: off → show only these → hide these → off.
+  // `raw` is the positive word (type:photo, #lab, group:Food); its hidden form is "-" + raw.
+  // `pick` replaces the positive word when only one can be on (groups).
+  function stateOf(kind, value) {
+    const t = S.parse(ui.q, ctx()).tokens.find((x) => x.kind === kind && (kind === "notes" || x.value === value));
+    return !t ? "off" : t.neg ? "not" : "on";
+  }
+  function cycle(kind, value, raw, pick) {
+    const p = S.parse(ui.q, ctx());
+    const t = p.tokens.find((x) => x.kind === kind && (kind === "notes" || x.value === value));
+    if (!t) { if (pick) pick(raw); else setQ(ui.q + " " + raw); return; }
+    const q = S.without(ui.q, t.raw);
+    if (!t.neg) setQ(q + " -" + raw);
+    else setQ(q);
+  }
+  function triChip(kind, value, raw, content, opts = {}) {
+    const st = stateOf(kind, value);
+    const label = st === "not" ? "Hiding" : st === "on" ? "Showing only" : "Off";
+    return h("button", { class: "chip tri" + (st === "on" ? " on" : st === "not" ? " not" : ""), "data-state": st, "aria-label": (opts.name || "") + ": " + label, title: "Tap to show only these, tap again to hide them",
+      onclick: () => { cycle(kind, value, raw, opts.pick); if (opts.redraw) opts.redraw(); } }, ...content);
+  }
+
   function typeMenu(body) {
     const draw = () => {
       body.replaceChildren();
-      const p = S.parse(ui.q, ctx());
-      const toggle = (kind, value) => {
-        const tok = p.tokens.find((t) => t.kind === kind && t.value === value);
-        setQ(tok ? S.without(ui.q, tok.raw) : ui.q + " " + kind + ":" + value);
-        draw();
-      };
       const kinds = h("div", { class: "tl-chip-row" });
-      TYPE_OPTIONS.forEach(([k, v, label, icon]) => kinds.append(h("button", { class: "chip" + (p.types.includes(v) ? " on" : ""), "data-type": v, "aria-pressed": String(p.types.includes(v)), onclick: () => toggle(k, v) }, ic(icon), label)));
+      TYPE_OPTIONS.forEach(([k, v, label, icon]) => { const c = triChip(k, v, k + ":" + v, [ic(icon), label], { name: label, redraw: draw }); c.dataset.type = v; kinds.append(c); });
       const flags = h("div", { class: "tl-chip-row" });
-      IS_OPTIONS.forEach(([k, v, label]) => flags.append(h("button", { class: "chip" + (p.is.includes(v) ? " on" : ""), "data-is": v, "aria-pressed": String(p.is.includes(v)), onclick: () => toggle(k, v) }, label)));
-      body.append(h("div", { class: "tl-sheet-sec" }, "Kind"), kinds, h("div", { class: "tl-sheet-sec" }, "Status and marks"), flags);
+      IS_OPTIONS.forEach(([k, v, label]) => { const c = triChip(k, v, k + ":" + v, [label], { name: label, redraw: draw }); c.dataset.is = v; flags.append(c); });
+      body.append(h("div", { class: "tl-sheet-sec" }, "Kind"), kinds, h("div", { class: "tl-sheet-sec" }, "Status and marks"), flags,
+        h("p", { class: "tl-tri-hint" }, "Tap once to show only these, twice to hide them."));
     };
     draw();
   }
@@ -354,52 +386,81 @@
     body.append(list);
   }
 
-  // Phones: everything in one sheet.
+  const DATE_PRESETS = [["today", "Today"], ["7d", "Last 7 days"], ["30d", "Last 30 days"], ["3m", "Last 3 months"], ["year", "This year"]];
+  const isoDay = (t) => { const d = new Date(t); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); };
+  function setDateWords(words) {
+    let q = ui.q;
+    S.parse(q, ctx()).tokens.filter((t) => t.kind === "date" && !t.neg).forEach((t) => { q = S.without(q, t.raw); });
+    setQ(words ? q + " " + words : q);
+  }
+
+  // Phones: everything in one sheet, every section built the same way.
   function openAllFilters() {
     closeMenu();
+    let customOpen = false;
     window.CPTools.sheet("Filter", (body, done) => {
       const draw = () => {
+        const keepScroll = body.scrollTop;
         body.replaceChildren();
         const p = S.parse(ui.q, ctx());
-        const sec = (title, fn) => { body.append(h("div", { class: "tl-sheet-sec" }, title)); const box = h("div"); fn(box, () => draw()); body.append(box); };
-        sec("Group", (b) => {
-          const row = h("div", { class: "tl-chip-row" });
-          row.append(h("button", { class: "chip" + (!p.groups.length && !p.notesOnly ? " on" : ""), onclick: () => { setGroupToken(""); draw(); } }, "Everything"));
-          row.append(h("button", { class: "chip" + (p.notesOnly ? " on" : ""), onclick: () => { setGroupToken("in:notes"); draw(); } }, ic("note"), "Notes"));
-          api.groups().forEach((g) => row.append(h("button", { class: "chip" + (p.groups.includes(g.id) ? " on" : ""), onclick: () => { setGroupToken(S.tokenFor("group", g.name)); draw(); } }, ic(g.icon), g.name)));
-          b.append(row);
-        });
-        sec("Tags", (b) => {
-          const row = h("div", { class: "tl-chip-row" });
-          const tags = api.tags().slice(0, 30);
-          if (!tags.length) row.append(h("span", { class: "gp-hint" }, "No tags yet."));
-          tags.forEach((t) => {
-            const on = p.tags.includes(t.key);
-            row.append(h("button", { class: "chip" + (on ? " on" : ""), onclick: () => {
-              const tok = p.tokens.find((x) => x.kind === "tag" && x.value === t.key);
-              setQ(tok ? S.without(ui.q, tok.raw) : ui.q + " " + S.tokenFor("tag", t.key)); draw();
-            } }, "#" + t.name + " " + t.count));
-          });
-          b.append(row);
-        });
-        sec("Date", (b) => {
-          const row = h("div", { class: "tl-chip-row" });
-          [["", "Any time"], ["today", "Today"], ["7d", "Last 7 days"], ["30d", "Last 30 days"], ["3m", "Last 3 months"], ["year", "This year"]].forEach(([k, label]) =>
-            row.append(h("button", { class: "chip" + ((k ? p.date && p.date.label === label : !p.date) ? " on" : ""), onclick: () => {
-              let q = ui.q; p.tokens.filter((t) => t.kind === "date").forEach((t) => { q = S.without(q, t.raw); });
-              setQ(k ? q + " date:" + k : q); draw();
-            } }, label)));
-          b.append(row);
-        });
-        const types = h("div"); typeMenu(types); body.append(types);
-        sec("Sort", (b) => {
-          const row = h("div", { class: "tl-chip-row" });
-          SORTS.forEach(([k, label]) => row.append(h("button", { class: "chip" + (ui.sort === k ? " on" : ""), onclick: () => { setSort(k); draw(); } }, label)));
-          b.append(row);
-        });
-        body.append(h("div", { class: "gp-sheet-actions" },
-          h("button", { class: "btn", onclick: () => { ui.sort = "newest"; saveSort(); setQ(""); draw(); } }, "Clear all"),
+        const sec = (title, children, extra) => {
+          const box = h("section", { class: "tl-fsec" + (extra ? " " + extra : "") }, h("div", { class: "tl-sheet-sec" }, title));
+          children.forEach((c) => box.append(c));
+          body.append(box);
+        };
+        const row = () => h("div", { class: "tl-chip-row" });
+
+        const groups = row();
+        groups.append(h("button", { class: "chip" + (!p.groups.length && !p.notesOnly && !p.not.groups.length && !p.not.notes ? " on" : ""), onclick: () => {
+          let q = ui.q; p.tokens.filter((t) => t.kind === "group" || t.kind === "notes" || t.kind === "unknown").forEach((t) => { q = S.without(q, t.raw); }); setQ(q); draw();
+        } }, "Everything"));
+        groups.append(triChip("notes", true, "in:notes", [ic("note"), "Notes"], { name: "Notes", pick: setGroupToken, redraw: draw }));
+        api.groups().forEach((g) => groups.append(triChip("group", g.id, S.tokenFor("group", g.name), [ic(g.icon), g.name], { name: g.name, pick: setGroupToken, redraw: draw })));
+        sec("Group", [groups]);
+
+        const tags = row();
+        const tagList = api.tags().slice(0, 40);
+        if (!tagList.length) tags.append(h("span", { class: "gp-hint" }, "No tags yet."));
+        tagList.forEach((t) => tags.append(triChip("tag", t.key, S.tokenFor("tag", t.key), ["#" + t.name, h("span", { class: "chip-num" }, String(t.count))], { name: "#" + t.name, redraw: draw })));
+        sec("Tags", [tags]);
+
+        const dates = row();
+        const custom = p.date && !DATE_PRESETS.some(([, l]) => l === p.date.label);
+        dates.append(h("button", { class: "chip" + (!p.date && !customOpen ? " on" : ""), onclick: () => { customOpen = false; setDateWords(""); draw(); } }, "Any time"));
+        DATE_PRESETS.forEach(([k, label]) => dates.append(h("button", { class: "chip" + (p.date && p.date.label === label ? " on" : ""), onclick: () => { customOpen = false; setDateWords("date:" + k); draw(); } }, label)));
+        dates.append(h("button", { class: "chip" + (custom || customOpen ? " on" : ""), id: "tl-custom-dates", onclick: () => { customOpen = !customOpen || custom; draw(); } }, ic("calendar"), custom ? p.date.label : "Custom dates"));
+        const dateKids = [dates];
+        if (customOpen || custom) {
+          const from = h("input", { type: "date", class: "input", id: "tl-from", "aria-label": "From", value: p.date && Number.isFinite(p.date.from) ? isoDay(p.date.from) : "" });
+          const to = h("input", { type: "date", class: "input", id: "tl-to", "aria-label": "To", value: p.date && Number.isFinite(p.date.to) ? isoDay(p.date.to - S.DAY) : "" });
+          const apply = () => {
+            const parts = [];
+            if (from.value) parts.push("after:" + from.value);
+            if (to.value) { const end = new Date(to.value + "T00:00"); end.setDate(end.getDate() + 1); parts.push("before:" + isoDay(end.getTime())); }
+            if (!parts.length) { api.showToast("Pick a start or end date"); return; }
+            customOpen = false; setDateWords(parts.join(" ")); draw();
+          };
+          dateKids.push(h("div", { class: "tl-dates" }, h("label", null, "From", from), h("label", null, "To", to)),
+            h("button", { class: "btn gp-small tl-date-apply", id: "tl-date-apply", onclick: apply }, "Use these dates"));
+        }
+        sec("Date", dateKids);
+
+        const kinds = row();
+        TYPE_OPTIONS.forEach(([k, v, label, icon]) => { const c = triChip(k, v, k + ":" + v, [ic(icon), label], { name: label, redraw: draw }); c.dataset.type = v; kinds.append(c); });
+        sec("Kind", [kinds]);
+        const flags = row();
+        IS_OPTIONS.forEach(([k, v, label]) => { const c = triChip(k, v, k + ":" + v, [label], { name: label, redraw: draw }); c.dataset.is = v; flags.append(c); });
+        sec("Status and marks", [flags]);
+
+        const sorts = row();
+        SORTS.forEach(([k, label]) => sorts.append(h("button", { class: "chip" + (ui.sort === k ? " on" : ""), onclick: () => { setSort(k); draw(); } }, label)));
+        sec("Sort", [sorts]);
+
+        body.append(h("p", { class: "tl-tri-hint" }, "Tap a chip once to show only those, twice to hide them, three times to clear."));
+        body.append(h("div", { class: "gp-sheet-actions sticky" },
+          h("button", { class: "btn", onclick: () => { ui.sort = "newest"; saveSort(); customOpen = false; setQ(""); draw(); } }, "Clear all"),
           h("button", { class: "btn primary", onclick: done }, "Show " + lastResult.length)));
+        body.scrollTop = keepScroll;
       };
       draw();
     }, { cls: "tl-sheet" });
