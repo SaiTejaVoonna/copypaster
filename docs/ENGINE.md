@@ -9,12 +9,12 @@ This file sets out what CopyPaster's data means and what the code is allowed to 
 | Word | Meaning | In code |
 |---|---|---|
 | **Profile** | A separate set of data on the device (Personal, Work, Family) | `profiles`, one IndexedDB database each |
-| **Space** | A part of life inside a profile (Health, Food, Trips). Called "Group" before 2.6; the code still says group. | `groups` store |
-| **Sub-chat** | A kind of entry inside a group (Prescriptions, Bills) | `group.subs` |
+| **Space** | A part of life inside a profile (Health, Food, Trips) | `groups` store |
+| **Sub-chat** | A kind of entry inside a space (Prescriptions, Bills) | `group.subs` |
 | **Entity** | A reusable person, place or thing with one identity | `entities` store |
 | **Type** | What kind of entity it is (Doctor, Restaurant, Vehicle). Defines its fields. | `entity.type` |
-| **Page** | A group's view of an entity: the entity's entries in that group, its stats, its tabs | `group.mainTags[]`, each `{ id, entity, color }` plus a display copy of the name and one-line summary |
-| **Entry** | Something that happened, or a document | `entries` store, linked to groups by `refs` |
+| **Page** | A space's view of an entity: the entity's entries in that space, its stats, its tabs | `group.mainTags[]`, each `{ id, entity, color }` plus a display copy of the name and one-line summary |
+| **Entry** | Something that happened, or a document | `entries` store, linked to spaces by `refs` |
 | **Source** | The original thing captured (a photo, a file) plus how and when it was captured | `capture` on a note or entry: the original, time, origin, file name, location |
 | **Field** | A value that describes an entity or an entry, from the one field engine | `group.fields.custom`, `entity.fields` |
 | **Tag** | A quick label shared by notes and entries | `tags` store; entries keep the key |
@@ -30,7 +30,7 @@ People see these simply as *Personal → Health → Dr X → Prescriptions*. The
 4. OCR and AI output is a suggestion until a person confirms it.
 5. A captured source keeps its available capture details: time, origin, original file name, and location with its accuracy and source.
 6. A suggestion keeps where it came from, how confident it is, and whether it is confirmed.
-7. One entry can sit in several groups without being copied.
+7. One entry can sit in several spaces without being copied.
 8. An entity has one stable identity (its `id`).
    - Renaming it or changing its type never makes a new one.
    - A detail such as a specialty never becomes its identity.
@@ -64,14 +64,14 @@ Spaces, entities and (later) documents all use the same field definitions: `{ id
 | Type | Holds | Notes |
 |---|---|---|
 | `text` | Free text | |
-| `number` | A number, with an optional unit | Can show as a total or latest value in a group header |
+| `number` | A number, with an optional unit | Can show as a total or latest value in a space header |
 | `date` | A day | |
 | `expiry` | A day something runs out | Turns into a reminder |
 | `phone` | A phone number | Shown as text you can copy |
 | `place` | A link to a place entity | |
 | `person` | A link to a person entity | |
 
-Amount and rating stay as the built-in group fields they already are.
+Amount and rating stay as the built-in space fields they already are.
 
 ## Types
 
@@ -83,8 +83,8 @@ Adding a field to one entity asks whether to add it to the type. If yes, future 
 
 - Snap saves the source first. Nothing is required before saving.
 - A global snap lands in the Inbox as a note marked `captured`, shown under Inbox → Captured. Giving it a title, text, folder or tag counts as sorting it out.
-- A snap from inside a group, page or sub-chat saves straight into that context.
+- A snap from inside a space, page or sub-chat saves straight into that context.
 - Location is fetched in the background and added when it arrives. It never delays the save.
 - Coordinates are evidence; a map match would only be a suggestion. The place a person picks is what counts.
-- "From Inbox" in a group moves the captured note into that group as an entry, with its capture details. It is moved, never copied.
+- "From Inbox" in a space moves the captured note into that space as an entry, with its capture details. It is moved, never copied.
 - The photo shown in lists is a smaller copy; `capture.original` keeps the file as it was picked (up to 15 MB).

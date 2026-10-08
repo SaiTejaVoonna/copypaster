@@ -92,8 +92,8 @@ test("2FA codes match the RFC 6238 test values, and otpauth links are read", asy
   expect(r.bad).toContain("doesn't belong");
 });
 
-test("smart search reads #tags, group:, date:, type: and is: and leaves the rest as text", async ({ page }) => {
-  const p = await page.evaluate(() => window.CPSearch.parse('apollo #lab group:hos date:2026-03 type:photo is:fav #"Apollo Hospital"', { groups: [{ id: "g1", name: "Hospital" }] }));
+test("smart search reads #tags, space:, date:, type: and is: and leaves the rest as text", async ({ page }) => {
+  const p = await page.evaluate(() => window.CPSearch.parse('apollo #lab space:hos date:2026-03 type:photo is:fav #"Apollo Hospital"', { groups: [{ id: "g1", name: "Hospital" }] }));
   expect(p.text).toBe("apollo");
   expect(p.tags).toEqual(["lab", "apollo-hospital"]);
   expect(p.groups).toEqual(["g1"]);

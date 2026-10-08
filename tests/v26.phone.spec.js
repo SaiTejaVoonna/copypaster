@@ -56,3 +56,18 @@ test("dock: pick tabs in Settings; Timeline gets its own tab without the keyboar
   await expect(page.locator("#tl-search")).not.toBeFocused();
   await expect(page.locator("#tab-bar [data-tab='timeline']")).toHaveClass(/active/);
 });
+
+test("the phone Filter sheet and dock settings say Space, never group", async ({ page }) => {
+  await page.tap("#tab-bar [data-tab='search']");
+  await page.tap(".tl-filter-btn");
+  await expect(page.locator("#cp-sheet-overlay")).toContainText("Space");
+  await expect(page.locator("#cp-sheet-overlay")).not.toContainText(/group/i);
+  await page.keyboard.press("Escape");
+  await page.goto("./");
+  await page.tap("#tab-bar [data-tab='more']");
+  await page.tap("#settings-btn");
+  await page.tap('.settings-nav-item[data-page="appearance"]');
+  const options = await page.locator("#dock-slot-0 option").allInnerTexts();
+  expect(options).toContain("Spaces");
+  expect(options.join(" ")).not.toMatch(/group/i);
+});

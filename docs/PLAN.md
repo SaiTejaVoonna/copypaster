@@ -5,7 +5,7 @@
 ## Status
 
 - Live site (`main`): **v2.0**.
-- **v2.5** (Groups + Core) is in pull request #1 with 108/108 tests passing, waiting for the owner's merge.
+- **v2.5** (Spaces + Core) is in pull request #1 with 108/108 tests passing, waiting for the owner's merge.
 - Nothing goes live without the owner's "ok".
 - The repo layout stays as it is. `index.html`, `sw.js` and the tests depend on file paths, so there will be no folder restructure.
 - The old `Copy-Paster` repo (first version) is superseded by this one.
@@ -16,7 +16,7 @@ Versions 2.1–2.4 were never released. From now on there are no gaps.
 
 | Version | Phase |
 |---|---|
-| 2.5 Core (in PR) | Dock, global Timeline with smart search (`#tag group: date: type: is:`), shared tags, checklists, status, reminders, voice notes, sketches, password builder, 2FA codes, backup reminder |
+| 2.5 Core (in PR) | Dock, global Timeline with smart search (`#tag space: date: type: is:`), shared tags, checklists, status, reminders, voice notes, sketches, password builder, 2FA codes, backup reminder |
 | 2.6 | Phase 1: Fix and Foundation |
 | 2.7 | Phase 2: Documents and Safety |
 | 3.0 | Phase 3: Beta and Outside World (only if it deserves 3.0) |
@@ -26,9 +26,9 @@ Versions 2.1–2.4 were never released. From now on there are no gaps.
 **Fixes from phone testing:**
 - Filter sheet spacing.
 - Custom dates on phones.
-- Exclude filters (`-#tag`, `-group:`).
+- Exclude filters (`-#tag`, `-space:`).
 - A dock you can change, with Timeline as its own tab.
-- Tags and "+ New" in the group message bar.
+- Tags and "+ New" in the space message bar.
 - Rating stars cut off.
 - Photo-only entry titled with the type name.
 - New place capitalisation.
@@ -39,7 +39,7 @@ Versions 2.1–2.4 were never released. From now on there are no gaps.
 | Word | Means | Example |
 |---|---|---|
 | **Profile** | A separate set of data on the device | Personal, Work, Family |
-| **Space** | A part of life, inside a profile (called "Group" before 2.6) | Health, Food, Trips |
+| **Space** | A part of life, inside a profile | Health, Food, Trips |
 | **Entity** | A reusable person, place or thing with one identity | Dr X, Nimrah Cafe, the bike |
 | **Page** | A space's view of an entity | Health → Dr X |
 | **Sub-chat** | A kind of entry inside a space | Prescriptions, Bills |
@@ -49,22 +49,23 @@ People see it simply as **Personal → Health → Dr X → Prescriptions**. Unde
 
 **Profiles and Spaces (decided during 2.6 testing):**
 - Profiles keep the name **Profile** (Personal, Work, Family). Doctors, restaurants and vehicles are entities with pages, never profiles.
-- Groups are shown as **Spaces**: a space is the place a part of life lives, with its timeline, pages and (later) its own AI.
-- Text change only: stored data and the code (`groups`) stay as they are. Search takes `space:food`; `group:food` still works.
+- A **Space** is the place a part of life lives, with its timeline, pages and (later) its own AI.
+- Text change only: stored data and the code (`groups`) stay as they are. Search takes `space:food`.
+- The word "group" is kept for later: putting several spaces together (for example Food + Trips) for one timeline or one AI question.
 - Starting templates: Health, Food, Trips, Vehicles, Watchlist.
 
 **The foundation:**
 - `docs/ENGINE.md`: a short set of rules.
-- **One field engine:** the existing group fields, plus phone, person, place and expiry.
+- **One field engine:** the existing space fields, plus phone, person, place and expiry.
 - **Entities: Person / Place / Thing with a Type** (Doctor, Restaurant, Vehicle, Anime, your own).
   - Type is the only category, and stays shallow.
   - Specialty is a field of Doctor, not a category.
   - One stable identity: renaming or changing the type never creates a new entity.
-- **Pages inside groups, Instagram-style:**
-  - Circles at the top of a group open that entity's page for this group.
-  - The group's sub-chats become the page's tabs.
+- **Pages inside spaces, Instagram-style:**
+  - Circles at the top of a space open that entity's page for this space.
+  - The space's sub-chats become the page's tabs.
   - Stats (visits, total spent, average rating, first and last visit) are worked out from entries and fields, never stored by hand.
-  - The same entity in another group has its own page there ("Also in Insurance"). Same identity, different context, no duplicate entries.
+  - The same entity in another space has its own page there ("Also in Insurance"). Same identity, different context, no duplicate entries.
   - Merge for accidental duplicates.
 - **Saving an entity needs only a name and a type.** "+ Add detail" comes later. Adding a field to one entity asks "Add to all Doctors?"; it's optional and leaves no empty boxes.
 - **Date fields** (insurance expiry, follow-up) become reminders and calendar dots automatically.
@@ -72,22 +73,22 @@ People see it simply as **Personal → Health → Dr X → Prescriptions**. Unde
 
 **Snap: capture now, organise later**
 - **Capture → Save → Done.** Boringly reliable, not an "AI camera".
-- Saving works instantly and offline (once the app is installed). No group, entity, place, tag, OCR, AI, GPS, map or network is required. If any of those fail, the capture is still saved.
+- Saving works instantly and offline (once the app is installed). No space, entity, place, tag, OCR, AI, GPS, map or network is required. If any of those fail, the capture is still saved.
 - **Global Snap** (from the + menu): saves into **Inbox, under a "Captured" filter**. No new storage area.
-- **Contextual Snap** (from inside a group, page or sub-chat, e.g. Personal → Health → Dr X → Prescriptions): saves with that context already filled in. No form appears before saving.
+- **Contextual Snap** (from inside a space, page or sub-chat, e.g. Personal → Health → Dr X → Prescriptions): saves with that context already filled in. No form appears before saving.
 - **Saved with each snap:** the original, time, origin (camera, photo library, file), original file name, and location with its accuracy and source when available.
   - Location is asked for in the background and never delays the save.
   - Coordinates are evidence. A map or web match is only a suggestion. The place you choose is what counts.
 - **Snap another** for multi-page papers. Each page stays its own original; nothing is merged.
 - **Organise later:** in a page's sub-chat, "Add captured item" links the existing original. It is never copied.
-- Today's "Snap to group" asks where to save before saving. It changes to save first, with that choice optional.
+- Today's "Snap to space" asks where to save before saving. It changes to save first, with that choice optional.
 - The design leaves room for OCR, AI, location lookup and entity matching to be added later without changing the capture flow. **None of that is built in Phase 1**, and there is no medical intelligence.
 
 ## Phase 2 (2.7): Documents and Safety
 
 - Import PDFs and photos and keep the originals, with their capture details (time, location, origin, original file name) where available.
 - Show and index each page of a PDF separately while the original PDF stays untouched.
-- **Visit bundles:** related originals (prescription, pharmacy bill, lab report, payment) are grouped into one visit by date and place. The bundle is only a link between them; the originals are never merged or changed.
+- **Visit bundles:** related originals (prescription, pharmacy bill, lab report, payment) are collected into one visit by date and place. The bundle is only a link between them; the originals are never merged or changed.
 - Read printed text, used **only as a search index**. Suggested values (person, date, items, amount, follow-up) need a ✓.
 - Match a printed pharmacy bill to a handwritten prescription. The bill gives exact names; the prescription gives the dosage.
 - Review queue: "8 new, 3 need review".
@@ -112,8 +113,8 @@ People see it simply as **Personal → Health → Dr X → Prescriptions**. Unde
 4. OCR or AI output is a suggestion until confirmed with ✓.
 5. Every captured source keeps its available capture details: time, location, origin and original file name.
 6. Every suggestion (OCR, AI, web lookup) keeps where it came from, how confident it is, and whether it is confirmed.
-7. One entry can sit in several groups without being copied.
-8. People, places and things are reusable records with a stable identity. Renaming one or changing its type never creates a new one, and a detail like a specialty never becomes its identity. A page inside a group is a view of that identity, never a second copy.
+7. One entry can sit in several spaces without being copied.
+8. People, places and things are reusable records with a stable identity. Renaming one or changing its type never creates a new one, and a detail like a specialty never becomes its identity. A page inside a space is a view of that identity, never a second copy.
 9. Spaces give context; they don't own entries.
 10. Views never duplicate data.
 11. Outside services enrich or import; they are never the source of truth.

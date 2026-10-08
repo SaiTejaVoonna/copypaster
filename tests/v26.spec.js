@@ -21,10 +21,10 @@ async function storedEntries(page) {
   });
 }
 
-test("minus words hide matches: -#tag, -type:, -group:, and a plain -word stays text", async ({ page }) => {
+test("minus words hide matches: -#tag, -type:, -space:, and a plain -word stays text", async ({ page }) => {
   const p = await page.evaluate(() => {
     const S = window.CPSearch;
-    const q = S.parse("ls -la -#chai -type:photo -group:foo -is:done", { groups: [{ id: "g1", name: "Food" }] });
+    const q = S.parse("ls -la -#chai -type:photo -space:foo -is:done", { groups: [{ id: "g1", name: "Food" }] });
     return { text: q.text, not: q.not, labels: q.tokens.map((t) => t.label) };
   });
   expect(p.text).toBe("ls -la");
@@ -319,11 +319,11 @@ test("Snap inside a group saves straight to that page and sub-chat; From Inbox m
   await expect(page.locator("#gp-capture")).toContainText("Camera");
 });
 
-test("search: space:name picks a space, the old group:name still works, and chips write space:", async ({ page }) => {
+test("search: space:name picks a space, group:name is not a search word, and chips write space:", async ({ page }) => {
   const r = await page.evaluate(() => {
     const ctx = { groups: [{ id: "g1", name: "Food trips" }, { id: "g2", name: "Health" }] };
     const a = window.CPSearch.parse("space:hea", ctx), b = window.CPSearch.parse("group:hea", ctx), c = window.CPSearch.parse("-space:food", ctx);
-    return { a: a.groups, b: b.groups, c: c.not.groups, tok: window.CPSearch.tokenFor("group", "Food trips") };
+    return { a: a.groups, b: b.groups, bText: b.text, c: c.not.groups, tok: window.CPSearch.tokenFor("group", "Food trips") };
   });
-  expect(r).toEqual({ a: ["g2"], b: ["g2"], c: ["g1"], tok: 'space:"Food trips"' });
+  expect(r).toEqual({ a: ["g2"], b: [], bText: "group:hea", c: ["g1"], tok: 'space:"Food trips"' });
 });

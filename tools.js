@@ -181,7 +181,7 @@
       const drawOptions = () => {
         optsBox.replaceChildren();
         if (st.mode === "easy") {
-          optsBox.append(h("p", { class: "gp-hint" }, "Three groups of six small letters, with one capital and one number. Easy to read out and type on a phone."));
+          optsBox.append(h("p", { class: "gp-hint" }, "Three sets of six small letters, with one capital and one number. Easy to read out and type on a phone."));
           return;
         }
         if (st.mode === "pin") { const o = st.pin; optsBox.append(h("div", { class: "pw-line" }, h("span", { class: "pw-lbl" }, "Digits"), stepper(o.length, 4, 12, (v) => change(() => { o.length = v; })(), "digits"))); return; }

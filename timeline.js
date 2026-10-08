@@ -2,7 +2,7 @@
 // one filter bar (Search, Group, Tag, Date, Type, Sort). window.CPTimeline
 //
 // The search box is the single source of truth: picking a group, tag, date or
-// type from a menu just adds words like group:hospital or #lab to it (see
+// type from a menu just adds words like space:health or #lab to it (see
 // search-core.js), and the chips under it are those words, each removable.
 // The app hands over plain rows through `api`; nothing here touches storage.
 (function () {
@@ -346,7 +346,7 @@
   const IS_OPTIONS = [["is", "todo", "To do"], ["is", "doing", "In progress"], ["is", "done", "Done"], ["is", "fav", "Favorites"], ["is", "pinned", "Pinned"], ["is", "unread", "Unread"], ["is", "reminder", "Has a reminder"], ["is", "archived", "Archived"]];
 
   // A chip with three states: off → show only these → hide these → off.
-  // `raw` is the positive word (type:photo, #lab, group:Food); its hidden form is "-" + raw.
+  // `raw` is the positive word (type:photo, #lab, space:Food); its hidden form is "-" + raw.
   // `pick` replaces the positive word when only one can be on (groups).
   function stateOf(kind, value) {
     const t = S.parse(ui.q, ctx()).tokens.find((x) => x.kind === kind && (kind === "notes" || x.value === value));

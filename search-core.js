@@ -1,10 +1,10 @@
 // CopyPaster smart search: reads a search like
-//   apollo #lab group:hospital date:2026-03 is:fav
+//   apollo #lab space:health date:2026-03 is:fav
 // into filters plus plain words. No screen code. window.CPSearch
 //
 // Words it understands (all optional, any order):
 //   #tag  #"two words"         a tag (same tag in notes and groups)
-//   group:name  in:name        a group (start of its name is enough); in:notes for notes only
+//   space:name  in:name        a space (start of its name is enough); in:notes for notes only
 //   date:today | yesterday | week | month | year | 2026 | 2026-03 | 2026-03-14 | 7d | 30d | 3m
 //   after:2026-01-01  before:2026-02-01
 //   type:note | command | link | photo | password | entry | checklist | voice | sketch
@@ -75,7 +75,7 @@
   const unquote = (s) => s.replace(/^"|"$/g, "");
 
   // One word as a filter token ({ kind, value, label }), or null for plain text.
-  // ctx.groups: [{ id, name }] so group:hos finds "Hospital".
+  // ctx.groups: [{ id, name }] so space:hea finds "Health".
   function readToken(raw, groups) {
     if (raw.length > 1 && raw[0] === "#") {
       const key = normalizeTag(unquote(raw.slice(1)));
@@ -84,7 +84,7 @@
     const kv = raw.match(/^([a-z]+):(.+)$/i);
     if (!kv) return null;
     const k = kv[1].toLowerCase(), v = unquote(kv[2]).trim();
-    if ((k === "space" || k === "group" || k === "g" || k === "in") && v) {
+    if ((k === "space" || k === "in") && v) {
       if (k === "in" && /^notes?$/i.test(v)) return { kind: "notes", value: true, label: "Notes only" };
       const vl = v.toLowerCase();
       const hit = groups.find((g) => g.name.toLowerCase() === vl) || groups.find((g) => g.name.toLowerCase().startsWith(vl)) || groups.find((g) => g.name.toLowerCase().includes(vl));
@@ -114,7 +114,7 @@
     return null;
   }
 
-  // A minus in front hides matches: -#chai, -group:bike, -type:photo, -is:done, -in:notes.
+  // A minus in front hides matches: -#chai, -space:bike, -type:photo, -is:done, -in:notes.
   // (A plain -word stays text, so "ls -la" still searches for "-la".)
   function parse(q, ctx = {}) {
     const groups = ctx.groups || [];
@@ -185,7 +185,7 @@
     if (parsed.tokens.some((t) => t.raw === raw)) return rest;
     return (rest.trim() + " " + raw).trim();
   }
-  // Quotes a value when it has spaces: group:"Food trips".
+  // Quotes a value when it has spaces: space:"Food trips".
   const tokenFor = (kind, value) => {
     const v = /\s/.test(value) ? '"' + value + '"' : value;
     return kind === "tag" ? "#" + v : (kind === "group" ? "space" : kind) + ":" + v;
