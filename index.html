@@ -73,6 +73,7 @@
     --line-strong: rgba(255, 255, 255, 0.12);
     --text: #ececf0; --text-2: #a3a6b0; --text-3: #6e727d;
     --accent: #4c8dff; --accent-hover: #6aa0ff; --accent-text: #ffffff;
+    --accent-grad: linear-gradient(145deg, #5b9bff, #6a6cff); --accent-glow: rgba(76, 110, 255, 0.65);
     --accent-soft: rgba(76, 141, 255, 0.14); --accent-ring: rgba(76, 141, 255, 0.35);
     --danger: #ff5f57; --danger-soft: rgba(255, 95, 87, 0.12);
     --success: #34d399; --warning: #f5b544;
@@ -261,7 +262,7 @@
   #brand { display: flex; align-items: center; gap: 10px; padding: var(--s-4) var(--s-2) var(--s-3); }
   #brand-dot {
     width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0; display: grid; place-items: center; color: #fff;
-    background: linear-gradient(140deg, #5b9bff, #7b61ff); box-shadow: 0 3px 10px -3px rgba(91, 110, 255, 0.7), inset 0 1px 0 rgba(255,255,255,.25);
+    background: var(--accent-grad); box-shadow: 0 3px 10px -3px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.25);
   }
   #brand-dot .icon { width: 15px; height: 15px; }
   #brand-label { flex: 1; font-family: var(--font-display); font-size: var(--fs-lg); font-weight: var(--fw-bold); letter-spacing: -0.02em; }
@@ -1271,7 +1272,7 @@
     #new-btn {
       position: fixed; right: calc(18px + env(safe-area-inset-right)); bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 15;
       width: 58px; height: 58px; padding: 0; margin: 0; border-radius: 20px; justify-content: center;
-      background: linear-gradient(145deg, #5b9bff, #6a6cff); box-shadow: 0 10px 28px -6px rgba(76, 110, 255, 0.65), inset 0 1px 0 rgba(255,255,255,.25);
+      background: var(--accent-grad); box-shadow: 0 10px 28px -6px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.25);
     }
     #new-btn .new-label { display: none; }
     #new-btn .icon { width: 26px; height: 26px; }
@@ -1643,6 +1644,17 @@
                   <button class="theme-opt" data-theme-pick="light" role="radio"><svg class="icon"><use href="#icon-sun"></use></svg>Light</button>
                   <button class="theme-opt" data-theme-pick="dark" role="radio"><svg class="icon"><use href="#icon-moon"></use></svg>Dark</button>
                   <button class="theme-opt" data-theme-pick="system" role="radio"><svg class="icon"><use href="#icon-monitor"></use></svg>Auto</button>
+                </div>
+              </div>
+              <div class="settings-line"><span>Color<small>Buttons, the dock and highlights.</small></span>
+                <div id="accent-picker" role="radiogroup" aria-label="Color">
+                  <button class="accent-opt" data-accent-pick="blue" role="radio" aria-label="Blue" title="Blue" style="--sw:#4c8dff"></button>
+                  <button class="accent-opt" data-accent-pick="violet" role="radio" aria-label="Violet" title="Violet" style="--sw:#8b5cf6"></button>
+                  <button class="accent-opt" data-accent-pick="green" role="radio" aria-label="Green" title="Green" style="--sw:#16a34a"></button>
+                  <button class="accent-opt" data-accent-pick="orange" role="radio" aria-label="Orange" title="Orange" style="--sw:#f97316"></button>
+                  <button class="accent-opt" data-accent-pick="pink" role="radio" aria-label="Pink" title="Pink" style="--sw:#ec4899"></button>
+                  <button class="accent-opt" data-accent-pick="teal" role="radio" aria-label="Teal" title="Teal" style="--sw:#0d9488"></button>
+                  <button class="accent-opt" data-accent-pick="mono" role="radio" aria-label="Graphite" title="Graphite" style="--sw:#9ca3af"></button>
                 </div>
               </div>
             </div>
@@ -2319,6 +2331,22 @@
   document.querySelectorAll("[data-theme-pick]").forEach((b) => b.addEventListener("click", () => applyTheme(b.dataset.themePick)));
   systemDark.addEventListener("change", () => { if (themePref === "system") applyTheme("system"); });
   applyTheme(localStorage.getItem(THEME_KEY) || "system");
+
+  // Accent color: blue by default; picked in Settings → Appearance. Stored per device.
+  const ACCENT_KEY = "copypaster-accent";
+  const ACCENTS = ["blue", "violet", "green", "orange", "pink", "teal", "mono"];
+  function applyAccent(name) {
+    const pick = ACCENTS.includes(name) ? name : "blue";
+    if (pick === "blue") delete document.documentElement.dataset.accent; else document.documentElement.dataset.accent = pick;
+    try { localStorage.setItem(ACCENT_KEY, pick); } catch {}
+    document.querySelectorAll("[data-accent-pick]").forEach((b) => {
+      const on = b.dataset.accentPick === pick;
+      b.classList.toggle("active", on);
+      b.setAttribute("aria-checked", on ? "true" : "false");
+    });
+  }
+  document.querySelectorAll("[data-accent-pick]").forEach((b) => b.addEventListener("click", () => applyAccent(b.dataset.accentPick)));
+  try { applyAccent(localStorage.getItem(ACCENT_KEY) || "blue"); } catch { applyAccent("blue"); }
 
   // ---------- Collapsible sidebar sections ----------
 
@@ -5212,6 +5240,15 @@
         guess.textContent = window.CPSee.describe(item.suggest) + " \u00b7 a guess made on this phone";
         cap.appendChild(guess);
       }
+      if (item.captured && groupsApi) {
+        const sort = document.createElement("button");
+        sort.type = "button";
+        sort.className = "btn primary gp-small";
+        sort.id = "sort-snap";
+        sort.textContent = "Sort into a space";
+        sort.addEventListener("click", () => sortSnapById(item.id));
+        cap.appendChild(sort);
+      }
       if (item.capture.original) {
         const open = document.createElement("button");
         open.type = "button";
@@ -5861,9 +5898,16 @@
     const item = normalize({ id: uuid(), type: "note", title: "", content: "", images: [shot.display], captured: true, capture: shot.capture, createdAt: now, updatedAt: now });
     try { await saveItem(item); } catch { return; }
     renderAllViews();
-    showToast("Saved to Inbox", { action: { label: "Snap another", onClick: () => snapNow() } });
+    showToast("Saved to Inbox", groupsApi ? { action: { label: "Sort", onClick: () => sortSnapById(item.id) } } : { action: { label: "Snap another", onClick: () => snapNow() } });
     if (snapLocationOn()) addSnapLocation(item.id);
     if (snapSeeOn()) addSnapGuess(item.id, shot.display);
+  }
+  // Opens "Sort this snap" for a snap still in Inbox.
+  function sortSnapById(id) {
+    const item = cache.find((i) => i.id === id);
+    if (!item || !groupsApi) return;
+    if (!groupsApi.enabled()) groupsApi.setEnabled(true);
+    groupsApi.sortSnap(item);
   }
   // What the photo looks like, worked out on this device. Arrives later, or never.
   const SNAP_SEE_KEY = "copypaster-snap-see";

@@ -1836,18 +1836,106 @@
       list.forEach((n) => grid.append(h("button", { class: "gp-captured-item", "data-note": n.id, onclick: async () => {
         close();
         const where = { g: g.id, s: ui.s !== "all" ? ui.s : null, tag: ui.tag && ui.tag !== "__none" ? ui.tag : null };
-        const photos = (n.images || []).filter((p) => typeof p === "string" && /^data:image\/(jpeg|png|webp|gif);/.test(p));
-        const e = C.normalizeEntry({ refs: [where], title: (n.title || "").trim() || (n.content || "").split("\n")[0].slice(0, 120) || "Photo", note: n.title ? n.content || "" : (n.content || "").split("\n").slice(1).join("\n"),
-          photos, capture: n.capture, happenedOn: (n.capture && n.capture.at) || n.createdAt || Date.now(), addedOn: Date.now() });
-        try { await saveEntry(e); } catch (err) { console.error(err); api.showToast("Couldn't move it"); return; }
-        entries.push(e);
-        changed();
-        await api.deleteNote(n.id);
+        let e;
+        try { e = await moveSnapInto(n, where); } catch (err) { console.error(err); api.showToast("Couldn't move it"); return; }
         ui.flash = e.id; render(); setTimeout(() => { ui.flash = null; }, 1600);
         api.showToast("Moved here from Inbox");
       } }, n.images && n.images[0] ? h("img", { src: n.images[0], alt: "" }) : ic("image"),
         h("small", null, fmtDay((n.capture && n.capture.at) || n.createdAt) + " \u00b7 " + fmtTime((n.capture && n.capture.at) || n.createdAt)))));
       body.append(grid);
+    });
+  }
+
+  // ---------- Sort a snap ----------
+  // Which space and sub-chat a guess points to. Names and icons decide, so it
+  // works for spaces people named themselves.
+  const SNAP_MATCH = {
+    food: { space: /food|eat|restaurant|cafe|café|dish|meal|snack|kitchen/i, icons: ["cup", "utensils"], sub: [/dish/i, /food|meal|snack/i], tpl: "food" },
+    medicine: { space: /health|hospital|doctor|medic|clinic|pharma/i, icons: ["cross", "pill"], sub: [/medicine/i, /prescription/i, /lab/i], tpl: "hospital" },
+    vehicle: { space: /vehicle|bike|car|scooter|motor/i, icons: ["bike", "car", "fuel"], sub: [/photo/i], tpl: "bike" },
+    document: { space: /document|\bids?\b|paper|bill|receipt|money/i, icons: ["clipboard", "receipt", "wallet"], sub: [/bill|receipt/i, /\bids?\b|document|certificate/i], tpl: "documents" },
+    screen: { space: /gadget|device|laptop|phone|tech/i, icons: ["cog"], sub: [/bill/i, /warranty/i], tpl: "gadgets" },
+    place: { space: /trip|travel|tour|place|holiday/i, icons: ["plane", "route", "map-pin"], sub: [/photo/i], tpl: "trips" },
+    pet: { space: /pet|dog|cat/i, icons: ["paw"], sub: [/photo/i], tpl: "pets" },
+    animal: { space: /pet|animal|wildlife/i, icons: ["paw"], sub: [/photo/i], tpl: "pets" },
+    clothes: { space: /shop|cloth|fashion/i, icons: ["cart"], sub: [/bought|purchase/i], tpl: "shopping" }
+  };
+  function snapSpaceFor(kind) {
+    const m = SNAP_MATCH[kind];
+    if (!m) return null;
+    return groups.find((g) => m.space.test(g.name)) || groups.find((g) => m.icons.includes(g.icon)) || null;
+  }
+  // Moves a snap from Inbox into a space as an entry: same photo, original and capture details.
+  async function moveSnapInto(n, where, title) {
+    const photos = (n.images || []).filter((p) => typeof p === "string" && /^data:image\/(jpeg|png|webp|gif);/.test(p));
+    const e = C.normalizeEntry({ refs: [where], title: (title || "").trim() || (n.title || "").trim() || (n.content || "").split("\n")[0].slice(0, 120) || "Photo",
+      note: n.title ? n.content || "" : (n.content || "").split("\n").slice(1).join("\n"),
+      photos, capture: n.capture, happenedOn: (n.capture && n.capture.at) || n.createdAt || Date.now(), addedOn: Date.now() });
+    await saveEntry(e);
+    entries.push(e);
+    changed();
+    await api.deleteNote(n.id);
+    return e;
+  }
+  // "Sort this snap": everything filled in from what's known; one tap to file it.
+  function sortSnap(n) {
+    if (!n) return;
+    const guess = n.suggest || null;
+    const m = guess && SNAP_MATCH[guess.kind];
+    let g = (guess && snapSpaceFor(guess.kind)) || null;
+    const suggestedId = g && g.id;
+    let subId = null, tagId = null;
+    const pickSub = () => { subId = null; if (g && m) for (const re of m.sub) { const s = g.subs.find((x) => re.test(x.name)); if (s) { subId = s.id; break; } } };
+    pickSub();
+    const cap = n.capture || {};
+    const nice = (t) => t ? t.charAt(0).toUpperCase() + t.slice(1) : "";
+    sheet("Sort this snap", (body, close) => {
+      const title = h("input", { class: "input gp-input", id: "gp-sort-title", placeholder: "What is it?", value: (n.title || "").trim() || (guess && guess.detail ? nice(guess.detail) : ""), "aria-label": "Title" });
+      const draw = () => {
+        body.replaceChildren();
+        const facts = [guess ? (window.CPSee ? window.CPSee.describe(guess) : guess.label) : "", cap.at ? fmtDay(cap.at) + ", " + fmtTime(cap.at) : "",
+          cap.location ? "\u{1F4CD} " + cap.location.lat.toFixed(4) + ", " + cap.location.lng.toFixed(4) : ""].filter(Boolean);
+        body.append(h("div", { class: "gp-sort-top" }, n.images && n.images[0] ? h("img", { src: n.images[0], alt: "", class: "gp-sort-img" }) : null,
+          h("div", { class: "gp-sort-facts" }, ...facts.map((f) => h("small", null, f)), guess ? h("small", { class: "gp-dim" }, "A guess made on this phone") : null)));
+        body.append(h("label", { class: "gp-label", for: "gp-sort-title" }, "Title"), title);
+        body.append(h("span", { class: "gp-label" }, "Space"));
+        const row = h("div", { class: "gp-sort-row", id: "gp-sort-spaces" });
+        const ordered = suggestedId ? [groups.find((x) => x.id === suggestedId), ...groups.filter((x) => x.id !== suggestedId)] : groups.slice();
+        ordered.forEach((x) => row.append(h("button", { class: "gp-mini" + (g && g.id === x.id ? " active" : ""), style: "--c:" + x.color, "data-space": x.id,
+          onclick: () => { g = x; tagId = null; pickSub(); draw(); } }, ic(x.icon), x.name, x.id === suggestedId ? h("span", { class: "gp-dim" }, "· suggested") : null)));
+        // No matching space yet: offer to make one from the right template.
+        const tpl = m && !suggestedId ? C.TEMPLATES.find((t) => t.key === m.tpl) : null;
+        if (tpl && !groups.some((x) => x.name === tpl.name)) row.append(h("button", { class: "gp-mini", id: "gp-sort-new-space", onclick: async () => {
+          const ng = C.groupFromTemplate(tpl, tpl.name); ng.order = Date.now();
+          await saveGroup(ng); groups.push(ng); g = ng; pickSub(); draw();
+        } }, ic("plus"), "New " + tpl.name + " space"));
+        if (!groups.length && !tpl) row.append(h("button", { class: "gp-mini", onclick: () => { close(); openNewGroup(); } }, ic("plus"), "New space"));
+        body.append(row);
+        if (g && g.subs.length) {
+          body.append(h("span", { class: "gp-label" }, "Sub-chat"));
+          const subs = h("div", { class: "gp-sort-row", id: "gp-sort-subs" });
+          subs.append(h("button", { class: "gp-mini" + (!subId ? " active" : ""), onclick: () => { subId = null; draw(); } }, "None"));
+          g.subs.forEach((x) => subs.append(h("button", { class: "gp-mini" + (subId === x.id ? " active" : ""), style: "--c:" + x.color, onclick: () => { subId = x.id; draw(); } }, ic(x.icon), x.name)));
+          body.append(subs);
+        }
+        if (g && g.mainTags.length) {
+          body.append(h("span", { class: "gp-label" }, g.mainLabel || "Page"));
+          const pages = h("div", { class: "gp-sort-row" });
+          pages.append(h("button", { class: "gp-mini" + (!tagId ? " active" : ""), onclick: () => { tagId = null; draw(); } }, "None"));
+          g.mainTags.forEach((t) => pages.append(h("button", { class: "gp-mini" + (tagId === t.id ? " active" : ""), style: "--c:" + t.color, onclick: () => { tagId = t.id; draw(); } }, t.name)));
+          body.append(pages);
+        }
+        body.append(h("div", { class: "gp-sheet-actions" },
+          h("button", { class: "btn", onclick: () => close() }, "Leave in Inbox"),
+          h("button", { class: "btn primary", id: "gp-sort-save", disabled: !g, onclick: async () => {
+            if (!g) return;
+            try { await moveSnapInto(n, { g: g.id, s: subId, tag: tagId }, title.value); } catch (err) { console.error(err); api.showToast("Couldn't move it"); return; }
+            close();
+            const sub = subId ? C.subOf(g, subId) : null;
+            api.showToast("Saved to " + [g.name, sub && sub.name].filter(Boolean).join(" → "), { action: { label: "Open", onClick: () => openGroup(g.id, subId || "all") } });
+          } }, g ? "Save to " + g.name : "Pick a space")));
+      };
+      draw();
     });
   }
 
@@ -2053,7 +2141,7 @@
     onHome: () => ui.screen === "home",
     stepBack, exit, showHome, snapContext, snapHere, openNewGroup, paletteItems, exportData, importData, moveNoteToGroup, focusComposer,
     timelineRows, openEntry, tagCounts, renameTag, removeTag, openComposer, groupList, setEnabled,
-    dueRows, takeDue,
+    dueRows, takeDue, sortSnap,
     hasGroups: () => groups.length > 0
   };
   // Add the icons now, so the static markup (Settings) can use them right away.

@@ -374,3 +374,58 @@ test("guesses: kinds come from the model's labels, and an unsure answer gives no
   });
   expect(r).toEqual({ food: "Food", dog: "Dog", screen: "screen", unsure: null, weak: null });
 });
+
+async function openOrganise(page) {
+  const head = page.locator("#detail-properties .props-head");
+  await expect(head).toBeVisible();
+  if ((await head.getAttribute("aria-expanded")) !== "true") await head.click();
+}
+
+test("Sort this snap: the guess picks the space and sub-chat, the title is filled in, one tap files it", async ({ page }) => {
+  await createGroup(page, "Food");
+  await page.locator('#main-nav [data-nav="all"]').click();
+  await page.evaluate(() => { window.CPSee.engine = async () => ({ classify: () => ({ classifications: [{ categories: [{ categoryName: "trifle", index: 927, score: 0.5 }] }] }) }); });
+  await page.click("#new-btn");
+  await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
+  await expect(page.locator(".item-row").first()).toContainText("Looks like food");
+  await page.locator(".item-row").first().click();
+  await openOrganise(page);
+  await page.click("#sort-snap");
+  await expect(page.locator("#gp-sort-title")).toHaveValue("Trifle");
+  await expect(page.locator("#gp-sort-spaces .gp-mini.active")).toContainText("Food");
+  await expect(page.locator("#gp-sort-spaces .gp-mini.active")).toContainText("suggested");
+  await expect(page.locator("#gp-sort-subs .gp-mini.active")).toContainText("Dishes");
+  await page.click("#gp-sort-save");
+  await expect(lastToast(page)).toContainText("Saved to Food → Dishes");
+  const e = (await storedEntries(page))[0];
+  expect(e.title).toBe("Trifle");
+  expect(e.capture && e.capture.fileName).toBe("IMG_0042.png");
+});
+
+test("Sort this snap with no matching space offers to make one from the right template", async ({ page }) => {
+  await page.evaluate(() => { window.CPSee.engine = async () => ({ classify: () => ({ classifications: [{ categories: [{ categoryName: "pill bottle", index: 720, score: 0.6 }] }] }) }); });
+  await page.click("#new-btn");
+  await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
+  await expect(page.locator(".item-row").first()).toContainText("Looks like medicine");
+  await page.locator(".item-row").first().click();
+  await openOrganise(page);
+  await page.click("#sort-snap");
+  await page.click("#gp-sort-new-space");
+  await expect(page.locator("#gp-sort-spaces .gp-mini.active")).toContainText("Health");
+  await expect(page.locator("#gp-sort-subs .gp-mini.active")).toContainText("Medicines");
+  await page.click("#gp-sort-save");
+  await expect(lastToast(page)).toContainText("Saved to Health → Medicines");
+});
+
+test("20 templates to start from, and a color you pick in Appearance", async ({ page }) => {
+  await page.click("#groups-add-btn");
+  await expect(page.locator(".gp-tpl")).toHaveCount(20);
+  for (const name of ["Pets", "Home", "Documents & IDs", "Fitness", "Kids", "Gadgets"]) await expect(page.locator(".gp-tpl", { hasText: name })).toHaveCount(1);
+  await page.locator(".gp-sheet .gp-sheet-head button[aria-label='Close']").last().click();
+  await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="appearance"]');
+  await page.click('[data-accent-pick="green"]');
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim())).toBe("#16a34a");
+  await page.reload();
+  expect(await page.evaluate(() => document.documentElement.dataset.accent)).toBe("green");
+});

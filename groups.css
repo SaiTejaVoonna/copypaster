@@ -351,7 +351,7 @@ body.group-mode #list-pane, body.group-mode #resize-list, body.group-mode #detai
 /* ---------- Phone tab bar: Snap in the middle ---------- */
 .tab-btn.snap { position: relative; }
 .tab-btn .snap-ring { width: 46px; height: 46px; margin-top: -16px; border-radius: 50%; display: grid; place-items: center; color: #fff;
-  background: linear-gradient(145deg, #5b9bff, #6a6cff); box-shadow: 0 8px 20px -6px rgba(76, 110, 255, 0.65), 0 0 0 4px var(--bg); }
+  background: var(--accent-grad); box-shadow: 0 8px 20px -6px var(--accent-glow), 0 0 0 4px var(--bg); }
 .tab-btn .snap-ring .icon { width: 22px !important; height: 22px !important; }
 .tab-btn.snap.active { color: var(--text-3); }
 
@@ -430,3 +430,11 @@ body.group-mode #toast { top: calc(14px + env(safe-area-inset-top)); bottom: aut
 .gp-captured-item img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
 .gp-captured-item small { padding: 0 6px 6px; font-size: var(--fs-2xs); }
 .gp-capture { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+
+/* Sort this snap */
+.gp-sort-top { display: flex; gap: 12px; align-items: center; }
+.gp-sort-img { width: 72px; height: 72px; border-radius: 14px; object-fit: cover; flex: none; }
+.gp-sort-facts { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gp-sort-facts small { font-size: var(--fs-sm); color: var(--text-2); }
+.gp-sort-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.gp-sort-row .gp-mini { height: 32px; font-size: var(--fs-sm); }

@@ -69,6 +69,18 @@ Starting templates are now **Health** (was Hospital), Food, **Trips** (new), **V
 - **From Inbox** (the message bar's + menu) moves an earlier snap into the open space, page and sub-chat, with its capture details. It's moved, never copied.
 - Not in 2.6: reading text from photos, AI that files things, and automatic matching. Those come in 2.7 at the earliest.
 
+## Sort this snap
+
+- After a snap, the toast offers **Sort**; an open snap has **Sort into a space**.
+- The sheet is filled in from what's known: the photo, the guess, when and where, a title from the guess, the **suggested space** (found by its name or icon: a food snap suggests a Food space) and the right **sub-chat** (Dishes, Medicines…). A page can be picked too.
+- No matching space yet? It offers **New Food space** (or Health, Trips, Pets…) from the right template.
+- **Save** moves it in as an entry with its original and capture details; **Leave in Inbox** keeps it there.
+
+## Templates and colors
+
+- 20 templates to start a space from: Blank, Health, Food, Watchlist, Vehicles, Trips, Pets, Home, Bills & subscriptions, Shopping, Money, Documents & IDs, Fitness, Work, Study, Kids, Books, Events & gifts, Gadgets, Plants & garden.
+- **Settings → Appearance → Color:** Blue (default), Violet, Green, Orange, Pink, Teal or Graphite.
+
 ## What's new
 
 The first time someone opens 2.6 after using an older version, a short **What's new** sheet explains the changes (Groups are now Spaces, Snap in the middle, the guess, pages, hiding with filters, the dock). It shows once. A brand-new install doesn't see it.

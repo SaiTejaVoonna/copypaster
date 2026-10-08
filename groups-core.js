@@ -40,6 +40,9 @@
 
   // ---------- Templates (data, not code) ----------
   const sub = (name, label, icon, color, extra) => ({ name, label, icon, color, ...(extra || {}) });
+  // A shorter way to write the extra templates.
+  const T = (key, name, desc, icon, color, subs, o) => ({ key, name, desc, icon, color, subs, mainLabel: o.mainLabel || "", mainType: o.mainType || "",
+    fields: { amount: { on: o.amount !== false, currency: "INR" }, rating: !!o.rating, custom: o.custom || [] }, cards: "none", cardWord: "" });
   const TEMPLATES = [
     { key: "blank", name: "Blank", desc: "Just a timeline. Add sub-chats and fields whenever you want.", icon: "layers", color: "#64748b",
       subs: [], mainLabel: "", fields: { amount: { on: true, currency: "INR" }, rating: false, custom: [] }, cards: "none", cardWord: "" },
@@ -65,7 +68,50 @@
     { key: "trips", name: "Trips", desc: "Each trip: tickets, stays, meals, spends and photos", icon: "plane", color: "#0ea5e9",
       subs: [sub("Tickets", "Ticket", "plane", "#4c8dff"), sub("Stays", "Stay", "home", "#8b5cf6"), sub("Meals", "Meal", "utensils", "#f97316"),
         sub("Spends", "Spend", "wallet", "#f5b544"), sub("Photos", "Photo", "camera", "#ec4899")],
-      mainLabel: "Trip", mainType: "place", fields: { amount: { on: true, currency: "INR" }, rating: false, custom: [] }, cards: "day", cardWord: "Day" }
+      mainLabel: "Trip", mainType: "place", fields: { amount: { on: true, currency: "INR" }, rating: false, custom: [] }, cards: "day", cardWord: "Day" },
+    T("pets", "Pets", "Vet visits, supplies, grooming and vaccines for each pet", "paw", "#a16207",
+      [sub("Vet visits", "Vet visit", "cross", "#ef4444"), sub("Vaccines", "Vaccine", "pill", "#ec4899", { late: true }), sub("Supplies", "Supply", "cart", "#f97316"),
+        sub("Grooming", "Grooming", "heart", "#8b5cf6"), sub("Photos", "Photo", "camera", "#4c8dff")],
+      { mainLabel: "Pet", mainType: "thing", custom: [{ name: "Weight", type: "number", unit: "kg", stat: "latest" }] }),
+    T("home", "Home", "Bills, repairs, groceries and things around the house", "home", "#22c55e",
+      [sub("Bills", "Bill", "receipt", "#f5b544"), sub("Repairs", "Repair", "wrench", "#4c8dff"), sub("Groceries", "Grocery run", "cart", "#22c55e"), sub("Appliances", "Appliance", "cog", "#64748b")],
+      { mainLabel: "", custom: [] }),
+    T("bills", "Bills & subscriptions", "Electricity, internet, phone, rent and subscriptions, with due dates", "wallet", "#f5b544",
+      [sub("Paid", "Payment", "check", "#22c55e"), sub("Due", "Due bill", "calendar", "#ef4444"), sub("Receipts", "Receipt", "receipt", "#f5b544")],
+      { mainLabel: "Provider", mainType: "thing", custom: [{ name: "Next due", type: "expiry", unit: "", stat: "none" }] }),
+    T("shopping", "Shopping", "What I bought, want, returned, and warranties", "cart", "#ec4899",
+      [sub("Bought", "Purchase", "cart", "#ec4899"), sub("Wishlist", "Wish", "heart", "#8b5cf6"), sub("Returns", "Return", "route", "#f97316"), sub("Warranty", "Warranty", "clipboard", "#14b8a6", { noTag: true })],
+      { mainLabel: "Store", mainType: "place", rating: true, custom: [{ name: "Warranty till", type: "expiry", unit: "", stat: "none" }] }),
+    T("money", "Money", "Spends, income, investments and loans", "wallet", "#14b8a6",
+      [sub("Spends", "Spend", "cart", "#ef4444"), sub("Income", "Income", "wallet", "#22c55e"), sub("Investments", "Investment", "star", "#6366f1"), sub("Loans", "Loan", "receipt", "#f97316")],
+      { mainLabel: "", custom: [] }),
+    T("documents", "Documents & IDs", "IDs, certificates, insurance and warranties, with expiry reminders", "clipboard", "#6366f1",
+      [sub("IDs", "ID", "clipboard", "#6366f1"), sub("Certificates", "Certificate", "star", "#f5b544"), sub("Insurance", "Policy", "heart", "#ef4444"), sub("Warranties", "Warranty", "check", "#22c55e")],
+      { mainLabel: "Person", mainType: "person", amount: false, custom: [{ name: "Expires", type: "expiry", unit: "", stat: "none" }, { name: "Number", type: "text", unit: "", stat: "none" }] }),
+    T("fitness", "Fitness", "Workouts, runs, weight and diet", "dumbbell", "#ef4444",
+      [sub("Workouts", "Workout", "dumbbell", "#ef4444"), sub("Runs & walks", "Run", "route", "#22c55e"), sub("Weight", "Weigh-in", "check", "#4c8dff"), sub("Diet", "Meal", "utensils", "#f97316")],
+      { mainLabel: "", amount: false, custom: [{ name: "Minutes", type: "number", unit: "min", stat: "sum" }, { name: "Distance", type: "number", unit: "km", stat: "sum" }, { name: "Weight", type: "number", unit: "kg", stat: "latest" }] }),
+    T("work", "Work", "Meetings, tasks, expenses and ideas", "briefcase", "#64748b",
+      [sub("Meetings", "Meeting", "calendar", "#4c8dff"), sub("Tasks", "Task", "check", "#22c55e"), sub("Expenses", "Expense", "receipt", "#f5b544"), sub("Ideas", "Idea", "quote", "#8b5cf6", { noStatus: true })],
+      { mainLabel: "Person", mainType: "person", custom: [] }),
+    T("study", "Study", "Classes, notes, exams and fees for each course", "school", "#4c8dff",
+      [sub("Classes", "Class", "school", "#4c8dff"), sub("Notes", "Note", "note", "#f5b544", { noStatus: true }), sub("Exams", "Exam", "calendar", "#ef4444"), sub("Fees", "Fee", "receipt", "#22c55e")],
+      { mainLabel: "Course", mainType: "thing", custom: [{ name: "Marks", type: "number", unit: "", stat: "latest" }] }),
+    T("kids", "Kids", "Doctor visits, school, milestones and photos for each child", "baby", "#f97316",
+      [sub("Doctor visits", "Doctor visit", "cross", "#ef4444"), sub("School", "School", "school", "#4c8dff"), sub("Milestones", "Milestone", "star", "#f5b544", { noStatus: true }), sub("Photos", "Photo", "camera", "#ec4899")],
+      { mainLabel: "Child", mainType: "person", custom: [{ name: "Height", type: "number", unit: "cm", stat: "latest" }, { name: "Weight", type: "number", unit: "kg", stat: "latest" }] }),
+    T("books", "Books", "Reading, read, to read and favourite quotes", "book", "#8b5cf6",
+      [sub("Reading", "Reading", "book", "#4c8dff"), sub("Read", "Read", "check", "#22c55e"), sub("To read", "To read", "bookmark", "#f5b544"), sub("Quotes", "Quote", "quote", "#8b5cf6", { noStatus: true })],
+      { mainLabel: "Title", mainType: "title", amount: false, rating: true, custom: [{ name: "Pages", type: "number", unit: "", stat: "sum" }] }),
+    T("events", "Events & gifts", "Birthdays, weddings and gifts given or received", "gift", "#ec4899",
+      [sub("Birthdays", "Birthday", "gift", "#ec4899"), sub("Weddings & functions", "Function", "star", "#f5b544"), sub("Gifts given", "Gift given", "gift", "#22c55e"), sub("Gifts received", "Gift received", "heart", "#8b5cf6")],
+      { mainLabel: "Person", mainType: "person", custom: [{ name: "Date", type: "date", unit: "", stat: "none" }] }),
+    T("gadgets", "Gadgets", "Phones, laptops and devices: bills, warranties and repairs", "cog", "#0ea5e9",
+      [sub("Bills", "Bill", "receipt", "#f5b544"), sub("Warranty", "Warranty", "clipboard", "#22c55e"), sub("Repairs", "Repair", "wrench", "#ef4444"), sub("Accessories", "Accessory", "cart", "#8b5cf6")],
+      { mainLabel: "Device", mainType: "thing", custom: [{ name: "Warranty till", type: "expiry", unit: "", stat: "none" }] }),
+    T("garden", "Plants & garden", "Plants, watering, fertiliser and photos", "leaf", "#16a34a",
+      [sub("Plants", "Plant", "leaf", "#16a34a"), sub("Watering", "Watering", "check", "#4c8dff"), sub("Fertiliser", "Feed", "flask", "#a16207"), sub("Photos", "Photo", "camera", "#ec4899")],
+      { mainLabel: "Plant", mainType: "thing", amount: false, custom: [] })
   ];
 
   // Builds a new group from a template (or a validated imported one).
