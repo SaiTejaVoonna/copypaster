@@ -1719,7 +1719,7 @@
             <div class="settings-line"><span>Back up<small id="last-backup">Download a .cps file with everything, Vault items still encrypted.</small></span><button id="export-btn" class="btn"><svg class="icon"><use href="#icon-download"></use></svg>Export</button></div>
             <div class="settings-line"><span>Restore<small>Add items from a .cps backup. Nothing is overwritten.</small></span><button id="import-btn" class="btn"><svg class="icon"><use href="#icon-upload"></use></svg>Import</button></div>
             <label class="settings-line"><span>Location on snaps<small>Saves where a snap was taken, on this device only. It's added after the photo is saved and never holds it up.</small></span><input type="checkbox" id="snap-location"></label>
-            <label class="settings-line"><span>Guess what a snap shows<small>Works it out on this device: the photo never leaves your phone. The first time, a small model (about 5 MB) is downloaded and kept. The guess is only a suggestion.</small></span><input type="checkbox" id="snap-see"></label>
+            <label class="settings-line"><span>Guess what a snap shows<small>Works it out on this device: the photo never leaves your phone. The first time, a small model (about 7 MB) is downloaded and kept. The guess is only a suggestion.</small></span><input type="checkbox" id="snap-see"></label>
             <div class="settings-line"><label for="backup-remind">Remind me to back up<small>A gentle note at the top of your Inbox.</small></label>
               <select id="backup-remind" class="settings-inline-select"><option value="7">Every week</option><option value="14">Every 2 weeks</option><option value="30">Every month</option><option value="0">Never</option></select></div>
           </div>
@@ -4840,6 +4840,7 @@
     // item that IS an image (contentType "image" below still renders its own way).
     if (!inTrash) {
       body.appendChild(buildGalleryRow(item));
+      body.appendChild(buildSeeCard(item));
     }
     if (item.audio.length) body.appendChild(buildAudioList(item, inTrash));
 
@@ -5234,21 +5235,6 @@
       const line = document.createElement("span");
       line.textContent = "Snapped: " + window.CPSnap.describe(item.capture);
       cap.appendChild(line);
-      if (item.suggest && window.CPSee) {
-        const guess = document.createElement("span");
-        guess.id = "snap-guess";
-        guess.textContent = window.CPSee.describe(item.suggest) + " \u00b7 a guess made on this phone";
-        cap.appendChild(guess);
-      }
-      if (item.captured && groupsApi) {
-        const sort = document.createElement("button");
-        sort.type = "button";
-        sort.className = "btn primary gp-small";
-        sort.id = "sort-snap";
-        sort.textContent = "Sort into a space";
-        sort.addEventListener("click", () => sortSnapById(item.id));
-        cap.appendChild(sort);
-      }
       if (item.capture.original) {
         const open = document.createElement("button");
         open.type = "button";
@@ -5912,16 +5898,98 @@
   // What the photo looks like, worked out on this device. Arrives later, or never.
   const SNAP_SEE_KEY = "copypaster-snap-see";
   const snapSeeOn = () => { try { return localStorage.getItem(SNAP_SEE_KEY) !== "0"; } catch { return true; } };
-  async function addSnapGuess(id, photo) {
-    if (!window.CPSee) return;
-    const guess = await window.CPSee.look(photo);
-    if (!guess) return;
+  // Where each photo's guess is up to: "working", "unsure", "failed" or "slow".
+  const seeState = new Map();
+  async function addSnapGuess(id, photo, { force = false } = {}) {
+    if (!window.CPSee || seeState.get(id) === "working") return;
+    seeState.set(id, "working");
+    refreshSeeCard(id);
+    let why = null;
+    const guess = await window.CPSee.look(photo, { onFail: (w) => { why = w; } });
+    seeState.set(id, guess ? "done" : why || "unsure");
     const item = cache.find((i) => i.id === id);
-    if (!item || item._locked || item.suggest) return;
-    item.suggest = guess;
-    await saveItem(item);
-    renderList();
-    if (currentId === id) redrawDetail("properties");
+    if (guess && item && !item._locked && (force || !item.suggest)) {
+      item.suggest = guess;
+      await saveItem(item);
+      renderList();
+      if (currentId === id) redrawDetail("properties");
+    }
+    refreshSeeCard(id);
+  }
+  // "What is this?" under a note's photos: the guess, or why there isn't one,
+  // and quick picks to set it yourself.
+  function buildSeeCard(item) {
+    const card = document.createElement("div");
+    card.id = "see-card";
+    card.className = "see-card";
+    if (!window.CPSee || !item.images || !item.images.length || item.vaulted || item.type !== "note") { card.hidden = true; return card; }
+    const state = seeState.get(item.id);
+    const line = document.createElement("div");
+    line.className = "see-line";
+    const ic = document.createElement("span");
+    ic.className = "see-icon";
+    ic.innerHTML = icon("sparkle");
+    const text = document.createElement("span");
+    text.id = "see-text";
+    const actions = document.createElement("div");
+    actions.className = "see-actions";
+    const btn = (label, id, fn, primary) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "btn gp-small" + (primary ? " primary" : ""); if (id) b.id = id;
+      b.textContent = label; b.addEventListener("click", fn);
+      actions.appendChild(b);
+      return b;
+    };
+    const tryAgain = () => addSnapGuess(item.id, item.images[0], { force: true });
+    let showPicks = false;
+    if (state === "working") text.textContent = "Working out what this is\u2026 The first time, a small model is downloaded (about 7 MB).";
+    else if (item.suggest) {
+      text.textContent = window.CPSee.describe(item.suggest) + (item.suggest.confirmed ? " \u00b7 set by you" : " \u00b7 a guess made on this phone");
+      if (item.captured && groupsApi) btn("Sort into a space", "see-sort", () => sortSnapById(item.id), true);
+      btn(item.suggest.confirmed ? "Change" : "Not right?", "see-fix", () => { picks.hidden = !picks.hidden; });
+    } else if (state === "failed") {
+      text.textContent = "Couldn't load the photo model. It needs the internet the first time.";
+      btn("Try again", "see-retry", tryAgain, true);
+      showPicks = true;
+    } else if (state === "slow") {
+      text.textContent = "That took too long. The model may still be downloading.";
+      btn("Try again", "see-retry", tryAgain, true);
+      showPicks = true;
+    } else if (state === "unsure") {
+      text.textContent = "Couldn't tell what this is. Pick one, or try a clearer photo.";
+      btn("Try again", "see-retry", tryAgain);
+      showPicks = true;
+    } else {
+      text.textContent = "What is this photo?";
+      btn("Guess on this phone", "see-guess", tryAgain, true);
+      btn("I'll pick", "see-fix", () => { picks.hidden = !picks.hidden; });
+    }
+    line.append(ic, text);
+    const picks = document.createElement("div");
+    picks.className = "see-picks";
+    picks.id = "see-picks";
+    picks.hidden = !showPicks;
+    for (const [kind, label] of window.CPSee.PICKS) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "gp-mini" + (item.suggest && item.suggest.kind === kind ? " active" : ""); b.dataset.kind = kind;
+      b.textContent = label;
+      b.addEventListener("click", async () => {
+        item.suggest = window.CPSee.picked(kind);
+        seeState.set(item.id, "done");
+        await saveItem(item);
+        renderList();
+        refreshSeeCard(item.id);
+      });
+      picks.appendChild(b);
+    }
+    card.append(line, actions, picks);
+    return card;
+  }
+  function refreshSeeCard(id) {
+    if (currentId !== id) return;
+    const old = document.getElementById("see-card");
+    const item = cache.find((i) => i.id === id);
+    if (old && item) old.replaceWith(buildSeeCard(item));
   }
   document.getElementById("snap-see").addEventListener("change", (e) => {
     try { localStorage.setItem(SNAP_SEE_KEY, e.target.checked ? "1" : "0"); } catch {}

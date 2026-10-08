@@ -372,3 +372,14 @@ html:root[data-accent="mono"] .tab-btn .plus-ring, html:root[data-accent="mono"]
 #accent-picker { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .accent-opt { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; background: var(--sw); cursor: pointer; padding: 0; box-shadow: inset 0 0 0 2px var(--bg); }
 .accent-opt.active { border-color: var(--sw); }
+
+/* "What is this?" under a note's photos */
+.see-card { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 14px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-1); }
+.see-card[hidden] { display: none; }
+.see-line { display: flex; gap: 8px; align-items: flex-start; font-size: var(--fs-sm); color: var(--text); line-height: 1.4; }
+.see-icon { flex: none; color: var(--accent); margin-top: 1px; }
+.see-icon .icon { width: 16px; height: 16px; }
+.see-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.see-actions:empty { display: none; }
+.see-picks { display: flex; gap: 6px; flex-wrap: wrap; }
+.see-picks[hidden] { display: none; }

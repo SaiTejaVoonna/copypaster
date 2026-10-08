@@ -338,7 +338,7 @@ test("a snap gets a guess made on the device; it's only a suggestion and can be 
   await expect(page.locator(".item-row").first()).toContainText("Looks like food (trifle)");
   await page.locator(".item-row").first().click();
   await page.locator("#detail-properties .props-head").click().catch(() => {});
-  await expect(page.locator("#snap-guess")).toContainText("a guess made on this phone");
+  await expect(page.locator("#see-text")).toContainText("a guess made on this phone");
   // Nothing was filed or renamed because of it.
   const stored = await page.evaluate(async () => {
     const db = await new Promise((r) => { const q = indexedDB.open("copypaster"); q.onsuccess = () => r(q.result); });
@@ -390,7 +390,7 @@ test("Sort this snap: the guess picks the space and sub-chat, the title is fille
   await expect(page.locator(".item-row").first()).toContainText("Looks like food");
   await page.locator(".item-row").first().click();
   await openOrganise(page);
-  await page.click("#sort-snap");
+  await page.click("#see-sort");
   await expect(page.locator("#gp-sort-title")).toHaveValue("Trifle");
   await expect(page.locator("#gp-sort-spaces .gp-mini.active")).toContainText("Food");
   await expect(page.locator("#gp-sort-spaces .gp-mini.active")).toContainText("suggested");
@@ -409,7 +409,7 @@ test("Sort this snap with no matching space offers to make one from the right te
   await expect(page.locator(".item-row").first()).toContainText("Looks like medicine");
   await page.locator(".item-row").first().click();
   await openOrganise(page);
-  await page.click("#sort-snap");
+  await page.click("#see-sort");
   await page.click("#gp-sort-new-space");
   await expect(page.locator("#gp-sort-spaces .gp-mini.active")).toContainText("Health");
   await expect(page.locator("#gp-sort-subs .gp-mini.active")).toContainText("Medicines");
@@ -428,4 +428,37 @@ test("20 templates to start from, and a color you pick in Appearance", async ({ 
   expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim())).toBe("#16a34a");
   await page.reload();
   expect(await page.evaluate(() => document.documentElement.dataset.accent)).toBe("green");
+});
+
+test("What is this? shows in the editor: the guess, why there isn't one, and picks to set it yourself", async ({ page }) => {
+  // The model can't be loaded (offline): say so, and offer Try again and picks.
+  await page.evaluate(() => { window.CPSee.engine = async () => { throw new Error("offline"); }; });
+  await page.click("#new-btn");
+  await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
+  await page.locator(".item-row").first().click();
+  await expect(page.locator("#see-text")).toContainText("Couldn't load the photo model");
+  await expect(page.locator("#see-retry")).toBeVisible();
+  // Now it works but isn't sure.
+  await page.evaluate(() => { window.CPSee.engine = async () => ({ classify: () => ({ classifications: [{ categories: [{ categoryName: "puck", index: 746, score: 0.2 }] }] }) }); });
+  await page.click("#see-retry");
+  await expect(page.locator("#see-text")).toContainText("Couldn't tell what this is");
+  // Pick it yourself.
+  await page.locator('#see-picks .gp-mini[data-kind="pet"]').click();
+  await expect(page.locator("#see-text")).toContainText("Pet · set by you");
+  await expect(page.locator(".item-row").first()).toContainText("Pet");
+  // A dog photo: the breed counts as Dog, looking at the whole photo and its middle.
+  await page.evaluate(() => { window.CPSee.engine = async () => ({ classify: () => ({ classifications: [{ categories: [
+    { categoryName: "beagle", index: 162, score: 0.3 }, { categoryName: "English foxhound", index: 167, score: 0.2 }, { categoryName: "laptop", index: 620, score: 0.15 }] }] }) }); });
+  await page.click("#see-fix");
+  await page.locator('#see-picks .gp-mini[data-kind="thing"]').click();
+  expect(await page.evaluate(() => window.CPSee.suggest([{ categoryName: "beagle", index: 162, score: 0.3 }, { categoryName: "English foxhound", index: 167, score: 0.2 }, { categoryName: "laptop", index: 620, score: 0.15 }]).label)).toBe("Dog");
+});
+
+test("a photo added to a note can be guessed on request", async ({ page }) => {
+  await page.evaluate(() => { window.CPSee.engine = async () => ({ classify: () => ({ classifications: [{ categories: [{ categoryName: "pizza", index: 963, score: 0.7 }] }] }) }); });
+  await page.click("#new-btn");
+  await pickFile(page, () => page.click('#new-menu [data-new="photo"]'));
+  await expect(page.locator("#see-guess")).toBeVisible();
+  await page.click("#see-guess");
+  await expect(page.locator("#see-text")).toContainText("Looks like food (pizza)");
 });

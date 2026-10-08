@@ -2,14 +2,14 @@
 // device. window.CPSee
 //
 // The photo never leaves the phone. The first time it's used, the browser
-// downloads a small image model (about 5 MB, plus the code that runs it) and
+// downloads a small image model (about 7 MB, plus the code that runs it) and
 // keeps it; after that it works offline. The answer is only a suggestion
 // ("Looks like food"); nothing is filed or renamed because of it.
 (function () {
   "use strict";
 
   const MP = "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21";
-  const MODEL = "https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite0/int8/1/efficientnet_lite0.tflite";
+  const MODEL = "https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite2/int8/1/efficientnet_lite2.tflite";
   const MIN_SCORE = 0.12;
 
   // Broad kinds, from the model's 1000 everyday labels.
@@ -73,7 +73,7 @@
         const vision = await import(MP + "/vision_bundle.mjs");
         const files = await vision.FilesetResolver.forVisionTasks(MP + "/wasm");
         return vision.ImageClassifier.createFromOptions(files, {
-          baseOptions: { modelAssetPath: MODEL, delegate: "CPU" }, maxResults: 5, runningMode: "IMAGE"
+          baseOptions: { modelAssetPath: MODEL, delegate: "CPU" }, maxResults: 10, runningMode: "IMAGE"
         });
       })();
       enginePromise.catch(() => { enginePromise = null; }); // try again next time
@@ -81,24 +81,37 @@
     return enginePromise;
   }
 
+  const catsOf = (out) => (out && out.classifications && out.classifications[0] ? out.classifications[0].categories : out) || [];
+  // The middle of the photo, where the subject usually is.
+  function centre(img) {
+    const w = img.naturalWidth, h = img.naturalHeight, side = Math.round(Math.min(w, h) * 0.7);
+    const c = document.createElement("canvas");
+    c.width = c.height = Math.min(side, 512);
+    c.getContext("2d").drawImage(img, (w - side) / 2, (h - side) / 2, side, side, 0, 0, c.width, c.height);
+    return c;
+  }
   // Resolves a suggestion for a photo (a data: URL), or null. Never throws.
-  async function look(dataUrl, { timeout = 60000 } = {}) {
-    if (typeof dataUrl !== "string" || !/^data:image\//.test(dataUrl)) return null;
+  // onFail("unsure" | "failed" | "slow") says why there's no guess.
+  async function look(dataUrl, { timeout = 90000, onFail } = {}) {
+    const fail = (why) => { if (onFail) onFail(why); return null; };
+    if (typeof dataUrl !== "string" || !/^data:image\//.test(dataUrl)) return fail("unsure");
     try {
       const run = (async () => {
         const model = await api.engine();
         const img = new Image();
         img.src = dataUrl;
         await img.decode();
-        const out = model.classify(img);
-        const cats = out && out.classifications && out.classifications[0] ? out.classifications[0].categories : out;
-        return suggest(cats);
+        // Look at the whole photo and at its middle; add the answers up.
+        const all = catsOf(model.classify(img)).concat(img.naturalWidth > 64 ? catsOf(model.classify(centre(img))) : [])
+          .map((c) => ({ categoryName: c.categoryName, displayName: c.displayName, index: c.index, score: c.score / 2 }));
+        return suggest(all) || fail("unsure");
       })();
-      const late = new Promise((r) => setTimeout(() => r(null), timeout));
-      return await Promise.race([run, late]);
+      const late = new Promise((r) => setTimeout(() => r("slow"), timeout));
+      const out = await Promise.race([run, late]);
+      return out === "slow" ? fail("slow") : out;
     } catch (err) {
       console.warn("[See] couldn't look at the photo:", err && err.message);
-      return null;
+      return fail("failed");
     }
   }
 
@@ -112,9 +125,19 @@
   // "Looks like food (trifle)"
   function describe(s) {
     if (!s) return "";
-    return "Looks like " + s.label.toLowerCase() + (s.detail && s.detail !== s.label.toLowerCase() ? " (" + s.detail + ")" : "");
+    if (s.confirmed) return s.label;
+    const a = { pet: "a ", animal: "an ", vehicle: "a ", place: "a " }[s.kind] || "";
+    return "Looks like " + a + s.label.toLowerCase() + (s.detail && s.detail !== s.label.toLowerCase() ? " (" + s.detail + ")" : "");
   }
 
-  const api = { look, suggest, kindOf, normalize, describe, engine };
+  // The kinds someone can pick when the guess is wrong (or missing).
+  const PICKS = [["food", "Food"], ["document", "Paper or document"], ["medicine", "Medicine or health"], ["vehicle", "Vehicle"], ["screen", "Screen or device"],
+    ["place", "Place"], ["pet", "Pet"], ["clothes", "Clothes"], ["thing", "Something else"]];
+  function picked(kind) {
+    const p = PICKS.find((x) => x[0] === kind) || PICKS[PICKS.length - 1];
+    return { kind: p[0], label: p[1], detail: "", confidence: 1, source: "you", at: Date.now(), confirmed: true };
+  }
+
+  const api = { look, suggest, kindOf, normalize, describe, engine, PICKS, picked };
   window.CPSee = api;
 })();

@@ -61,7 +61,7 @@ Starting templates are now **Health** (was Hospital), Food, **Trips** (new), **V
 - **Snap from inside a space, page or sub-chat** (the message bar's + → Snap) saves straight there. For example: Food → Nimrah Cafe → Dishes.
 - **Snap another** is offered right after each save.
 - **Location** tries GPS, then the quicker wifi/network fix, and says when it was added or why not (blocked, no fix).
-- **A guess at what it shows** ("Looks like food (trifle)") is worked out on the phone with a small image model (MediaPipe, about 5 MB, downloaded once and kept). The photo never leaves the phone. It's stored as an unconfirmed suggestion and never files or renames anything. Turn it off in Settings → Your data. For now it's for snaps in the Inbox.
+- **A guess at what it shows** ("Looks like food (trifle)") is worked out on the phone with a small image model (MediaPipe EfficientNet-Lite2, about 7 MB, downloaded once and kept). The photo never leaves the phone. It's stored as an unconfirmed suggestion and never files or renames anything. Turn it off in Settings → Your data. For now it's for snaps in the Inbox.
 - **Each snap keeps:**
   - the original file as it was picked (up to 15 MB), with **Open original**;
   - the time, where it came from (camera or library) and the file name;
