@@ -23,10 +23,10 @@ test("Groups tab, a group screen, Snap, and back steps out one screen at a time"
   await expect(page.locator("#tab-bar [data-tab='groups']")).toBeVisible();
 
   await page.click("#tab-bar [data-tab='groups']");
-  await page.click(".gp-empty button:has-text('New group')");
+  await page.click(".gp-empty button:has-text('New space')");
   await page.locator(".gp-tpl", { hasText: "Bike" }).click();
-  await page.click(".gp-sheet button:has-text('Create group')");
-  await expect(page.locator(".gp-id h1")).toHaveText("Bike");
+  await page.click(".gp-sheet button:has-text('Create space')");
+  await expect(page.locator(".gp-id h1")).toHaveText("Vehicles");
   await expect(page.locator("#tab-bar")).toBeHidden();
 
   // Sub-chats are tabs on a phone; the send bar takes custom fields.
@@ -40,7 +40,7 @@ test("Groups tab, a group screen, Snap, and back steps out one screen at a time"
 
   // Back: group → Groups list (tab bar returns).
   await page.goBack();
-  await expect(page.locator(".gp-home-title h1")).toHaveText("Groups");
+  await expect(page.locator(".gp-home-title h1")).toHaveText("Spaces");
   await expect(page.locator("#tab-bar")).toBeVisible();
 
   // Snap from the dock's + menu with no group open: saved to Inbox at once, no questions.
@@ -54,7 +54,7 @@ test("Groups tab, a group screen, Snap, and back steps out one screen at a time"
   await page.click("#gp-b-plus");
   const [chooser2] = await Promise.all([page.waitForEvent("filechooser"), page.locator(".gp-plus-menu button", { hasText: "Saved here right away" }).click()]);
   await chooser2.setFiles(pngFile());
-  await expect(lastToast(page)).toContainText("Saved to Bike → Spare parts");
+  await expect(lastToast(page)).toContainText("Saved to Vehicles → Spare parts");
   await page.goBack();
   await expect(page.locator(".gp-home-sub", { hasText: "Spare parts" })).toContainText("1");
 
@@ -64,5 +64,5 @@ test("Groups tab, a group screen, Snap, and back steps out one screen at a time"
   await expect(page.locator(".gp-d-photo img")).toHaveAttribute("src", /^data:image\/jpeg/);
   await page.goBack();
   await expect(page.locator(".gp-detail")).toBeHidden();
-  await expect(page.locator(".gp-id h1")).toContainText("Bike");
+  await expect(page.locator(".gp-id h1")).toContainText("Vehicles");
 });

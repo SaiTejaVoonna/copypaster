@@ -391,7 +391,7 @@
     list.replaceChildren();
     if (!enabled) return;
     if (!groups.length) {
-      list.append(h("div", { class: "nav-item gp-nav-new", onclick: () => openNewGroup() }, h("span", { class: "nav-label" }, h("span", { class: "nav-icon" }, ic("plus")), h("span", { class: "nav-text" }, "New group"))));
+      list.append(h("div", { class: "nav-item gp-nav-new", onclick: () => openNewGroup() }, h("span", { class: "nav-label" }, h("span", { class: "nav-icon" }, ic("plus")), h("span", { class: "nav-text" }, "New space"))));
       return;
     }
     for (const g of groups) {
@@ -433,14 +433,14 @@
   }
 
   function renderHome() {
-    headEl.append(h("div", { class: "gp-home-title" }, h("h1", null, "Groups"),
-      h("button", { class: "btn icon ghost", "aria-label": "New group", title: "New group", onclick: () => openNewGroup() }, ic("plus"))));
+    headEl.append(h("div", { class: "gp-home-title" }, h("h1", null, "Spaces"),
+      h("button", { class: "btn icon ghost", "aria-label": "New space", title: "New space", onclick: () => openNewGroup() }, ic("plus"))));
     const wrap = h("div", { class: "gp-home" });
     if (!groups.length) {
       wrap.append(h("div", { class: "gp-empty" }, h("span", { class: "gp-tile big", style: "--c:var(--accent)" }, ic("layers")),
         h("h3", null, "A timeline for each part of your life"),
-        h("p", null, "Hospital visits, food you loved, your bike, shows you watch. Drop things in, and they sort themselves by date."),
-        h("button", { class: "btn primary", onclick: () => openNewGroup() }, ic("plus"), "New group")));
+        h("p", null, "Doctor visits, food you loved, trips, your bike, shows you watch. Drop things in, and they sort themselves by date."),
+        h("button", { class: "btn primary", onclick: () => openNewGroup() }, ic("plus"), "New space")));
     }
     for (const g of groups) {
       const cnt = C.counts(entries, g, "all");
@@ -457,19 +457,19 @@
       }
       wrap.append(card);
     }
-    if (groups.length) wrap.append(h("button", { class: "btn gp-wide", onclick: () => openNewGroup() }, ic("plus"), "New group"));
+    if (groups.length) wrap.append(h("button", { class: "btn gp-wide", onclick: () => openNewGroup() }, ic("plus"), "New space"));
     timelineEl.append(wrap);
   }
 
   function renderHead(g, list) {
     const sub = ui.s !== "all" ? C.subOf(g, ui.s) : null;
     headEl.append(h("div", { class: "gp-id" },
-      h("button", { class: "btn icon ghost gp-back", "aria-label": "Back to groups", onclick: () => { ui.screen = "home"; ui.selected = null; render(); } }, ic("chevron-left", "icon-lg")),
+      h("button", { class: "btn icon ghost gp-back", "aria-label": "Back to spaces", onclick: () => { ui.screen = "home"; ui.selected = null; render(); } }, ic("chevron-left", "icon-lg")),
       h("button", { class: "btn icon ghost gp-menu-btn", "aria-label": "Menu", onclick: () => api.openSidebarDrawer() }, ic("menu", "icon-lg")),
       groupTile(g, "xl"),
       h("div", { class: "gp-id-text" }, h("h1", null, g.name, sub ? h("span", { class: "gp-dim" }, " / " + sub.name) : null), g.desc ? h("p", null, g.desc) : null),
       h("button", { class: "btn icon ghost gp-tools-btn" + (ui.tools ? " on" : ""), "aria-label": "Search and sort", "aria-expanded": String(ui.tools), onclick: () => { ui.tools = !ui.tools; render(); if (ui.tools) focusLater("gp-search"); } }, ic("search")),
-      h("button", { class: "btn icon ghost", "aria-label": "Edit group", title: "Edit group", onclick: () => openEditGroup(g) }, ic("edit"))));
+      h("button", { class: "btn icon ghost", "aria-label": "Edit space", title: "Edit space", onclick: () => openEditGroup(g) }, ic("edit"))));
     const page = ui.tag && ui.tag !== "__none" ? C.tagOf(g, ui.tag) : null;
     if (page) { headEl.append(renderPageHead(g, page)); return; }
     const statsEl = h("div", { class: "gp-stats" });
@@ -757,7 +757,7 @@
       opt("image", "Photos", "From your gallery", async () => { const ps = await pickPhotos(); if (ps.length) { d.photos.push(...ps); d.extras = true; } renderComposerTop(); });
       opt("link", "Link", "Saved as text, nothing is fetched", () => { d.showLink = true; d.extras = true; renderComposerTop(); focusLater("gp-link"); });
       if (g.fields.amount.on) opt("wallet", "Amount", "Adds to the totals", () => { d.showAmount = true; d.extras = true; renderComposerTop(); focusLater("gp-amount"); });
-      opt("list-ul", "Existing entry", "Link one from another group", () => openLinkExisting(g));
+      opt("list-ul", "Existing entry", "Link one from another space", () => openLinkExisting(g));
       top.append(menu);
     }
     if (d.extras || canSend(d)) {
@@ -898,7 +898,7 @@
     const label = (target.mainLabel || type0.name).trim();
     sheet("New " + label.toLowerCase(), (body, close) => {
       let typeKey = type0.key;
-      const input = h("input", { class: "input gp-input", id: "gp-page-name", placeholder: type0.key === "doctor" ? "Dr Madhavi Pudi" : type0.key === "restaurant" ? "Nimrah Cafe" : "Name", autocomplete: "off", "aria-label": "Name", maxlength: E.MAX.name });
+      const input = h("input", { class: "input gp-input", id: "gp-page-name", placeholder: type0.key === "doctor" ? "Dr Asha Verma" : type0.key === "restaurant" ? "Nimrah Cafe" : "Name", autocomplete: "off", "aria-label": "Name", maxlength: E.MAX.name });
       const typeSel = h("select", { class: "input gp-input", id: "gp-page-type", "aria-label": "Type", onchange: (e) => { typeKey = e.target.value; draw(); } });
       types.forEach((t) => typeSel.append(h("option", { value: t.key }, t.name)));
       typeSel.value = typeKey;
@@ -920,7 +920,7 @@
           const here = target.mainTags.some((t) => t.entity === ent.id);
           list.append(h("button", { class: "tl-pick gp-match", "data-entity": ent.id, onclick: () => use(ent) },
             h("span", { class: "gp-ava sm", style: "--c:var(--accent)" }, initials(ent.name)),
-            h("span", { class: "gp-match-main" }, h("b", null, ent.name), h("small", null, [entSummary(ent), here ? "Already in this group" : where.length ? "In " + where.join(", ") : ""].filter(Boolean).join(" · ")))));
+            h("span", { class: "gp-match-main" }, h("b", null, ent.name), h("small", null, [entSummary(ent), here ? "Already in this space" : where.length ? "In " + where.join(", ") : ""].filter(Boolean).join(" · ")))));
         });
         if (raw) list.append(h("button", { class: "tl-pick", id: "gp-page-create", onclick: async () => {
           const ent = E.normalizeEntity({ name: E.tidy(raw), type: typeKey }, types);
@@ -1058,7 +1058,7 @@
       if (!ranked.length) list.append(h("p", { class: "gp-hint" }, "Nothing of the same kind to merge with."));
       ranked.forEach((to) => list.append(h("button", { class: "tl-pick", "data-entity": to.id, onclick: async () => { close(); closeEditor(); await mergeEntities(from, to); } },
         h("span", { class: "gp-ava sm", style: "--c:var(--accent)" }, initials(to.name)), h("span", { class: "gp-match-main" }, h("b", null, to.name), h("small", null, entSummary(to))))));
-      body.append(list, h("p", { class: "gp-hint" }, "Entries, groups and details move over; details already set on the one you keep win."));
+      body.append(list, h("p", { class: "gp-hint" }, "Entries, spaces and details move over; details already set on the one you keep win."));
     }, { stack: true });
   }
   async function mergeEntities(from, to) {
@@ -1090,7 +1090,7 @@
     const where = pagesOf(ent);
     sheet("Delete " + ent.name + "?", (body, close) => {
       const n = where.reduce((t, p) => t + p.n, 0);
-      body.append(h("p", null, where.length ? "It's removed from " + where.map((p) => p.g.name).join(", ") + ". " + (n ? n + (n === 1 ? " entry stays" : " entries stay") + " in those groups, just without it." : "") : "It isn't used in any group."),
+      body.append(h("p", null, where.length ? "It's removed from " + where.map((p) => p.g.name).join(", ") + ". " + (n ? n + (n === 1 ? " entry stays" : " entries stay") + " in those spaces, just without it." : "") : "It isn't used in any space."),
         h("div", { class: "gp-sheet-actions" }, h("button", { class: "btn", onclick: close }, "Cancel"),
           h("button", { class: "btn danger", id: "gp-ent-delete", onclick: async () => {
             for (const p of where) {
@@ -1122,7 +1122,7 @@
           const done = async () => { review = review.filter((x) => x !== r); await saveReview(); draw(); };
           const card = h("div", { class: "gp-review", "data-entity": ent.id },
             h("div", null, h("b", null, ent.name), r.was.info ? h("span", { class: "gp-dim" }, " · " + r.was.info) : null),
-            h("small", { class: "gp-dim" }, r.reason === "same-name" ? "The same name appears twice in this group." : "This looks like a department, with the " + (g.mainLabel || "name").toLowerCase() + " in the details."));
+            h("small", { class: "gp-dim" }, r.reason === "same-name" ? "The same name appears twice in this space." : "This looks like a department, with the " + (g.mainLabel || "name").toLowerCase() + " in the details."));
           const acts = h("div", { class: "gp-review-acts" });
           if (r.suggest) acts.append(h("button", { class: "btn primary gp-small gp-review-use", onclick: async () => {
             ent.name = r.suggest.name; Object.assign(ent.fields, r.suggest.fields); if (r.suggest.note !== undefined) ent.note = r.suggest.note;
@@ -1335,9 +1335,9 @@
       also.append(h("button", { class: "gp-also-row", onclick: () => { if (x.g !== g.id) openGroup(x.g, "all").then(() => selectEntry(e.id)); } },
         groupTile(gg, "sm"), h("span", { class: "gp-grow" }, gg.name + (ss ? " / " + ss.name : "")), x.g === g.id ? h("span", { class: "gp-dim" }, "here") : ic("chevron-right", "icon-sm")));
     });
-    also.append(h("small", null, ic("link", "icon-sm"), e.refs.length > 1 ? "Linked, not copied. Edit once and it updates in every group." : "Only in this group. Search finds it too."));
-    if (groups.length > e.refs.length) also.append(h("button", { class: "btn ghost gp-small", onclick: () => addToAnotherGroup(e) }, ic("plus", "icon-sm"), "Also add to another group"));
-    sc.append(h("div", { class: "gp-sec" }, h("h4", null, e.refs.length > 1 ? "In " + e.refs.length + " groups" : "In"), also));
+    also.append(h("small", null, ic("link", "icon-sm"), e.refs.length > 1 ? "Linked, not copied. Edit once and it updates in every space." : "Only in this space. Search finds it too."));
+    if (groups.length > e.refs.length) also.append(h("button", { class: "btn ghost gp-small", onclick: () => addToAnotherGroup(e) }, ic("plus", "icon-sm"), "Also add to another space"));
+    sc.append(h("div", { class: "gp-sec" }, h("h4", null, e.refs.length > 1 ? "In " + e.refs.length + " spaces" : "In"), also));
 
     // Same visit / outing / title
     const card = g.cards !== "none" ? C.buildCards(C.inGroup(entries, g.id), g, "all").find((c) => c.items.includes(e)) : null;
@@ -1392,7 +1392,7 @@
     sheet("Entry", (body, close) => {
       const act = (iconName, label, fn, danger) => body.append(h("button", { class: "gp-choice" + (danger ? " danger" : ""), onclick: () => { close(); fn(); } }, ic(iconName), h("span", null, label)));
       act("copy", "Copy text", () => api.copy([e.title, e.note, e.link].filter(Boolean).join("\n")));
-      act("plus", "Also add to another group", () => addToAnotherGroup(e));
+      act("plus", "Also add to another space", () => addToAnotherGroup(e));
       act("note", "Move to Notes", () => moveEntryToNotes(e));
       act(e.refs.length > 1 ? "unlink" : "trash", e.refs.length > 1 ? "Remove…" : "Delete…", () => askRemove(e, g), true);
     });
@@ -1409,7 +1409,7 @@
       body.append(h("button", { class: "gp-choice danger", onclick: async () => {
         close(); ui.selected = null;
         await trashEntry(e); render();
-      } }, ic("trash"), h("span", null, others.length ? "Delete everywhere" : "Delete", h("small", null, (others.length ? "Also removes it from " + others.join(", ") + ". " : "") + "Kept in Trash for " + TRASH_DAYS + " days (Settings \u2192 Groups)."))));
+      } }, ic("trash"), h("span", null, others.length ? "Delete everywhere" : "Delete", h("small", null, (others.length ? "Also removes it from " + others.join(", ") + ". " : "") + "Kept in Trash for " + TRASH_DAYS + " days (Settings \u2192 Spaces)."))));
       body.append(h("button", { class: "gp-choice", onclick: () => { close(); moveEntryToNotes(e); } }, ic("note"), h("span", null, "Move to Notes instead", h("small", null, "Keeps the text and photos as a normal note."))));
     });
   }
@@ -1449,7 +1449,7 @@
   }
   function addToAnotherGroup(e) {
     const dests = destinations().filter((d) => !e.refs.some((r) => r.g === d.g));
-    if (!dests.length) { api.showToast("It's already in every group"); return; }
+    if (!dests.length) { api.showToast("It's already in every space"); return; }
     sheet("Also add to", (body, close) => {
       body.append(h("p", { class: "gp-hint" }, "It's linked, not copied: edit it once and it changes in both places."));
       dests.forEach((d) => body.append(h("button", { class: "gp-choice", onclick: async () => {
@@ -1460,8 +1460,8 @@
   function openLinkExisting(g) {
     const pool = live().filter((e) => !C.refIn(e, g.id)).sort((a, b) => b.happenedOn - a.happenedOn);
     sheet("Link an entry into " + g.name, (body, close) => {
-      if (!pool.length) { body.append(h("p", { class: "gp-hint" }, "Nothing in other groups yet. To bring in a note, open it in Notes and choose Move to group.")); return; }
-      body.append(h("p", { class: "gp-hint" }, "It stays where it is and also shows here. Notes can be brought in from a note's ⋯ menu: Move to group."));
+      if (!pool.length) { body.append(h("p", { class: "gp-hint" }, "Nothing in other spaces yet. To bring in a note, open it in Notes and choose Move to space.")); return; }
+      body.append(h("p", { class: "gp-hint" }, "It stays where it is and also shows here. Notes can be brought in from a note's ⋯ menu: Move to space."));
       pool.slice(0, 80).forEach((e) => {
         const home = groupById(e.refs[0].g);
         body.append(h("button", { class: "gp-choice", onclick: async () => {
@@ -1474,9 +1474,9 @@
   // From the notes side: a note becomes an entry, then the note is removed.
   function moveNoteToGroup(item) {
     if (!enabled) return;
-    if (!groups.length) { api.showToast("Make a group first: Settings → Groups, or + next to Groups"); return; }
-    sheet("Move to group", (body, close) => {
-      body.append(h("p", { class: "gp-hint" }, "It leaves Notes and becomes an entry in that group, with the same text and photos."));
+    if (!groups.length) { api.showToast("Make a space first: Settings → Spaces, or + next to Spaces"); return; }
+    sheet("Move to space", (body, close) => {
+      body.append(h("p", { class: "gp-hint" }, "It leaves Notes and becomes an entry in that space, with the same text and photos."));
       destinations().forEach((d) => body.append(h("button", { class: "gp-choice", onclick: async () => {
         close();
         const content = item.content || "";
@@ -1499,8 +1499,8 @@
   function openNewGroup(prefill) {
     if (!enabled) { setEnabled(true); }
     let pick = prefill || C.TEMPLATES[0];
-    sheet("New group", (body, close) => {
-      const name = h("input", { class: "input gp-input", id: "gp-new-name", value: pick.key === "blank" ? "" : pick.name, placeholder: "Bike, Trips, Pets…", "aria-label": "Group name" });
+    sheet("New space", (body, close) => {
+      const name = h("input", { class: "input gp-input", id: "gp-new-name", value: pick.key === "blank" ? "" : pick.name, placeholder: "Bike, Trips, Pets…", "aria-label": "Space name" });
       const draw = () => {
         body.replaceChildren();
         body.append(h("label", { class: "gp-label", for: "gp-new-name" }, "Name"), name);
@@ -1512,7 +1512,7 @@
           pick = t; if (wasDefault) name.value = t.key === "blank" ? "" : t.name; draw();
         } }, h("b", null, tile(t.icon, t.color), t.name), h("small", null, t.desc), t.subs.length ? h("small", { class: "gp-dim" }, t.subs.map((s) => s.name).join(" · ")) : h("small", { class: "gp-dim" }, "No sub-chats yet"))));
         body.append(grid);
-        body.append(h("p", { class: "gp-hint" }, "Everything can be changed later with Edit group: sub-chats, fields, currency, icon or photo."));
+        body.append(h("p", { class: "gp-hint" }, "Everything can be changed later with Edit space: sub-chats, fields, currency, icon or photo."));
         body.append(h("div", { class: "gp-sheet-actions" },
           h("button", { class: "btn", onclick: () => importTemplateFile(close) }, ic("upload"), "Import template"),
           h("button", { class: "btn primary", onclick: async () => {
@@ -1523,7 +1523,7 @@
             close();
             api.showToast("Created " + g.name);
             openGroup(g.id);
-          } }, "Create group")));
+          } }, "Create space")));
       };
       draw();
       if (!isPhone()) setTimeout(() => name.focus(), 50);
@@ -1562,7 +1562,7 @@
           const g = C.groupFromTemplate({ ...t, key: "import" }, t.name);
           await saveGroup(g); groups.push(g); close();
           api.showToast("Added " + g.name); openGroup(g.id);
-        } }, "Add group")));
+        } }, "Add space")));
     });
   }
   function templateSummary(t) {
@@ -1607,7 +1607,7 @@
   function openEditGroup(g) {
     const w = JSON.parse(JSON.stringify(g)); // working copy; saved only on Save
     const counts = C.counts(entries, g, "all");
-    sheet("Edit group", (body, close) => {
+    sheet("Edit space", (body, close) => {
       const draw = () => {
         const st = body.scrollTop;
         body.replaceChildren();
@@ -1631,7 +1631,7 @@
         body.append(look);
 
         // Sub-chats
-        body.append(h("span", { class: "gp-label" }, "Sub-chats"), h("p", { class: "gp-hint" }, "Kinds of things in this group, like Service, Petrol, Spare parts. The singular name is what one entry is called."));
+        body.append(h("span", { class: "gp-label" }, "Sub-chats"), h("p", { class: "gp-hint" }, "Kinds of things in this space, like Service, Petrol, Spare parts. The singular name is what one entry is called."));
         const subsBox = h("div", { class: "gp-edit-list" });
         w.subs.forEach((s, i) => {
           const n = counts.bySub[s.id] || 0;
@@ -1650,12 +1650,12 @@
           }
         });
         const removed = g.subs.filter((s) => !w.subs.some((x) => x.id === s.id)).reduce((t, s) => t + (counts.bySub[s.id] || 0), 0);
-        if (removed) subsBox.append(h("p", { class: "gp-warn" }, removed + (removed === 1 ? " entry" : " entries") + " in removed sub-chats will stay in the group, under All."));
+        if (removed) subsBox.append(h("p", { class: "gp-warn" }, removed + (removed === 1 ? " entry" : " entries") + " in removed sub-chats will stay in the space, under All."));
         if (w.subs.length < C.MAX.subs) subsBox.append(h("button", { class: "btn ghost gp-small", onclick: () => { w.subs.push({ id: C.uid(), name: "", label: "", icon: "note", color: C.COLORS[w.subs.length % C.COLORS.length], _new: true }); draw(); focusLastSub(body); } }, ic("plus", "icon-sm"), "Add sub-chat"));
         body.append(subsBox);
 
         // Who or what the group is about: its pages (people, places, things).
-        body.append(h("span", { class: "gp-label" }, "About"), h("p", { class: "gp-hint" }, "Who or what this group revolves around: doctors, places, a bike, shows. Each one gets a page here. Leave \u201cCalled\u201d empty to turn it off."));
+        body.append(h("span", { class: "gp-label" }, "About"), h("p", { class: "gp-hint" }, "Who or what this space revolves around: doctors, places, a bike, shows. Each one gets a page here. Leave \u201cCalled\u201d empty to turn it off."));
         const mt = h("div", { class: "gp-edit-list" });
         mt.append(h("div", { class: "gp-edit-row" }, h("span", { class: "gp-dim gp-row-label" }, "Called"),
           h("input", { class: "input", id: "gp-edit-main-label", value: w.mainLabel, placeholder: "Doctor, Place, Title, Bike…", maxlength: C.MAX.label, "aria-label": "What they're called", oninput: (e) => { const had = !!w.mainLabel; w.mainLabel = e.target.value; if (had !== !!w.mainLabel.trim()) draw(); } })));
@@ -1670,7 +1670,7 @@
               h("button", { class: "gp-color sm", "aria-label": "Colour of " + t.name, style: "--c:" + t.color, onclick: () => { t.color = C.COLORS[(C.COLORS.indexOf(t.color) + 1) % C.COLORS.length]; draw(); } }),
               h("span", { class: "gp-edit-page-name" }, h("b", null, t.name), t.info ? h("small", { class: "gp-dim" }, t.info) : null),
               ent ? h("button", { class: "btn ghost gp-small", "aria-label": "Edit " + t.name, onclick: () => openEntity(ent, { onSaved: () => { hydrate(w); draw(); } }) }, ic("edit", "icon-sm"), "Edit") : null,
-              h("button", { class: "btn icon ghost", "aria-label": "Remove " + t.name + " from this group", title: "Remove from this group (stays in your other groups)", onclick: () => { w.mainTags.splice(i, 1); draw(); } }, ic("trash"))));
+              h("button", { class: "btn icon ghost", "aria-label": "Remove " + t.name + " from this space", title: "Remove from this space (stays in your other spaces)", onclick: () => { w.mainTags.splice(i, 1); draw(); } }, ic("trash"))));
           });
           mt.append(h("button", { class: "btn ghost gp-small", id: "gp-edit-add-page", onclick: () => { if (!w.mainType) w.mainType = groupType(w).key; newMainTag(w, () => draw(), { workingCopy: true }); } }, ic("plus", "icon-sm"), "Add " + (w.mainLabel.trim() || "tag").toLowerCase()));
         }
@@ -1718,7 +1718,7 @@
 
         body.append(h("div", { class: "gp-sheet-actions sticky" },
           h("button", { class: "btn", onclick: () => shareTemplate(C.normalizeGroup(w)) }, ic("share"), "Share as template"),
-          h("button", { class: "btn danger ghost", onclick: () => askDeleteGroup(g, close) }, ic("trash"), "Delete group"),
+          h("button", { class: "btn danger ghost", onclick: () => askDeleteGroup(g, close) }, ic("trash"), "Delete space"),
           h("span", { class: "gp-grow" }),
           h("button", { class: "btn", onclick: close }, "Cancel"),
           h("button", { class: "btn primary", onclick: async () => {
@@ -1784,8 +1784,8 @@
         else render();
         if (mode === "notes") api.renderAllViews();
       };
-      if (onlyHere.length) body.append(h("button", { class: "gp-choice", onclick: () => finish("notes") }, ic("note"), h("span", null, "Delete group, keep entries as notes", h("small", null, onlyHere.length + " entries move to Notes with their text and photos."))));
-      body.append(h("button", { class: "gp-choice danger", onclick: () => finish("delete") }, ic("trash"), h("span", null, onlyHere.length ? "Delete group and its " + onlyHere.length + " entries" : "Delete group", h("small", null, "Entries linked into other groups stay there. This can't be undone."))));
+      if (onlyHere.length) body.append(h("button", { class: "gp-choice", onclick: () => finish("notes") }, ic("note"), h("span", null, "Delete space, keep entries as notes", h("small", null, onlyHere.length + " entries move to Notes with their text and photos."))));
+      body.append(h("button", { class: "gp-choice danger", onclick: () => finish("delete") }, ic("trash"), h("span", null, onlyHere.length ? "Delete space and its " + onlyHere.length + " entries" : "Delete space", h("small", null, "Entries linked into other spaces stay there. This can't be undone."))));
     });
   }
 
@@ -1891,19 +1891,19 @@
     const box = document.getElementById("groups-settings-body");
     if (!box) return;
     box.replaceChildren();
-    const toggle = h("label", { class: "settings-check" }, h("input", { type: "checkbox", id: "groups-enabled", checked: enabled, onchange: (e) => setEnabled(e.target.checked) }), " Show Groups");
+    const toggle = h("label", { class: "settings-check" }, h("input", { type: "checkbox", id: "groups-enabled", checked: enabled, onchange: (e) => setEnabled(e.target.checked) }), " Show Spaces");
     box.append(h("div", { class: "settings-group" }, toggle,
-      h("div", { class: "settings-hint" }, "Groups are timelines for topics like Hospital, Food or your bike. They're separate from your notes. Turning this off only hides them; nothing is deleted.")));
-    const stats = groups.length ? groups.length + (groups.length === 1 ? " group, " : " groups, ") + live().length + (live().length === 1 ? " entry" : " entries") + ". Included in Back up." : "No groups yet.";
+      h("div", { class: "settings-hint" }, "Spaces are timelines for topics like Health, Food or Trips. They're separate from your notes. Turning this off only hides them; nothing is deleted.")));
+    const stats = groups.length ? groups.length + (groups.length === 1 ? " space, " : " spaces, ") + live().length + (live().length === 1 ? " entry" : " entries") + ". Included in Back up." : "No spaces yet.";
     const trashed = entries.filter((e) => e.deletedAt);
     box.append(h("div", { class: "settings-group padded" }, h("div", { class: "settings-hint" }, stats),
       h("div", { class: "settings-row-actions" },
-        h("button", { onclick: () => { api.closeSettings(); openNewGroup(); } }, "+ New group"),
+        h("button", { onclick: () => { api.closeSettings(); openNewGroup(); } }, "+ New space"),
         h("button", { onclick: () => importTemplateFile() }, "Import template\u2026"),
         trashed.length ? h("button", { onclick: openTrash }, "Trash (" + trashed.length + ")") : null)));
   }
   function openTrash() {
-    sheet("Groups Trash", (body) => {
+    sheet("Spaces Trash", (body) => {
       const draw = () => {
         body.replaceChildren();
         const list = entries.filter((e) => e.deletedAt).sort((a, b) => b.deletedAt - a.deletedAt);

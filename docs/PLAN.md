@@ -38,18 +38,20 @@ Versions 2.1–2.4 were never released. From now on there are no gaps.
 
 | Word | Means | Example |
 |---|---|---|
-| **Space** | What the app calls "Profile" today: a separate set of data | Personal, Work, Family |
-| **Group** | A part of life, inside a space | Hospital, Food, Bike |
+| **Profile** | A separate set of data on the device | Personal, Work, Family |
+| **Space** | A part of life, inside a profile (called "Group" before 2.6) | Health, Food, Trips |
 | **Entity** | A reusable person, place or thing with one identity | Dr X, Nimrah Cafe, the bike |
-| **Page** | A group's view of an entity | Hospital → Dr X |
-| **Sub-chat** | A kind of entry inside a group | Prescriptions, Bills |
+| **Page** | A space's view of an entity | Health → Dr X |
+| **Sub-chat** | A kind of entry inside a space | Prescriptions, Bills |
 | **Entry / Source** | Something that happened / its original photo or file | A prescription and its photo |
 
-People see it simply as **Personal → Hospital → Dr X → Prescriptions**. Under the hood, a page points to its entity; it never copies it.
+People see it simply as **Personal → Health → Dr X → Prescriptions**. Under the hood, a page points to its entity; it never copies it.
 
-**Spaces (today's "Profiles"):**
-- "Profile" is never used for people or places. Doctors, restaurants and vehicles are entities with pages, not profiles.
-- The visible label changes from "Profile" to **"Space"**. This is a text change only: stored data, switching and existing spaces keep working exactly as they do.
+**Profiles and Spaces (decided during 2.6 testing):**
+- Profiles keep the name **Profile** (Personal, Work, Family). Doctors, restaurants and vehicles are entities with pages, never profiles.
+- Groups are shown as **Spaces**: a space is the place a part of life lives, with its timeline, pages and (later) its own AI.
+- Text change only: stored data and the code (`groups`) stay as they are. Search takes `space:food`; `group:food` still works.
+- Starting templates: Health, Food, Trips, Vehicles, Watchlist.
 
 **The foundation:**
 - `docs/ENGINE.md`: a short set of rules.
@@ -72,7 +74,7 @@ People see it simply as **Personal → Hospital → Dr X → Prescriptions**. Un
 - **Capture → Save → Done.** Boringly reliable, not an "AI camera".
 - Saving works instantly and offline (once the app is installed). No group, entity, place, tag, OCR, AI, GPS, map or network is required. If any of those fail, the capture is still saved.
 - **Global Snap** (from the + menu): saves into **Inbox, under a "Captured" filter**. No new storage area.
-- **Contextual Snap** (from inside a group, page or sub-chat, e.g. Personal → Hospital → Dr X → Prescriptions): saves with that context already filled in. No form appears before saving.
+- **Contextual Snap** (from inside a group, page or sub-chat, e.g. Personal → Health → Dr X → Prescriptions): saves with that context already filled in. No form appears before saving.
 - **Saved with each snap:** the original, time, origin (camera, photo library, file), original file name, and location with its accuracy and source when available.
   - Location is asked for in the background and never delays the save.
   - Coordinates are evidence. A map or web match is only a suggestion. The place you choose is what counts.
@@ -112,7 +114,7 @@ People see it simply as **Personal → Hospital → Dr X → Prescriptions**. Un
 6. Every suggestion (OCR, AI, web lookup) keeps where it came from, how confident it is, and whether it is confirmed.
 7. One entry can sit in several groups without being copied.
 8. People, places and things are reusable records with a stable identity. Renaming one or changing its type never creates a new one, and a detail like a specialty never becomes its identity. A page inside a group is a view of that identity, never a second copy.
-9. Groups give context; they don't own entries.
+9. Spaces give context; they don't own entries.
 10. Views never duplicate data.
 11. Outside services enrich or import; they are never the source of truth.
 12. AI asks the engine; AI doesn't own the memory. AI receives only the records needed for the current request, never the whole collection by default.

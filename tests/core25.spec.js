@@ -19,7 +19,7 @@ async function setUpVault(page) {
 async function newGroup(page, template) {
   await page.click("#groups-add-btn");
   await page.locator(".gp-tpl", { hasText: template }).click();
-  await page.click(".gp-sheet button:has-text('Create group')");
+  await page.click(".gp-sheet button:has-text('Create space')");
   await expect(page.locator(".gp-id h1")).toContainText(template);
 }
 async function sendEntry(page, text) {
@@ -344,7 +344,7 @@ test("renaming a tag renames it on group entries; Tags page merges look-alikes a
   await page.locator(".tagm-dupe button", { hasText: "Merge" }).click();
   await expect(lastToast(page)).toContainText("Merged");
   await expect(page.locator(".tagm-row")).toHaveCount(1);
-  await expect(page.locator(".tagm-row")).toContainText("1 note · 1 group entry");
+  await expect(page.locator(".tagm-row")).toContainText("1 note · 1 space entry");
 
   // Rename it: the group entry follows.
   await page.locator(".tagm-row button", { hasText: "Edit" }).click();

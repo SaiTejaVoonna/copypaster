@@ -8,8 +8,8 @@ This file sets out what CopyPaster's data means and what the code is allowed to 
 
 | Word | Meaning | In code |
 |---|---|---|
-| **Space** | A separate set of data on the device (Personal, Work, Family). Called "Profile" before 2.6. | `profiles`, one IndexedDB database each |
-| **Group** | A part of life inside a space (Hospital, Food, Bike) | `groups` store |
+| **Profile** | A separate set of data on the device (Personal, Work, Family) | `profiles`, one IndexedDB database each |
+| **Space** | A part of life inside a profile (Health, Food, Trips). Called "Group" before 2.6; the code still says group. | `groups` store |
 | **Sub-chat** | A kind of entry inside a group (Prescriptions, Bills) | `group.subs` |
 | **Entity** | A reusable person, place or thing with one identity | `entities` store |
 | **Type** | What kind of entity it is (Doctor, Restaurant, Vehicle). Defines its fields. | `entity.type` |
@@ -20,7 +20,7 @@ This file sets out what CopyPaster's data means and what the code is allowed to 
 | **Tag** | A quick label shared by notes and entries | `tags` store; entries keep the key |
 | **Suggestion** | A value the app guessed. It is not a fact until confirmed. | not built yet (2.7) |
 
-People see these simply as *Personal → Hospital → Dr X → Prescriptions*. The table is for builders.
+People see these simply as *Personal → Health → Dr X → Prescriptions*. The table is for builders.
 
 ## Rules
 
@@ -35,7 +35,7 @@ People see these simply as *Personal → Hospital → Dr X → Prescriptions*. T
    - Renaming it or changing its type never makes a new one.
    - A detail such as a specialty never becomes its identity.
    - A page is a view of the entity, never a second copy.
-9. Groups give context; they don't own entries.
+9. Spaces give context; they don't own entries.
 10. Views (Timeline, pages, calendar, stats) never store duplicate data. Stats are worked out from entries and fields.
 11. Outside services enrich or import; they are never the source of truth.
 12. AI asks the engine; it doesn't own the memory. It receives only the records a request needs.
@@ -59,7 +59,7 @@ Prescription on 7 Oct 2026             entry
 
 ## One field engine
 
-Groups, entities and (later) documents all use the same field definitions: `{ id, name, type, unit }`.
+Spaces, entities and (later) documents all use the same field definitions: `{ id, name, type, unit }`.
 
 | Type | Holds | Notes |
 |---|---|---|

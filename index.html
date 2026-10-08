@@ -1532,15 +1532,15 @@
     <div id="brand"><span id="brand-dot"><svg class="icon"><use href="#icon-logo"></use></svg></span><span id="brand-label">CopyPaster</span>
       <button id="sidebar-collapse-btn" title="Collapse sidebar" aria-label="Collapse sidebar"><svg class="icon"><use href="#icon-sidebar"></use></svg></button>
     </div>
-    <button id="profile-btn" type="button" title="Switch space"><span class="profile-avatar" id="profile-avatar"></span><span id="profile-name"></span><span id="profile-caret"><svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></span></button>
+    <button id="profile-btn" type="button" title="Switch profile"><span class="profile-avatar" id="profile-avatar"></span><span id="profile-name"></span><span id="profile-caret"><svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></span></button>
     <button id="sidebar-search" type="button" title="Search and commands (Ctrl+K)"><svg class="icon"><use href="#icon-search"></use></svg><span>Search</span><span class="kbd" id="palette-kbd">Ctrl K</span></button>
     <div id="sidebar-scroll">
       <nav id="main-nav"></nav>
       <div id="groups-section" hidden>
         <div class="sidebar-divider"></div>
         <div class="sidebar-section-header" data-section="groups">
-          <span class="section-title-click">Groups<span class="section-chevron"><svg class="icon"><use href="#icon-chevron-down"></use></svg></span></span>
-          <button id="groups-add-btn" class="section-add-btn" title="New group" aria-label="New group"><svg class="icon"><use href="#icon-plus"></use></svg></button>
+          <span class="section-title-click">Spaces<span class="section-chevron"><svg class="icon"><use href="#icon-chevron-down"></use></svg></span></span>
+          <button id="groups-add-btn" class="section-add-btn" title="New space" aria-label="New space"><svg class="icon"><use href="#icon-plus"></use></svg></button>
         </div>
         <div id="groups-list"></div>
       </div>
@@ -1623,9 +1623,9 @@
     <div id="settings-layout">
       <div id="settings-nav" role="tablist" aria-label="Settings sections">
         <button class="settings-nav-item" data-page="appearance"><span class="sn-icon" style="background:#5b8cff"><svg class="icon"><use href="#icon-palette"></use></svg></span>Appearance<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
-        <button class="settings-nav-item" data-page="profiles"><span class="sn-icon" style="background:#34c759"><svg class="icon"><use href="#icon-users"></use></svg></span>Spaces<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
+        <button class="settings-nav-item" data-page="profiles"><span class="sn-icon" style="background:#34c759"><svg class="icon"><use href="#icon-users"></use></svg></span>Profiles<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="vault"><span class="sn-icon" style="background:#14b8a6"><svg class="icon"><use href="#icon-vault"></use></svg></span>Vault<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
-        <button class="settings-nav-item" data-page="groups"><span class="sn-icon" style="background:#8b5cf6"><svg class="icon"><use href="#icon-layers"></use></svg></span>Groups<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
+        <button class="settings-nav-item" data-page="groups"><span class="sn-icon" style="background:#8b5cf6"><svg class="icon"><use href="#icon-layers"></use></svg></span>Spaces<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="tags"><span class="sn-icon" style="background:#ec4899"><svg class="icon"><use href="#icon-tag"></use></svg></span>Tags<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="cleanup"><span class="sn-icon" style="background:#a78bfa"><svg class="icon"><use href="#icon-sparkle"></use></svg></span>Paste clean-up<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="data"><span class="sn-icon" style="background:#f59e0b"><svg class="icon"><use href="#icon-database"></use></svg></span>Your data<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
@@ -1657,11 +1657,11 @@
         </section>
 
         <section class="settings-page" data-page="profiles" id="profile-settings">
-          <h2 class="settings-page-title">Spaces</h2>
-          <p class="settings-page-lead">Each space has its own notes, groups, folders, tags and Vault — for example Personal, Work or Family. Theme and paste clean-up are shared on this device.</p>
+          <h2 class="settings-page-title">Profiles</h2>
+          <p class="settings-page-lead">Each profile has its own notes, spaces, folders, tags and Vault — for example Personal, Work or Family. Theme and paste clean-up are shared on this device.</p>
           <div class="settings-section">
             <div class="settings-group" id="profile-list"></div>
-            <div class="settings-row-actions"><button id="new-profile-btn" type="button">+ New space</button></div>
+            <div class="settings-row-actions"><button id="new-profile-btn" type="button">+ New profile</button></div>
           </div>
         </section>
 
@@ -1672,14 +1672,14 @@
         </section>
 
         <section class="settings-page" data-page="groups" id="groups-settings">
-          <h2 class="settings-page-title">Groups</h2>
-          <p class="settings-page-lead">Timelines for one topic each, like Hospital, Food or your bike. Separate from your notes.</p>
+          <h2 class="settings-page-title">Spaces</h2>
+          <p class="settings-page-lead">Timelines for one topic each, like Health, Food or Trips. Separate from your notes.</p>
           <div id="groups-settings-body"></div>
         </section>
 
         <section class="settings-page" data-page="tags" id="tags-settings">
           <h2 class="settings-page-title">Tags</h2>
-          <p class="settings-page-lead">One set of tags for notes and groups. Rename, recolor, merge look-alikes and clear out unused ones.</p>
+          <p class="settings-page-lead">One set of tags for notes and spaces. Rename, recolor, merge look-alikes and clear out unused ones.</p>
           <div id="tags-settings-body"></div>
         </section>
 
@@ -2908,7 +2908,7 @@
   const DOCK_KEY = "copypaster-dock";
   const DOCK_CHOICES = [
     { key: "all", label: "Inbox", icon: "inbox" },
-    { key: "groups", label: "Groups", icon: "layers", needsGroups: true },
+    { key: "groups", label: "Spaces", icon: "layers", needsGroups: true },
     { key: "timeline", label: "Timeline", icon: "timeline" },
     { key: "search", label: "Search", icon: "search" },
     { key: "saved", label: "Favorites", icon: "star" },
@@ -3239,7 +3239,7 @@
   }
 
   async function deleteTag(tagId) {
-    if (!confirm("Delete this tag? It will be removed from all notes and group entries.")) return;
+    if (!confirm("Delete this tag? It will be removed from all notes and space entries.")) return;
     for (const item of cache) {
       if (item.tags.includes(tagId)) {
         item.tags = item.tags.filter((x) => x !== tagId);
@@ -3795,7 +3795,7 @@
       { label: item.vaulted ? "Move out of Vault" : "Move to Vault", run: () => (item.vaulted ? moveOutOfVault(item) : moveToVault(item)) },
       ...(item.vaulted ? [] : [{ label: "Move to folder\u2026", run: () => openFolderSheet(item) }]),
       ...(!item.vaulted && item.type !== "password" && groupsApi && groupsApi.enabled() && groupsApi.hasGroups()
-        ? [{ label: "Move to group\u2026", icon: "layers", run: () => groupsApi.moveNoteToGroup(item) }] : []),
+        ? [{ label: "Move to space\u2026", icon: "layers", run: () => groupsApi.moveNoteToGroup(item) }] : []),
       { label: "Select\u2026", run: () => {
         if (!selectMode) document.getElementById("select-mode-btn").click();
         selectedIds.add(item.id);
@@ -4140,7 +4140,7 @@
         b.type = "button";
         b.className = "tl-group-banner";
         b.innerHTML = icon("layers") + "<span></span>" + icon("chevron-right", "icon-sm");
-        b.querySelector("span").textContent = (more === 1 ? "1 group entry" : more + " group entries") + " also tagged #" + tg.name + ". See everything in Timeline";
+        b.querySelector("span").textContent = (more === 1 ? "1 space entry" : more + " space entries") + " also tagged #" + tg.name + ". See everything in Timeline";
         b.addEventListener("click", () => openTimeline({ q: "#" + tagKey(tg.name) }));
         itemsEl.appendChild(b);
       }
@@ -5780,7 +5780,7 @@
     box.className = "due-box";
     const h = document.createElement("div");
     h.className = "due-head";
-    h.textContent = "Dates from your groups";
+    h.textContent = "Dates from your spaces";
     box.appendChild(h);
     for (const d of rows) {
       const b = document.createElement("button");
@@ -6182,7 +6182,7 @@
       if (progress) progress.close();
       renderAllViews();
       showToast("Imported " + addedItems + " items" + (addedTags || addedFolders ? " (+tags/folders)" : "") + (addedItems ? " \u2014 new ones are marked unread" : "") +
-        (addedGroups.groups || addedGroups.entries ? " \u00b7 " + addedGroups.groups + " groups, " + addedGroups.entries + " group entries" : "") +
+        (addedGroups.groups || addedGroups.entries ? " \u00b7 " + addedGroups.groups + " spaces, " + addedGroups.entries + " space entries" : "") +
         (vaultImport.skipped ? " \u00b7 " + vaultImport.skipped + " Vault items skipped" : ""));
     } catch (err) {
       console.error("Import failed:", err);
@@ -6208,13 +6208,13 @@
       { key: "sketch", label: "Sketch", hint: "Draw with your finger or mouse", icon: "pen", cls: "cm-command", letter: "S", run: () => newNoteWith("sketch") }
     ];
     if (!inVault && groupsApi && groupsApi.enabled()) {
-      entries.push({ key: "entry", label: "Group entry", hint: groupsApi.hasGroups() ? "Into a group's timeline" : "Make your first group", icon: "layers", cls: "cm-folder", letter: "G", run: () => { closeTimeline(); groupsApi.openComposer(); } });
+      entries.push({ key: "entry", label: "Space entry", hint: groupsApi.hasGroups() ? "Into a space's timeline" : "Make your first space", icon: "layers", cls: "cm-folder", letter: "G", run: () => { closeTimeline(); groupsApi.openComposer(); } });
     }
     if (!inVault) {
       const here = groupsApi && groupsApi.snapContext();
       entries.push({ key: "snap", label: "Snap", hint: here ? "Saved straight into " + here : "Saved to Inbox right away; sort it later", icon: "camera", cls: "cm-image", letter: "A", run: () => snapNow() });
     }
-    if (!inVault) entries.push({ key: "folder", label: "Folder", hint: "Group items together", icon: "folder-plus", cls: "cm-folder", letter: "F", run: () => openFolderPopover(document.getElementById("new-btn"), null) });
+    if (!inVault) entries.push({ key: "folder", label: "Folder", hint: "Keep items together", icon: "folder-plus", cls: "cm-folder", letter: "F", run: () => openFolderPopover(document.getElementById("new-btn"), null) });
     if (inVault) { const pw = entries.splice(3, 1)[0]; entries.unshift(pw); }
     return entries;
   }
@@ -7178,7 +7178,7 @@
     if (!open) return [];
     return itemQuickActions(open).filter((a) => a.label !== "Open" && !a.label.startsWith("Select")).map((a) => ({ label: a.label, icon: actionIcon(a.label) || "chevron-right", run: a.run }));
   }
-  const ACTION_ICONS = [["copy", "copy"], ["favorite", "star"], ["pin", "pin"], ["archive", "archive"], ["vault", "vault"], ["folder", "folder"], ["to group", "layers"],
+  const ACTION_ICONS = [["copy", "copy"], ["favorite", "star"], ["pin", "pin"], ["archive", "archive"], ["vault", "vault"], ["folder", "folder"], ["to space", "layers"],
     ["trash", "trash"], ["delete", "trash"], ["read", "mail"], ["restore", "undo"], ["select", "check-box"], ["open", "chevron-right"]];
   function actionIcon(label) {
     const l = label.toLowerCase();
@@ -7251,7 +7251,7 @@
         }
       };
       group("Items", items);
-      if (q && mode !== "item" && groupsApi) group("In groups", groupsApi.paletteItems(q));
+      if (q && mode !== "item" && groupsApi) group("In spaces", groupsApi.paletteItems(q));
       group(mode === "item" ? "This item" : "Actions", actions);
       if (!rows.length) results.innerHTML = '<div class="palette-empty">No matching items or actions</div>';
       active = 0;
@@ -8613,7 +8613,7 @@
       const p = document.createElement("div");
       p.className = "settings-hint";
       p.style.padding = "12px";
-      p.textContent = "No tags yet. Add one from a note's Organise panel, or type #word when sending to a group.";
+      p.textContent = "No tags yet. Add one from a note's Organise panel, or type #word when sending to a space.";
       g.appendChild(p);
       return;
     }
@@ -8630,7 +8630,7 @@
         g.appendChild(row);
       });
     }
-    const g = section("Your tags", list.length + (list.length === 1 ? " tag" : " tags") + ". Counts include notes and group entries.");
+    const g = section("Your tags", list.length + (list.length === 1 ? " tag" : " tags") + ". Counts include notes and space entries.");
     const wrap = document.createElement("div");
     wrap.className = "tagm-list";
     list.forEach((t) => {
@@ -8644,7 +8644,7 @@
       name.className = "tagm-name";
       name.innerHTML = "<b></b><small></small>";
       name.firstChild.textContent = t.name;
-      name.lastChild.textContent = !t.count ? "Not used" : [t.notes ? t.notes + (t.notes === 1 ? " note" : " notes") : "", t.entries ? t.entries + (t.entries === 1 ? " group entry" : " group entries") : ""].filter(Boolean).join(" · ");
+      name.lastChild.textContent = !t.count ? "Not used" : [t.notes ? t.notes + (t.notes === 1 ? " note" : " notes") : "", t.entries ? t.entries + (t.entries === 1 ? " space entry" : " space entries") : ""].filter(Boolean).join(" · ");
       row.appendChild(name);
       if (t.count) row.appendChild(small("Show", () => { closeSettings(); openTag(t.key); }));
       if (rec) row.appendChild(small("Edit", (e) => openTagPopover(e.currentTarget, rec)));
@@ -8759,7 +8759,7 @@
     bar.className = "storage-bar";
     const legend = document.createElement("div");
     legend.className = "storage-legend";
-    [["photos", "Photos and sketches", "var(--image)"], ["audio", "Voice notes", "var(--command)"], ["groups", "Groups", "var(--accent)"], ["text", "Text", "var(--note)"], ["vault", "Vault (locked)", "var(--password)"]].forEach(([k, label, color]) => {
+    [["photos", "Photos and sketches", "var(--image)"], ["audio", "Voice notes", "var(--command)"], ["groups", "Spaces", "var(--accent)"], ["text", "Text", "var(--note)"], ["vault", "Vault (locked)", "var(--password)"]].forEach(([k, label, color]) => {
       if (!parts[k]) return;
       const seg = document.createElement("i");
       seg.style.width = (100 * parts[k] / total) + "%";
@@ -8774,7 +8774,7 @@
     const tip = document.createElement("div");
     tip.className = "settings-hint";
     tip.style.marginTop = "6px";
-    tip.textContent = quota && usage / quota > 0.8 ? "Getting full. Export a backup, then delete old photos or voice notes." : "Photos are kept as they were added; group photos are shrunk to 1600 px.";
+    tip.textContent = quota && usage / quota > 0.8 ? "Getting full. Export a backup, then delete old photos or voice notes." : "Photos are kept as they were added; space photos are shrunk to 1600 px.";
     box.append(line, bar, legend, tip);
   }
   renderBackupInfo();
@@ -8804,15 +8804,15 @@
   function profileMenuActions() {
     return [
       ...profiles.map((pr) => ({ label: (pr.id === currentProfile.id ? "✓ " : " ") + pr.name, run: () => switchProfile(pr.id) })),
-      { label: "+ New space", run: newProfileDialog },
-      { label: "Manage spaces…", run: () => openSettings("profiles") }
+      { label: "+ New profile", run: newProfileDialog },
+      { label: "Manage profiles…", run: () => openSettings("profiles") }
     ];
   }
 
   document.getElementById("profile-btn").addEventListener("click", (e) => {
     e.stopPropagation();
     const actions = profileMenuActions();
-    if (isDrawerMode()) { openSheet("Spaces", actions, false); return; }
+    if (isDrawerMode()) { openSheet("Profiles", actions, false); return; }
     const r = e.currentTarget.getBoundingClientRect();
     showContextMenu(r.left, r.bottom + 4, actions.map((a) => ({ label: a.label, onClick: a.run })));
     const menu = document.querySelector(".context-menu");
@@ -8820,17 +8820,17 @@
   });
 
   function profileNameProblem(name, exceptId) {
-    if (!name) return "Give the space a name.";
+    if (!name) return "Give the profile a name.";
     if (name.length > 40) return "Keep it under 40 characters.";
-    if (profiles.some((pr) => pr.id !== exceptId && pr.name.toLowerCase() === name.toLowerCase())) return "There's already a space called “" + name + "”.";
+    if (profiles.some((pr) => pr.id !== exceptId && pr.name.toLowerCase() === name.toLowerCase())) return "There's already a profile called “" + name + "”.";
     return null;
   }
 
   function newProfileDialog() {
     openDialog({
-      title: "New space",
+      title: "New profile",
       iconName: "user",
-      text: "A separate space with its own notes, folders, tags and Vault. You can switch any time from the top of the sidebar.",
+      text: "A separate profile with its own notes, spaces, folders, tags and Vault. You can switch any time from the top of the sidebar.",
       fields: [{ name: "name", label: "Name", placeholder: "Work, Personal, Alex…" }],
       submitLabel: "Create and switch",
       onSubmit: async ({ name }) => {
@@ -8849,7 +8849,7 @@
 
   function renameProfileDialog(profile) {
     openDialog({
-      title: "Rename space",
+      title: "Rename profile",
       iconName: "user",
       fields: [{ name: "name", label: "Name" }],
       submitLabel: "Rename",
@@ -8872,12 +8872,12 @@
     openDialog({
       title: "Delete “" + profile.name + "”?",
       iconName: "user",
-      text: "Everything in this space is deleted from this device forever: notes, groups, folders, tags and its Vault. Export a backup first if you might want it. Type the space's name to confirm.",
+      text: "Everything in this profile is deleted from this device forever: notes, spaces, folders, tags and its Vault. Export a backup first if you might want it. Type the profile's name to confirm.",
       fields: [{ name: "confirm", label: "Type " + profile.name }],
       submitLabel: "Delete forever",
       danger: true,
       onSubmit: async ({ confirm }) => {
-        if (confirm.trim().toLowerCase() !== profile.name.toLowerCase()) return "Type the space's name to confirm.";
+        if (confirm.trim().toLowerCase() !== profile.name.toLowerCase()) return "Type the profile's name to confirm.";
         const result = await new Promise((resolve) => {
           const req = indexedDB.deleteDatabase(profileDbName(profile.id));
           req.onsuccess = () => resolve("ok");
@@ -8933,7 +8933,7 @@
       del.className = "danger";
       del.textContent = "Delete";
       del.disabled = isCurrent;
-      del.title = isCurrent ? "Switch to another space first" : "Delete this space and everything in it";
+      del.title = isCurrent ? "Switch to another profile first" : "Delete this profile and everything in it";
       del.addEventListener("click", () => deleteProfileDialog(pr));
       row.append(rename, del);
       list.appendChild(row);

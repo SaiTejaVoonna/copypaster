@@ -4,7 +4,7 @@ test.beforeEach(async ({ page }) => { await openApp(page); });
 
 async function createProfile(page, name) {
   await page.click("#profile-btn");
-  await page.locator("#profile-menu .popover-list-item", { hasText: "New space" }).click();
+  await page.locator("#profile-menu .popover-list-item", { hasText: "New profile" }).click();
   await page.fill("#dialog-name", name);
   await page.locator("#dialog button[type=submit]").click();
   await page.waitForLoadState("load");
@@ -43,10 +43,10 @@ test("profiles can't share a name; rename and delete from Settings", async ({ pa
   await createProfile(page, "Work");
   await newNote(page, "work note");
   await page.click("#profile-btn");
-  await page.locator("#profile-menu .popover-list-item", { hasText: "New space" }).click();
+  await page.locator("#profile-menu .popover-list-item", { hasText: "New profile" }).click();
   await page.fill("#dialog-name", "work");
   await page.locator("#dialog button[type=submit]").click();
-  await expect(page.locator("#dialog .dialog-error")).toContainText("already a space");
+  await expect(page.locator("#dialog .dialog-error")).toContainText("already a profile");
   await page.keyboard.press("Escape");
 
   await page.click("#settings-btn");

@@ -128,7 +128,7 @@ test("profile switcher opens as a sheet on phones", async ({ page }) => {
   await menuBtn(page).tap();
   await page.tap("#profile-btn");
   await expect(page.locator("#action-sheet")).toContainText("Personal");
-  await page.locator("#action-sheet button", { hasText: "New space" }).tap();
+  await page.locator("#action-sheet button", { hasText: "New profile" }).tap();
   await page.fill("#dialog-name", "Work");
   await page.locator("#dialog button[type=submit]").tap();
   await page.waitForLoadState("load");
@@ -136,7 +136,7 @@ test("profile switcher opens as a sheet on phones", async ({ page }) => {
 });
 
 test("the dock: Inbox, Groups, +, Search, More; no second menu button; Settings goes list → section → back", async ({ page }) => {
-  await expect(page.locator("#tab-bar .tab-btn")).toHaveText(["Inbox", "Groups", "New", "Search", "More"]);
+  await expect(page.locator("#tab-bar .tab-btn")).toHaveText(["Inbox", "Spaces", "New", "Search", "More"]);
   await expect(page.locator("#menu-btn")).toBeHidden(); // More in the dock is the one menu button
   await expect(page.locator("#new-btn")).toBeHidden(); // the dock's + is the one New button
   await page.tap('.tab-btn[data-tab="search"]');

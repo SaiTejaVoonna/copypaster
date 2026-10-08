@@ -9,23 +9,25 @@
 | `entities-core.js` | People, places and things: types, fields, did-you-mean matching, due dates, moving 2.5 main tags over. `window.CPEntities`. No screen code. |
 | `snap.js` | Snap: reads the picked photo into an original plus a display copy, capture details, and a separate location lookup. `window.CPSnap`. |
 
-`groups.js` adds pages, the person/place editor, merge, review and contextual Snap. `index.html` adds the dock picker, Spaces wording, the Captured filter, global Snap and the Reminders dates. Storage moves to IndexedDB version 6 with a new `entities` store.
+`groups.js` adds pages, the person/place editor, merge, review and contextual Snap. `index.html` adds the dock picker, Spaces wording (for groups), the Captured filter, global Snap and the Reminders dates. Storage moves to IndexedDB version 6 with a new `entities` store.
 
 ## Fixes from phone testing
 
 - **Filter sheet:** every section is laid out the same way, and Clear all / Show stay pinned at the bottom.
 - **Custom dates on phones:** a "Custom dates" chip opens From and To.
 - **Hiding:** tap a chip once to show only those, twice to hide them, three times to clear it. Search understands `-#tag`, `-group:`, `-type:`, `-is:` and `-in:notes`. A plain `-word` stays text, so `ls -la` still works. On computers, the Group and Tag menus have a hide button on each row.
-- **Dock:** Settings → Appearance → Dock on phones. You pick three tabs (Inbox, Groups, Timeline, Search, Favorites, Reminders, Unread, Notes). New stays in the middle and More at the end. Timeline opens without the keyboard; Search opens with it.
-- **Group message bar:**
+- **Dock:** Settings → Appearance → Dock on phones. You pick three tabs (Inbox, Spaces, Timeline, Search, Favorites, Reminders, Unread, Notes). New stays in the middle and More at the end. Timeline opens without the keyboard; Search opens with it.
+- **Space message bar:**
   - a Tags row (recent tags, plus Tag to find or create one);
   - rating stars on their own row;
   - a photo with no text is titled "Photo";
   - new names typed in small letters get capitals ("roadside bbq" → "Roadside Bbq").
 
-## Spaces
+## Profiles and Spaces
 
-What used to be called Profiles is now called **Spaces** (Personal, Work, Family). Only the wording changed; the stored data is the same.
+Groups are now shown as **Spaces** (Health, Food, Trips…), and Profiles stay **Profiles** (Personal, Work, Family). Only the wording changed; the stored data is the same. Search takes `space:food`, and `group:food` still works.
+
+Starting templates are now **Health** (was Hospital), Food, **Trips** (new), **Vehicles** (was Bike, now with a page per vehicle) and **Watchlist** (was Movies & Anime). Spaces you already made keep their names.
 
 ## People, places and things
 

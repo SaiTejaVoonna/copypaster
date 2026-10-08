@@ -1,6 +1,6 @@
 // CopyPaster Groups: the data rules, with no screen code.
 //
-// A Group is a timeline for one topic (Hospital, Food, Bike...). It is plain
+// A Group (shown as a Space) is a timeline for one topic (Health, Food, Trips...). It is plain
 // data: sub-chats, main tags, which fields are on, and how cards group.
 // Entries live in their own store, separate from notes. Everything shown on
 // screen (counts, totals, cards, month headings) is computed here from the
@@ -43,7 +43,7 @@
   const TEMPLATES = [
     { key: "blank", name: "Blank", desc: "Just a timeline. Add sub-chats and fields whenever you want.", icon: "layers", color: "#64748b",
       subs: [], mainLabel: "", fields: { amount: { on: true, currency: "INR" }, rating: false, custom: [] }, cards: "none", cardWord: "" },
-    { key: "hospital", name: "Hospital", desc: "Prescriptions, lab reports, medicines and bills", icon: "cross", color: "#ef4444",
+    { key: "hospital", name: "Health", desc: "Doctors, prescriptions, lab reports, medicines and bills", icon: "cross", color: "#ef4444",
       subs: [sub("Prescriptions", "Prescription", "clipboard", "#22c55e"), sub("Lab Reports", "Lab Report", "flask", "#8b5cf6", { late: true }),
         sub("Medicines", "Medicine", "pill", "#ec4899", { late: true }), sub("Bills", "Bill", "receipt", "#f5b544", { late: true })],
       mainLabel: "Doctor", mainType: "doctor", fields: { amount: { on: true, currency: "INR" }, rating: false, custom: [] }, cards: "day", cardWord: "Visit" },
@@ -51,17 +51,21 @@
       subs: [sub("Dishes", "Dish", "utensils", "#14b8a6"), sub("Bills", "Bill", "receipt", "#f5b544"),
         sub("Recipes", "Recipe", "book", "#8b5cf6", { noTag: true }), sub("Wishlist", "Wishlist", "heart", "#ec4899")],
       mainLabel: "Place", mainType: "restaurant", fields: { amount: { on: true, currency: "INR" }, rating: true, custom: [] }, cards: "day", cardWord: "Outing" },
-    { key: "movies", name: "Movies & Anime", desc: "What I watch, my thoughts, and what to watch next", icon: "film", color: "#8b5cf6",
+    { key: "movies", name: "Watchlist", desc: "Movies, shows and anime: what I watch, my thoughts, what's next", icon: "film", color: "#8b5cf6",
       subs: [sub("Watching", "Watching", "play", "#4c8dff"), sub("Watched", "Watched", "check", "#22c55e"),
-        sub("Watchlist", "Watchlist", "bookmark", "#f5b544"), sub("Thoughts", "Thought", "quote", "#8b5cf6", { noStatus: true })],
+        sub("To watch", "To watch", "bookmark", "#f5b544"), sub("Thoughts", "Thought", "quote", "#8b5cf6", { noStatus: true })],
       mainLabel: "Title", mainType: "title", fields: { amount: { on: false, currency: "INR" }, rating: true, custom: [{ name: "Episode", type: "number", unit: "", stat: "none" }] },
       cards: "title", cardWord: "Title" },
-    { key: "bike", name: "Bike", desc: "Service, spare parts, petrol and rides", icon: "bike", color: "#14b8a6",
+    { key: "bike", name: "Vehicles", desc: "Each bike or car: service, spare parts, petrol and rides", icon: "bike", color: "#14b8a6",
       subs: [sub("Service", "Service", "wrench", "#4c8dff"), sub("Spare parts", "Spare part", "cog", "#8b5cf6"),
         sub("Petrol", "Petrol", "fuel", "#f97316"), sub("Photos", "Photo", "camera", "#ec4899"), sub("Road trips", "Road trip", "route", "#22c55e")],
-      mainLabel: "", fields: { amount: { on: true, currency: "INR" }, rating: false, custom: [
+      mainLabel: "Vehicle", mainType: "vehicle", fields: { amount: { on: true, currency: "INR" }, rating: false, custom: [
         { name: "Odometer", type: "number", unit: "km", stat: "latest" }, { name: "Litres", type: "number", unit: "L", stat: "sum" }] },
-      cards: "none", cardWord: "" }
+      cards: "none", cardWord: "" },
+    { key: "trips", name: "Trips", desc: "Each trip: tickets, stays, meals, spends and photos", icon: "plane", color: "#0ea5e9",
+      subs: [sub("Tickets", "Ticket", "plane", "#4c8dff"), sub("Stays", "Stay", "home", "#8b5cf6"), sub("Meals", "Meal", "utensils", "#f97316"),
+        sub("Spends", "Spend", "wallet", "#f5b544"), sub("Photos", "Photo", "camera", "#ec4899")],
+      mainLabel: "Trip", mainType: "place", fields: { amount: { on: true, currency: "INR" }, rating: false, custom: [] }, cards: "day", cardWord: "Day" }
   ];
 
   // Builds a new group from a template (or a validated imported one).
@@ -85,7 +89,7 @@
     const out = {
       id: g.id || uid(),
       schema: GROUP_SCHEMA,
-      name: clampStr(g.name, MAX.name) || "Untitled group",
+      name: clampStr(g.name, MAX.name) || "Untitled space",
       desc: clampStr(g.desc, MAX.desc),
       icon: ICONS.includes(g.icon) ? g.icon : "layers",
       color: isColor(g.color) ? g.color : COLORS[9],

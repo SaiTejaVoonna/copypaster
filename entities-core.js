@@ -207,7 +207,7 @@
     entities.forEach((x) => { delete x._from; });
     return { entities, links, review };
   }
-  // "madhavi pudi" → "Madhavi Pudi"; text with capitals stays as typed.
+  // "asha verma" → "Asha Verma"; text with capitals stays as typed.
   function tidy(raw) {
     const s = String(raw || "").trim().replace(/\s+/g, " ");
     if (!s || s !== s.toLowerCase()) return s;

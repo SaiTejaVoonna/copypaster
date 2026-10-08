@@ -40,7 +40,7 @@ test("the dock's + makes a sketch and a group entry", async ({ page }) => {
   await page.tap("#new-menu [data-new='entry']");
   // No groups yet: it offers to make one.
   await page.locator(".gp-tpl", { hasText: "Food" }).tap();
-  await page.tap(".gp-sheet button:has-text('Create group')");
+  await page.tap(".gp-sheet button:has-text('Create space')");
   await expect(page.locator(".gp-id h1")).toHaveText("Food");
   await page.goBack();
   await page.goBack();

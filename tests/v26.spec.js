@@ -8,7 +8,7 @@ async function createGroup(page, template, name) {
   await page.click("#groups-add-btn");
   await page.locator(".gp-tpl", { hasText: template }).click();
   if (name) await page.fill("#gp-new-name", name);
-  await page.click(".gp-sheet button:has-text('Create group')");
+  await page.click(".gp-sheet button:has-text('Create space')");
   await expect(page.locator(".gp-id h1")).toContainText(name || template);
 }
 
@@ -126,7 +126,7 @@ test("2.5 doctors move to shared records; a doctor in two groups is one person; 
     g25("hosp", "Hospital", [
       { id: "t1", name: "Dr T Rao", color: "#ef4444", info: "Surgical Gastroenterology" },
       { id: "t2", name: "Dermatology", color: "#ec4899", info: "Dr M. Khan · Skin & Hair" },
-      { id: "t3", name: "Dermatology", color: "#22c55e", info: "madhavi pudi" }]),
+      { id: "t3", name: "Dermatology", color: "#22c55e", info: "asha verma" }]),
     g25("ins", "Insurance", [{ id: "i1", name: "Dr T Rao", color: "#4c8dff", info: "" }], { order: now + 1 })
   ], [e25("e1", "hosp", "t1", "Endoscopy"), e25("e2", "hosp", "t2", "Cream"), e25("e3", "ins", "i1", "Claim form")]);
 
@@ -140,9 +140,9 @@ test("2.5 doctors move to shared records; a doctor in two groups is one person; 
   await expect(page.locator("#gp-review-banner")).toContainText("2 names to check");
   await page.click("#gp-review-banner");
   await page.locator(".gp-review-use", { hasText: "Dr M. Khan" }).click();
-  await page.locator(".gp-review-use", { hasText: "Madhavi Pudi" }).click();
+  await page.locator(".gp-review-use", { hasText: "Asha Verma" }).click();
   await expect(page.locator(".gp-review")).toHaveCount(0);
-  await expect(page.locator(".gp-person-name")).toHaveText(["All", "Dr T Rao", "Dr M. Khan", "Madhavi Pudi", "New"]);
+  await expect(page.locator(".gp-person-name")).toHaveText(["All", "Dr T Rao", "Dr M. Khan", "Asha Verma", "New"]);
 
   // One person, two groups: the page links to the other one.
   await page.locator(".gp-person", { hasText: "Dr T Rao" }).click();
@@ -161,7 +161,7 @@ test("2.5 doctors move to shared records; a doctor in two groups is one person; 
 test("adding someone you already have suggests them instead of making a copy; merge folds duplicates", async ({ page }) => {
   await page.click("#groups-add-btn");
   await page.locator(".gp-tpl", { hasText: "Food" }).click();
-  await page.click(".gp-sheet button:has-text('Create group')");
+  await page.click(".gp-sheet button:has-text('Create space')");
   await page.click("#gp-page-new");
   await page.fill("#gp-page-name", "nimrah cafe");
   await page.click("#gp-page-create");
@@ -171,7 +171,7 @@ test("adding someone you already have suggests them instead of making a copy; me
   await page.click("#groups-add-btn");
   await page.locator(".gp-tpl", { hasText: "Food" }).click();
   await page.fill("#gp-new-name", "Hyderabad trip");
-  await page.click(".gp-sheet button:has-text('Create group')");
+  await page.click(".gp-sheet button:has-text('Create space')");
   await page.click("#gp-page-new");
   await page.fill("#gp-page-name", "Nimrah");
   await expect(page.locator(".gp-match")).toContainText("In Food");
@@ -198,8 +198,8 @@ test("a detail added for all of a type shows on every one; an expiry date shows 
   await page.click("#groups-add-btn");
   await page.locator(".gp-tpl", { hasText: "Blank" }).click();
   await page.fill("#gp-new-name", "Vehicles");
-  await page.click(".gp-sheet button:has-text('Create group')");
-  await page.click("button[aria-label='Edit group']");
+  await page.click(".gp-sheet button:has-text('Create space')");
+  await page.click("button[aria-label='Edit space']");
   await page.fill("#gp-edit-main-label", "Vehicle");
   await page.selectOption("#gp-edit-main-type", "vehicle");
   await page.click(".gp-sheet button:text-is('Save')");
@@ -317,4 +317,13 @@ test("Snap inside a group saves straight to that page and sub-chat; From Inbox m
   expect(notes.filter((n) => n.captured)).toHaveLength(0);
   await page.locator(".gp-entry", { hasText: "Photo" }).first().click();
   await expect(page.locator("#gp-capture")).toContainText("Camera");
+});
+
+test("search: space:name picks a space, the old group:name still works, and chips write space:", async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const ctx = { groups: [{ id: "g1", name: "Food trips" }, { id: "g2", name: "Health" }] };
+    const a = window.CPSearch.parse("space:hea", ctx), b = window.CPSearch.parse("group:hea", ctx), c = window.CPSearch.parse("-space:food", ctx);
+    return { a: a.groups, b: b.groups, c: c.not.groups, tok: window.CPSearch.tokenFor("group", "Food trips") };
+  });
+  expect(r).toEqual({ a: ["g2"], b: ["g2"], c: ["g1"], tok: 'space:"Food trips"' });
 });

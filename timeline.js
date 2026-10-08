@@ -42,7 +42,7 @@
     pane = h("section", { id: "tl-pane", hidden: true, "aria-label": "Timeline" });
     headEl = h("div", { class: "tl-head" });
     countEl = h("span", { class: "tl-count" });
-    searchEl = h("input", { id: "tl-search", class: "input", type: "search", placeholder: "Search everything, or try #tag group:food date:2026", autocomplete: "off", spellcheck: "false", "aria-label": "Search everything",
+    searchEl = h("input", { id: "tl-search", class: "input", type: "search", placeholder: "Search everything, or try #tag space:food date:2026", autocomplete: "off", spellcheck: "false", "aria-label": "Search everything",
       oninput: () => { ui.q = searchEl.value; ui.shown = PAGE; clearTimeout(searchEl._t); searchEl._t = setTimeout(renderResults, 120); },
       onkeydown: (e) => {
         if (e.key === "ArrowDown") { e.preventDefault(); moveKbd(1); }
@@ -149,8 +149,8 @@
     const filterCount = p.tokens.length;
     barEl.append(h("button", { class: "tl-drop tl-filter-btn" + (filterCount ? " on" : ""), "data-filter": "all", onclick: () => openAllFilters() }, ic("filter"), "Filter" + (filterCount ? " · " + filterCount : "")));
     const hiddenGroups = p.not.groups.length + (p.not.notes ? 1 : 0);
-    const groupLabel = p.notesOnly ? "Notes only" : p.groups.length ? (p.tokens.find((t) => t.kind === "group" && !t.neg) || {}).label || "Group" : hiddenGroups ? "Hiding " + hiddenGroups : "Group";
-    barEl.append(drop("group", groupLabel, p.notesOnly || p.groups.length || hiddenGroups, (a) => menu(a, "Group", (b, done) => groupMenu(b, done))));
+    const groupLabel = p.notesOnly ? "Notes only" : p.groups.length ? (p.tokens.find((t) => t.kind === "group" && !t.neg) || {}).label || "Space" : hiddenGroups ? "Hiding " + hiddenGroups : "Space";
+    barEl.append(drop("group", groupLabel, p.notesOnly || p.groups.length || hiddenGroups, (a) => menu(a, "Space", (b, done) => groupMenu(b, done))));
     barEl.append(drop("tag", p.tags.length ? (p.tags.length === 1 && !p.not.tags.length ? "#" + tagName(p.tags[0]) : p.tags.length + p.not.tags.length + " tags") : p.not.tags.length ? "Hiding " + p.not.tags.length : "Tag", p.tags.length + p.not.tags.length, (a) => menu(a, "Tags", (b, done) => tagMenu(b, done))));
     barEl.append(drop("date", p.date ? p.date.label : "Date", !!p.date, (a) => menu(a, "Date", (b, done) => dateMenu(b, done))));
     const typeOn = p.types.length + p.is.length + p.not.types.length + p.not.is.length;
@@ -182,9 +182,9 @@
     if (ui.kbd >= rows.length) ui.kbd = -1;
     if (!rows.length) {
       const empty = h("div", { class: "tl-empty" });
-      if (!rowsCache.length) empty.append(h("h3", null, "Nothing yet"), h("p", null, "Notes and group entries show up here by date, newest first."));
+      if (!rowsCache.length) empty.append(h("h3", null, "Nothing yet"), h("p", null, "Notes and space entries show up here by date, newest first."));
       else empty.append(h("h3", null, "Nothing matches"), h("p", null, "Remove a filter, or search for fewer words."));
-      empty.append(h("p", { class: "tl-help" }, "Try ", h("code", null, "#lab"), " ", h("code", null, "group:food"), " ", h("code", null, "date:2026-03"), " ", h("code", null, "type:photo"), " ", h("code", null, "is:fav")));
+      empty.append(h("p", { class: "tl-help" }, "Try ", h("code", null, "#lab"), " ", h("code", null, "space:food"), " ", h("code", null, "date:2026-03"), " ", h("code", null, "type:photo"), " ", h("code", null, "is:fav")));
       bodyEl.append(empty);
       return;
     }
@@ -287,7 +287,7 @@
     list.append(pickBtn([ic("timeline"), "Everything"], !p.groups.length && !p.notesOnly, () => { setGroupToken(""); done(); }));
     list.append(pickBtn([ic("note"), "Notes only", h("span", { class: "num" }, count((r) => r.kind === "note"))], p.notesOnly, () => { setGroupToken("in:notes"); done(); }));
     const groups = api.groups();
-    if (groups.length) list.append(h("div", { class: "tl-pick-sec" }, "Groups"));
+    if (groups.length) list.append(h("div", { class: "tl-pick-sec" }, "Spaces"));
     groups.forEach((g) => list.append(withHide(pickBtn([h("span", { class: "gp-tile sm", style: "--c:" + g.color }, ic(g.icon)), g.name, h("span", { class: "num" }, count((r) => r.kind === "entry" && r.groups.includes(g.id)))],
       p.groups.includes(g.id), () => { setGroupToken(S.tokenFor("group", g.name)); done(); }), "group", g.id, S.tokenFor("group", g.name), g.name, done)));
     body.append(list);
@@ -301,7 +301,7 @@
       const q = S.normalizeTag(input.value);
       list.replaceChildren();
       const tags = api.tags().filter((t) => !q || t.key.includes(q) || t.name.toLowerCase().includes(input.value.trim().toLowerCase()));
-      if (!tags.length) { list.append(h("div", { class: "gp-hint", style: "padding:8px 10px" }, api.tags().length ? "No tag like that." : "No tags yet. Add tags to notes or group entries.")); return; }
+      if (!tags.length) { list.append(h("div", { class: "gp-hint", style: "padding:8px 10px" }, api.tags().length ? "No tag like that." : "No tags yet. Add tags to notes or space entries.")); return; }
       tags.forEach((t) => {
         const on = p.tags.includes(t.key);
         list.append(withHide(pickBtn([t.emoji ? h("span", null, t.emoji) : h("span", { class: "tag-dot", style: "--c:" + (t.color || "var(--text-3)") }), t.name, h("span", { class: "num" }, t.count)], on, () => {
@@ -342,7 +342,7 @@
   }
 
   const TYPE_OPTIONS = [["type", "note", "Notes", "note"], ["type", "checklist", "Checklists", "checklist"], ["type", "command", "Commands", "command"], ["type", "link", "Links", "link"],
-    ["type", "photo", "Photos", "image"], ["type", "voice", "Voice notes", "mic"], ["type", "sketch", "Sketches", "pen"], ["type", "entry", "Group entries", "layers"]];
+    ["type", "photo", "Photos", "image"], ["type", "voice", "Voice notes", "mic"], ["type", "sketch", "Sketches", "pen"], ["type", "entry", "Space entries", "layers"]];
   const IS_OPTIONS = [["is", "todo", "To do"], ["is", "doing", "In progress"], ["is", "done", "Done"], ["is", "fav", "Favorites"], ["is", "pinned", "Pinned"], ["is", "unread", "Unread"], ["is", "reminder", "Has a reminder"], ["is", "archived", "Archived"]];
 
   // A chip with three states: off → show only these → hide these → off.
@@ -416,7 +416,7 @@
         } }, "Everything"));
         groups.append(triChip("notes", true, "in:notes", [ic("note"), "Notes"], { name: "Notes", pick: setGroupToken, redraw: draw }));
         api.groups().forEach((g) => groups.append(triChip("group", g.id, S.tokenFor("group", g.name), [ic(g.icon), g.name], { name: g.name, pick: setGroupToken, redraw: draw })));
-        sec("Group", [groups]);
+        sec("Space", [groups]);
 
         const tags = row();
         const tagList = api.tags().slice(0, 40);
