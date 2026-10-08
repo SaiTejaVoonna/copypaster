@@ -270,6 +270,17 @@ test("Snap saves to Inbox at once, keeps the original and when and where it was 
   await expect.poll(() => page.locator('#filter-chips .chip[data-kind="captured"]').count(), { timeout: 4000 }).toBe(0);
 });
 
+test("Snap says when the location was added, and says why when it wasn't", async ({ page, context }) => {
+  await page.click("#new-btn");
+  await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
+  await expect(page.locator(".toast-item", { hasText: "Location not added" })).toContainText("blocked");
+  await context.grantPermissions(["geolocation"]);
+  await context.setGeolocation({ latitude: 17.385, longitude: 78.4867, accuracy: 12 });
+  await page.click("#new-btn");
+  await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
+  await expect(page.locator(".toast-item", { hasText: "Location added to the snap" })).toBeVisible();
+});
+
 test("Snap inside a group saves straight to that page and sub-chat; From Inbox moves an earlier snap in", async ({ page }) => {
   await page.click("#new-btn");
   await pickFile(page, () => page.click('#new-menu [data-new="snap"]'), "earlier.png");

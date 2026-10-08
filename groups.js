@@ -1287,7 +1287,7 @@
       e.happenedOn = t; await saveEntry(e); api.showToast("Moved to " + fmtDate(t)); render();
     } })));
     cell("Added on", h("span", { class: "gp-v" }, fmtDate(e.addedOn) + ", " + fmtTime(e.addedOn)));
-    if (e.capture && window.CPSnap) cell("Snapped", h("span", { class: "gp-v gp-capture", id: "gp-capture" }, window.CPSnap.describe(e.capture),
+    if (e.capture && window.CPSnap) cell("Snapped", h("span", { class: "gp-v gp-capture", id: "gp-capture", "data-entry": e.id }, window.CPSnap.describe(e.capture),
       e.capture.original ? h("button", { class: "btn gp-small", id: "gp-open-original", onclick: () => api.openPhoto(e.capture.original) }, "Open original") : null), true);
     if (g.fields.amount.on || e.amount) {
       const cur = h("select", { class: "gp-cur-select", "aria-label": "Currency", onchange: (ev) => { e.currency = ev.target.value === g.fields.amount.currency ? null : ev.target.value; rerender(); } });
@@ -1815,8 +1815,15 @@
     api.showToast("Saved to " + [g.name, (C.tagOf(g, where.tag) || {}).name, sub && sub.name].filter(Boolean).join(" \u2192 "),
       { action: { label: "Snap another", onClick: () => { if (curGroup() && curGroup().id === g.id) snapHere(opts); } } });
     if (opts.withLocation !== false) {
-      const loc = await window.CPSnap.locate();
-      if (loc && e.capture && !e.capture.location) { e.capture = { ...e.capture, location: loc }; await saveEntry(e); }
+      const loc = await window.CPSnap.locate({ onFail: (why) => api.showToast(window.CPSnap.locateMessage(why)) });
+      if (loc && e.capture && !e.capture.location) {
+        e.capture = { ...e.capture, location: loc };
+        await saveEntry(e);
+        // If this entry is open, show the new line straight away.
+        const shown = document.querySelector('#gp-capture[data-entry="' + e.id + '"]');
+        if (shown && shown.firstChild && shown.firstChild.nodeType === 3) shown.firstChild.textContent = window.CPSnap.describe(e.capture);
+        api.showToast("Location added to the snap");
+      }
     }
   }
   // "From Inbox": snaps waiting in Inbox move into this group (moved, not copied).

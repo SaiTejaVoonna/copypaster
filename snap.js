@@ -75,20 +75,38 @@
     });
   }
 
-  // Where the phone is now, or null. Never throws; gives up after `timeout`.
-  function locate({ timeout = 20000 } = {}) {
+  // One try at the position: resolves { loc } or { fail: "denied" | "unavailable" }.
+  // The browser's own timeout starts after the permission question is answered.
+  function tryOnce(highAccuracy, timeout) {
     return new Promise((resolve) => {
-      if (!navigator.geolocation) { resolve(null); return; }
       let settled = false;
       const end = (v) => { if (!settled) { settled = true; resolve(v); } };
-      setTimeout(() => end(null), timeout + 1000);
       try {
         navigator.geolocation.getCurrentPosition(
-          (p) => end({ lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), accuracy: Math.round(p.coords.accuracy || 0), at: p.timestamp || Date.now(), source: "device" }),
-          () => end(null),
-          { enableHighAccuracy: true, timeout, maximumAge: 60000 });
-      } catch { end(null); }
+          (p) => end({ loc: { lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), accuracy: Math.round(p.coords.accuracy || 0), at: p.timestamp || Date.now(), source: "device" } }),
+          (err) => end({ fail: err && err.code === 1 ? "denied" : "unavailable" }),
+          { enableHighAccuracy: highAccuracy, timeout, maximumAge: 120000 });
+      } catch { end({ fail: "unavailable" }); }
+      // A last guard in case the browser never answers (leaves time for the permission question).
+      setTimeout(() => end({ fail: "unavailable" }), timeout + 90000);
     });
+  }
+  // Where the phone is now, or null. Never throws. Tries GPS first, then the
+  // quicker rough fix (wifi / mobile network), since GPS often fails indoors.
+  // onFail("denied" | "unavailable" | "unsupported") says why there's none.
+  async function locate({ timeout = 15000, onFail } = {}) {
+    if (!navigator.geolocation) { if (onFail) onFail("unsupported"); return null; }
+    let r = await tryOnce(true, timeout);
+    if (r.fail === "unavailable") r = await tryOnce(false, 10000);
+    if (r.loc) return r.loc;
+    if (onFail) onFail(r.fail);
+    return null;
+  }
+  // What to tell someone when a snap couldn't get a location.
+  function locateMessage(why) {
+    if (why === "denied") return "Location not added: it's blocked for CopyPaster. Allow location for this site or app in your phone's settings.";
+    if (why === "unsupported") return "Location not added: this browser can't share a location.";
+    return "Location not added: couldn't get a location fix. The photo is saved.";
   }
 
   // Keeps only what we know how to read; everything else is dropped.
@@ -117,5 +135,5 @@
     return parts.join(" · ");
   }
 
-  window.CPSnap = { capture, fromFile, locate, normalizeCapture, describe };
+  window.CPSnap = { capture, fromFile, locate, locateMessage, normalizeCapture, describe };
 })();

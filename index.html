@@ -5819,12 +5819,14 @@
   });
   // Location arrives later (or never); the snap is already safe.
   async function addSnapLocation(id) {
-    const loc = await window.CPSnap.locate();
+    const loc = await window.CPSnap.locate({ onFail: (why) => showToast(window.CPSnap.locateMessage(why)) });
     if (!loc) return;
     const item = cache.find((i) => i.id === id);
     if (!item || !item.capture || item._locked || item.capture.location) return;
     item.capture = { ...item.capture, location: loc };
     await saveItem(item);
+    if (currentId === id) redrawDetail("properties");
+    showToast("Location added to the snap");
   }
 
   async function checkReminders() {
