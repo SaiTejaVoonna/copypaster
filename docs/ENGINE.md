@@ -82,9 +82,10 @@ Adding a field to one entity asks whether to add it to the type. If yes, future 
 ## Snap
 
 - Snap saves the source first. Nothing is required before saving.
-- A global snap lands in the Inbox as a note marked `captured`, shown under Inbox → Captured. Giving it a title, text, folder or tag counts as sorting it out.
+- A global snap lands in the Inbox as a note marked `captured`, shown under Inbox → Snaps. Giving it a title, text, folder or tag counts as sorting it out.
 - A snap from inside a space, page or sub-chat saves straight into that context.
 - Location is fetched in the background and added when it arrives. It never delays the save.
 - Coordinates are evidence; a map match would only be a suggestion. The place a person picks is what counts.
+- A guess at what a photo shows is made on the device and stored as `suggest` `{ kind, label, detail, confidence, source, at, confirmed }`. It is a suggestion (rule 4): it never files, renames or tags anything by itself.
 - "From Inbox" in a space moves the captured note into that space as an entry, with its capture details. It is moved, never copied.
 - The photo shown in lists is a smaller copy; `capture.original` keeps the file as it was picked (up to 15 MB).

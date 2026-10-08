@@ -279,6 +279,35 @@ body.timeline-mode:not(.detail-open) #detail-pane { display: none !important; }
   body.has-dock #new-btn { display: none; }
   body.has-dock #menu-btn { display: none !important; }
   body.has-dock .gp-menu-btn { display: none !important; }
+  /* With Snap in the middle, New is a round + at the top, like a chat app. */
+  body.has-dock.dock-snap #new-btn {
+    display: inline-flex; position: static; width: 40px; height: 40px; padding: 0; margin: 0 0 0 4px; border-radius: 50%;
+    justify-content: center; box-shadow: none;
+  }
+  body.has-dock.dock-snap #new-btn .icon { width: 22px; height: 22px; }
+  body.has-dock.dock-snap.select-mode #new-btn { display: none; }
+
+  /* A floating, see-through dock: content scrolls on underneath it. */
+  body.has-dock #tab-bar {
+    left: calc(12px + env(safe-area-inset-left)); right: calc(12px + env(safe-area-inset-right)); bottom: calc(8px + env(safe-area-inset-bottom));
+    padding: 5px 6px; border-radius: 30px; border: 1px solid color-mix(in srgb, var(--text) 10%, transparent); border-top-color: color-mix(in srgb, var(--text) 16%, transparent);
+    background: color-mix(in srgb, var(--elevated) 62%, transparent);
+    backdrop-filter: saturate(1.9) blur(26px); -webkit-backdrop-filter: saturate(1.9) blur(26px);
+    box-shadow: 0 12px 34px -8px rgba(0, 0, 0, 0.5), inset 0 1px 0 color-mix(in srgb, #fff 8%, transparent);
+  }
+  body.has-dock .tab-btn { min-height: 52px; padding: 4px 0 2px; border-radius: 24px; justify-content: center; gap: 2px; }
+  body.has-dock .tab-btn.active:not(.plus) { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+  body.has-dock .tab-btn .plus-ring { width: 46px; height: 46px; margin-top: 0; border-radius: 50%; box-shadow: 0 6px 16px -6px rgba(76, 110, 255, 0.7); }
+  body.has-dock .tab-btn.plus span:last-child { display: none; }
+  body.has-dock #items { padding-bottom: calc(110px + env(safe-area-inset-bottom)); }
+
+  /* iPhone: a solid strip under the status bar, so Safari tints it instead of
+     blurring the page title that sits just below it. */
+  body::before {
+    content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); z-index: 30;
+    background: var(--bg); pointer-events: none;
+  }
+  body.has-dock #list-header { padding-top: calc(var(--s-3) + env(safe-area-inset-top)); }
 }
 
 /* Timeline menus on computers: a panel under the button. */
@@ -305,3 +334,21 @@ body.timeline-mode:not(.detail-open) #detail-pane { display: none !important; }
 
 /* A tag box opened from Settings → Tags sits above Settings. */
 body:has(#settings-overlay:not(.hidden)) .popover, body:has(#settings-overlay:not(.hidden)) .popover-scrim { z-index: 240; }
+
+/* ---------- What's new (once, after an update) ---------- */
+.wn-overlay { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; padding: 16px; background: var(--scrim); animation: fadeIn var(--t-med) ease; }
+.wn-card { width: min(440px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; display: flex; flex-direction: column; gap: 14px;
+  padding: 22px 20px 18px; border-radius: 26px; background: var(--elevated); border: 1px solid var(--line); box-shadow: var(--shadow-lg); }
+.wn-head h2 { margin: 0 0 4px; font-family: var(--font-display); font-size: 22px; letter-spacing: -0.02em; }
+.wn-head p { margin: 0; color: var(--text-2); font-size: var(--fs-sm); }
+.wn-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.wn-list li { display: flex; gap: 12px; align-items: flex-start; }
+.wn-list b { display: block; font-size: 15px; margin-bottom: 1px; }
+.wn-list span:not(.wn-icon) { color: var(--text-2); font-size: var(--fs-sm); line-height: 1.45; }
+.wn-icon { flex: none; width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; color: var(--accent); background: var(--accent-soft); }
+.wn-icon .icon { width: 19px; height: 19px; }
+.wn-ok { height: 46px; border: none; border-radius: 14px; background: var(--accent); color: #fff; font-size: 16px; font-weight: var(--fw-semibold); cursor: pointer; }
+@media (max-width: 720px) {
+  .wn-overlay { place-items: end center; padding: 0; }
+  .wn-card { width: 100%; border-radius: 26px 26px 0 0; padding-bottom: calc(18px + env(safe-area-inset-bottom)); max-height: 88dvh; }
+}

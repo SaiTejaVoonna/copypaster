@@ -1649,7 +1649,7 @@
           </div>
           <div class="settings-section">
             <div class="settings-group">
-              <div class="settings-line dock-line"><span>Dock on phones<small>Pick three tabs. New stays in the middle and More at the end.</small></span>
+              <div class="settings-line dock-line"><span>Dock on phones<small>Pick three tabs and the middle button. Snap takes a photo at once; hold it for the New menu. More stays at the end.</small></span>
                 <div id="dock-picker" class="dock-picker"></div>
               </div>
             </div>
@@ -1707,6 +1707,7 @@
             <div class="settings-line"><span>Back up<small id="last-backup">Download a .cps file with everything, Vault items still encrypted.</small></span><button id="export-btn" class="btn"><svg class="icon"><use href="#icon-download"></use></svg>Export</button></div>
             <div class="settings-line"><span>Restore<small>Add items from a .cps backup. Nothing is overwritten.</small></span><button id="import-btn" class="btn"><svg class="icon"><use href="#icon-upload"></use></svg>Import</button></div>
             <label class="settings-line"><span>Location on snaps<small>Saves where a snap was taken, on this device only. It's added after the photo is saved and never holds it up.</small></span><input type="checkbox" id="snap-location"></label>
+            <label class="settings-line"><span>Guess what a snap shows<small>Works it out on this device: the photo never leaves your phone. The first time, a small model (about 5 MB) is downloaded and kept. The guess is only a suggestion.</small></span><input type="checkbox" id="snap-see"></label>
             <div class="settings-line"><label for="backup-remind">Remind me to back up<small>A gentle note at the top of your Inbox.</small></label>
               <select id="backup-remind" class="settings-inline-select"><option value="7">Every week</option><option value="14">Every 2 weeks</option><option value="30">Every month</option><option value="0">Never</option></select></div>
           </div>
@@ -1750,6 +1751,7 @@
 <script src="groups-core.js"></script>
 <script src="entities-core.js"></script>
 <script src="snap.js"></script>
+<script src="see.js"></script>
 <script src="groups.js"></script>
 <script src="search-core.js"></script>
 <script src="password-core.js"></script>
@@ -2263,6 +2265,8 @@
     // v2.6: a snap waits in Inbox as "captured" until it's organised; capture keeps the original and how/when/where it was taken.
     item.captured = !!item.captured;
     item.capture = window.CPSnap && item.capture ? window.CPSnap.normalizeCapture(item.capture) : null;
+    // A guess at what a snap shows (worked out on this device). Only a suggestion.
+    item.suggest = window.CPSee && item.suggest ? window.CPSee.normalize(item.suggest) : null;
     if (item.type === "password") item.login = { url: "", username: "", password: "", ...(item.login || {}) };
     item.order = (typeof item.order === "number") ? item.order : item.createdAt || Date.now();
     migrateItem(item);
@@ -2354,7 +2358,7 @@
     // Pages whose contents depend on your data are drawn when shown.
     if (page === "tags") renderTagSettings();
     if (page === "appearance") renderDockSettings();
-    if (page === "data") { renderBackupInfo(); renderStorage(); const sl = document.getElementById("snap-location"); if (sl) sl.checked = snapLocationOn(); }
+    if (page === "data") { renderBackupInfo(); renderStorage(); const sl = document.getElementById("snap-location"); if (sl) sl.checked = snapLocationOn(); const ss = document.getElementById("snap-see"); if (ss) ss.checked = snapSeeOn(); }
     try { localStorage.setItem(SETTINGS_PAGE_KEY, page); } catch {}
     if (push && settingsIsStacked()) {
       settingsPanel.classList.add("at-page");
@@ -2927,14 +2931,37 @@
     const keys = dockChoice() || ["all", "groups", "search"];
     const picked = keys.map((k) => DOCK_CHOICES.find((c) => c.key === k))
       .map((c) => (c.needsGroups && !groupsOn ? DOCK_CHOICES.find((x) => x.key === "saved") : c));
-    return [picked[0], picked[1], { key: "new", label: "New", icon: "plus" }, picked[2], { key: "more", label: "More", icon: "menu" }];
+    const mid = dockMiddle() === "new" ? { key: "new", label: "New", icon: "plus" } : { key: "snap", label: "Snap", icon: "camera" };
+    return [picked[0], picked[1], mid, picked[2], { key: "more", label: "More", icon: "menu" }];
   }
+  // The big middle button: Snap (default; hold it for the New menu) or New.
+  const DOCK_MID_KEY = "copypaster-dock-middle";
+  function dockMiddle() { try { return localStorage.getItem(DOCK_MID_KEY) === "new" ? "new" : "snap"; } catch { return "snap"; } }
   let timelineTab = "search"; // which dock tab opened the Timeline
   function renderDockSettings() {
     const box = document.getElementById("dock-picker");
     if (!box) return;
     const keys = dockChoice() || ["all", "groups", "search"];
     box.replaceChildren();
+    const midSel = document.createElement("select");
+    midSel.className = "input dock-slot";
+    midSel.id = "dock-middle";
+    midSel.setAttribute("aria-label", "Middle button");
+    [["snap", "Snap (hold for New)"], ["new", "New"]].forEach(([v, label]) => {
+      const o = document.createElement("option");
+      o.value = v; o.textContent = label; o.selected = dockMiddle() === v;
+      midSel.appendChild(o);
+    });
+    midSel.addEventListener("change", () => {
+      try { localStorage.setItem(DOCK_MID_KEY, midSel.value); } catch {}
+      renderTabBar();
+      showToast("Dock updated");
+    });
+    const midWrap = document.createElement("label");
+    midWrap.className = "dock-slot-wrap";
+    const midLab = document.createElement("span");
+    midLab.textContent = "Middle";
+    midWrap.append(midLab, midSel);
     [0, 1, 2].forEach((slot) => {
       const sel = document.createElement("select");
       sel.className = "input dock-slot";
@@ -2961,11 +2988,13 @@
       lab.textContent = ["Left", "Second", "Fourth"][slot];
       wrap.append(lab, sel);
       box.appendChild(wrap);
+      if (slot === 1) box.appendChild(midWrap);
     });
   }
   function renderTabBar() {
     const bar = document.getElementById("tab-bar");
     document.body.classList.add("has-dock");
+    document.body.classList.toggle("dock-snap", dockMiddle() === "snap");
     const inGroups = !!(groupsApi && groupsApi.enabled() && groupsApi.isActive());
     const tlOpen = !!(timelineApi && timelineApi.isOpen());
     const tabs = dockTabs();
@@ -2975,11 +3004,22 @@
     for (const tab of tabs) {
       const b = document.createElement("button");
       b.type = "button";
-      b.className = "tab-btn" + (tab.key === "new" ? " plus" : "") + (tab.key === activeKey || (tab.key === "more" && !onTab) ? " active" : "");
+      const big = tab.key === "new" || tab.key === "snap";
+      b.className = "tab-btn" + (big ? " plus" : "") + (tab.key === activeKey || (tab.key === "more" && !onTab) ? " active" : "");
       b.dataset.tab = tab.key;
       b.setAttribute("aria-label", tab.label);
-      b.innerHTML = (tab.key === "new" ? '<span class="plus-ring">' + icon(tab.icon) + "</span>" : icon(tab.icon)) + "<span>" + tab.label + "</span>";
+      b.innerHTML = (big ? '<span class="plus-ring">' + icon(tab.icon) + "</span>" : icon(tab.icon)) + "<span>" + tab.label + "</span>";
+      // Holding Snap opens the New menu instead.
+      let held = false;
+      if (tab.key === "snap") {
+        let timer = null;
+        const cancel = () => { clearTimeout(timer); timer = null; };
+        b.addEventListener("pointerdown", () => { held = false; cancel(); timer = setTimeout(() => { held = true; if (navigator.vibrate) navigator.vibrate(10); openNewMenu(); }, 450); });
+        ["pointerup", "pointerleave", "pointercancel"].forEach((ev) => b.addEventListener(ev, cancel));
+        b.addEventListener("contextmenu", (e) => e.preventDefault());
+      }
       b.addEventListener("click", async () => {
+        if (tab.key === "snap") { if (held) { held = false; return; } snapNow(); return; }
         if (tab.key === "more") { openSidebarDrawer(); return; }
         if (tab.key === "new") { openNewMenu(); return; }
         if (tab.key === "search") { timelineTab = "search"; openTimeline({ focus: true }); return; }
@@ -4065,7 +4105,7 @@
     bar.classList.toggle("hidden", !show || selectMode);
     if (!show) { bar.innerHTML = ""; return; }
     bar.innerHTML = "";
-    for (const [key, label] of [["all", "All"], ...(captured ? [["captured", "Captured " + captured]] : []), ...KIND_FILTERS.slice(1)]) {
+    for (const [key, label] of [["all", "All"], ...(captured ? [["captured", "Snaps " + captured]] : []), ...KIND_FILTERS.slice(1)]) {
       if (key !== "all" && !present.has(key)) continue;
       const chip = document.createElement("button");
       chip.type = "button";
@@ -4269,7 +4309,7 @@
       const primaryText = isLogin ? (item.title || hostOf(item.login.url) || "Password")
         : item.title ? item.title : (item.contentType === "image" ? "Image" : firstLine(item.content) || (item.checklist && item.checklist.length ? item.checklist[0].text : "") || (item.audio.length ? "Voice note" : ""));
       if (!primaryText) {
-        text.textContent = item.images && item.images.length ? "Photo" : "Untitled";
+        text.textContent = item.captured ? "Snap" : item.images && item.images.length ? "Photo" : "Untitled";
         if (!(item.images && item.images.length)) text.classList.add("untitled");
       } else {
         text.textContent = primaryText;
@@ -4293,6 +4333,11 @@
       else if (item.title) subText = lines[0] || "";
       else if (kind === "link") subText = hostOf(lines[0]) || "";
       else subText = lines.slice(1).join("  ");
+      // A snap waiting in Inbox: what it looks like and where it was taken.
+      if (!subText && item.captured && item.capture) {
+        const loc = item.capture.location;
+        subText = [item.suggest && window.CPSee ? window.CPSee.describe(item.suggest) : "", loc ? "\u{1F4CD} " + loc.lat.toFixed(4) + ", " + loc.lng.toFixed(4) : ""].filter(Boolean).join(" \u00b7 ");
+      }
       if (!subText && item.images && item.images.length) subText = item.images.length === 1 ? "1 photo" : item.images.length + " photos";
       if (subText) {
         const sub = document.createElement("div");
@@ -5161,6 +5206,12 @@
       const line = document.createElement("span");
       line.textContent = "Snapped: " + window.CPSnap.describe(item.capture);
       cap.appendChild(line);
+      if (item.suggest && window.CPSee) {
+        const guess = document.createElement("span");
+        guess.id = "snap-guess";
+        guess.textContent = window.CPSee.describe(item.suggest) + " \u00b7 a guess made on this phone";
+        cap.appendChild(guess);
+      }
       if (item.capture.original) {
         const open = document.createElement("button");
         open.type = "button";
@@ -5812,7 +5863,26 @@
     renderAllViews();
     showToast("Saved to Inbox", { action: { label: "Snap another", onClick: () => snapNow() } });
     if (snapLocationOn()) addSnapLocation(item.id);
+    if (snapSeeOn()) addSnapGuess(item.id, shot.display);
   }
+  // What the photo looks like, worked out on this device. Arrives later, or never.
+  const SNAP_SEE_KEY = "copypaster-snap-see";
+  const snapSeeOn = () => { try { return localStorage.getItem(SNAP_SEE_KEY) !== "0"; } catch { return true; } };
+  async function addSnapGuess(id, photo) {
+    if (!window.CPSee) return;
+    const guess = await window.CPSee.look(photo);
+    if (!guess) return;
+    const item = cache.find((i) => i.id === id);
+    if (!item || item._locked || item.suggest) return;
+    item.suggest = guess;
+    await saveItem(item);
+    renderList();
+    if (currentId === id) redrawDetail("properties");
+  }
+  document.getElementById("snap-see").addEventListener("change", (e) => {
+    try { localStorage.setItem(SNAP_SEE_KEY, e.target.checked ? "1" : "0"); } catch {}
+    showToast(e.target.checked ? "Snaps will get a guess, made on this device" : "Snaps won't get a guess");
+  });
   document.getElementById("snap-location").addEventListener("change", (e) => {
     try { localStorage.setItem(SNAP_LOC_KEY, e.target.checked ? "1" : "0"); } catch {}
     showToast(e.target.checked ? "Snaps will include where they were taken" : "Snaps won't include a location");
@@ -7579,6 +7649,70 @@
   document.getElementById("app-version").textContent = "Version " + APP_VERSION;
   document.getElementById("settings-footer").textContent = "CopyPaster v" + APP_VERSION + " \u00b7 local-first, no account";
 
+  // ---------- What's new: shown once after an update ----------
+  const SEEN_VERSION_KEY = "copypaster-seen-version";
+  const WHATS_NEW = [
+    ["layers", "Groups are now Spaces", "Same data, new name: Health, Food, Trips… Personal and Work are still your Profiles."],
+    ["camera", "Snap in the middle", "Tap the middle of the dock to snap a photo. It's saved at once with when and where. Hold it for the New menu."],
+    ["sparkle", "It guesses what you snapped", "\u201cLooks like food\u201d, worked out on your phone. The photo never leaves it. Only a suggestion."],
+    ["users", "People, places and things", "Doctors, cafes and bikes get their own page inside a space, with their visits and totals."],
+    ["eye-off", "Hide with filters", "Tap a filter twice to hide it, like everything except Notes. Pick your own dates."],
+    ["menu", "Your dock", "Choose the tabs you want in Settings \u2192 Appearance."]
+  ];
+  function showWhatsNew() {
+    let seen = null;
+    try { seen = localStorage.getItem(SEEN_VERSION_KEY); } catch { return; }
+    const remember = () => { try { localStorage.setItem(SEEN_VERSION_KEY, APP_VERSION); } catch {} };
+    if (seen && parseFloat(seen) >= parseFloat(APP_VERSION)) return;
+    // A brand-new install has nothing to compare with: nothing to announce.
+    if (!seen && !cache.length && !(groupsApi && groupsApi.hasGroups && groupsApi.hasGroups())) { remember(); return; }
+    const overlay = document.createElement("div");
+    overlay.id = "whats-new";
+    overlay.className = "wn-overlay";
+    const card = document.createElement("div");
+    card.className = "wn-card";
+    card.setAttribute("role", "dialog");
+    card.setAttribute("aria-modal", "true");
+    card.setAttribute("aria-labelledby", "wn-title");
+    const head = document.createElement("div");
+    head.className = "wn-head";
+    const h = document.createElement("h2");
+    h.id = "wn-title";
+    h.textContent = "What's new in " + APP_VERSION;
+    const p = document.createElement("p");
+    p.textContent = "CopyPaster was updated. Everything you saved is still here.";
+    head.append(h, p);
+    const list = document.createElement("ul");
+    list.className = "wn-list";
+    for (const [ic, title, text] of WHATS_NEW) {
+      const li = document.createElement("li");
+      const tile = document.createElement("span");
+      tile.className = "wn-icon";
+      tile.innerHTML = icon(ic);
+      const words = document.createElement("div");
+      const b = document.createElement("b");
+      b.textContent = title;
+      const small = document.createElement("span");
+      small.textContent = text;
+      words.append(b, small);
+      li.append(tile, words);
+      list.appendChild(li);
+    }
+    const ok = document.createElement("button");
+    ok.type = "button";
+    ok.className = "wn-ok";
+    ok.id = "whats-new-ok";
+    ok.textContent = "Got it";
+    const close = () => { remember(); overlay.remove(); };
+    ok.addEventListener("click", close);
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) close(); });
+    overlay.addEventListener("keydown", (e) => { if (e.key === "Escape") close(); });
+    card.append(head, list, ok);
+    overlay.appendChild(card);
+    document.body.appendChild(overlay);
+    ok.focus();
+  }
+
   function startUpdateChecks() {
     autoCheckForUpdate();
     setInterval(autoCheckForUpdate, 60 * 60 * 1000);
@@ -9135,6 +9269,7 @@
       setInterval(sweepExpired, 60 * 1000);
       await handleLaunchParams();
       startUpdateChecks();
+      showWhatsNew();
     })
     .catch((err) => {
       itemsEl.innerHTML = "";

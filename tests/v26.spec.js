@@ -248,7 +248,7 @@ test("Snap saves to Inbox at once, keeps the original and when and where it was 
   await page.click("#new-btn");
   await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
   await expect(lastToast(page)).toContainText("Saved to Inbox");
-  await expect(page.locator('#filter-chips .chip[data-kind="captured"]')).toContainText("Captured 1");
+  await expect(page.locator('#filter-chips .chip[data-kind="captured"]')).toContainText("Snaps 1");
   await expect.poll(async () => {
     const items = await page.evaluate(async () => {
       const db = await new Promise((r) => { const q = indexedDB.open("copypaster"); q.onsuccess = () => r(q.result); });
@@ -326,4 +326,51 @@ test("search: space:name picks a space, group:name is not a search word, and chi
     return { a: a.groups, b: b.groups, bText: b.text, c: c.not.groups, tok: window.CPSearch.tokenFor("group", "Food trips") };
   });
   expect(r).toEqual({ a: ["g2"], b: [], bText: "group:hea", c: ["g1"], tok: 'space:"Food trips"' });
+});
+
+test("a snap gets a guess made on the device; it's only a suggestion and can be turned off", async ({ page }) => {
+  // The real model is downloaded on a phone; here a stand-in gives its answer.
+  const stub = () => page.evaluate(() => { window.CPSee.engine = async () => ({ classify: () => ({ classifications: [{ categories: [
+    { categoryName: "trifle", index: 927, score: 0.41 }, { categoryName: "plate", index: 923, score: 0.12 }, { categoryName: "laptop", index: 620, score: 0.05 }] }] }) }); });
+  await stub();
+  await page.click("#new-btn");
+  await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
+  await expect(page.locator(".item-row").first()).toContainText("Looks like food (trifle)");
+  await page.locator(".item-row").first().click();
+  await page.locator("#detail-properties .props-head").click().catch(() => {});
+  await expect(page.locator("#snap-guess")).toContainText("a guess made on this phone");
+  // Nothing was filed or renamed because of it.
+  const stored = await page.evaluate(async () => {
+    const db = await new Promise((r) => { const q = indexedDB.open("copypaster"); q.onsuccess = () => r(q.result); });
+    const all = await new Promise((r) => { const q = db.transaction("items").objectStore("items").getAll(); q.onsuccess = () => r(q.result); });
+    db.close(); return all[0];
+  });
+  expect(stored.title).toBe("");
+  expect(stored.suggest).toMatchObject({ kind: "food", confirmed: false, source: "on-device" });
+
+  // Off in Settings → Data: no guess.
+  await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="data"]');
+  await page.uncheck("#snap-see");
+  await page.keyboard.press("Escape");
+  await page.reload();
+  await stub();
+  await page.click("#new-btn");
+  await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
+  await page.waitForTimeout(500);
+  await expect(page.locator(".item-row", { hasText: "Looks like" })).toHaveCount(1);
+});
+
+test("guesses: kinds come from the model's labels, and an unsure answer gives no guess", async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.CPSee;
+    return {
+      food: S.suggest([{ categoryName: "pizza", index: 963, score: 0.6 }]).label,
+      dog: S.suggest([{ categoryName: "golden retriever", index: 207, score: 0.5 }]).label,
+      screen: S.suggest([{ categoryName: "laptop", index: 620, score: 0.3 }, { categoryName: "notebook", index: 681, score: 0.2 }]).kind,
+      unsure: S.suggest([{ categoryName: "puck", index: 746, score: 0.13 }]),
+      weak: S.suggest([{ categoryName: "pizza", index: 963, score: 0.05 }])
+    };
+  });
+  expect(r).toEqual({ food: "Food", dog: "Dog", screen: "screen", unsure: null, weak: null });
 });

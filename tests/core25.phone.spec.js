@@ -7,7 +7,7 @@ test.beforeEach(async ({ page }) => { await openApp(page); });
 test("Search tab: the Timeline with one Filter sheet; a note opened from it goes back to it", async ({ page }) => {
   await newNote(page, "Groceries for the week");
   await page.goBack();
-  await page.tap("#tab-bar [data-tab='new']");
+  await page.tap("#new-btn");
   await page.tap("#new-menu [data-new='checklist']");
   await page.fill("#cl-add", "Rice");
   await page.keyboard.press("Enter");
@@ -36,7 +36,7 @@ test("Search tab: the Timeline with one Filter sheet; a note opened from it goes
 });
 
 test("the dock's + makes a sketch and a group entry", async ({ page }) => {
-  await page.tap("#tab-bar [data-tab='new']");
+  await page.tap("#new-btn");
   await page.tap("#new-menu [data-new='entry']");
   // No groups yet: it offers to make one.
   await page.locator(".gp-tpl", { hasText: "Food" }).tap();
@@ -44,7 +44,7 @@ test("the dock's + makes a sketch and a group entry", async ({ page }) => {
   await expect(page.locator(".gp-id h1")).toHaveText("Food");
   await page.goBack();
   await page.goBack();
-  await page.tap("#tab-bar [data-tab='new']");
+  await page.tap("#new-btn");
   await page.tap("#new-menu [data-new='sketch']");
   await expect(page.locator("#sk-canvas")).toBeVisible();
   const box = await page.locator("#sk-canvas").boundingBox();

@@ -5,6 +5,8 @@ const { expect } = base;
 
 const test = base.test.extend({
   page: async ({ page }, use) => {
+    // Tests start as if "What's new" was already seen; one test checks it on its own.
+    await page.addInitScript(() => { try { if (!sessionStorage.getItem("cp-test-whatsnew")) localStorage.setItem("copypaster-seen-version", "99"); } catch {} });
     const errors = [];
     page.on("pageerror", (e) => errors.push(e.stack || e.message));
     page.on("dialog", (d) => d.accept()); // confirm() prompts: say OK

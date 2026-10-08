@@ -74,7 +74,7 @@ People see it simply as **Personal → Health → Dr X → Prescriptions**. Unde
 **Snap: capture now, organise later**
 - **Capture → Save → Done.** Boringly reliable, not an "AI camera".
 - Saving works instantly and offline (once the app is installed). No space, entity, place, tag, OCR, AI, GPS, map or network is required. If any of those fail, the capture is still saved.
-- **Global Snap** (from the + menu): saves into **Inbox, under a "Captured" filter**. No new storage area.
+- **Global Snap** (the dock's middle button, or the + menu): saves into **Inbox, under a "Snaps" filter**. No new storage area.
 - **Contextual Snap** (from inside a space, page or sub-chat, e.g. Personal → Health → Dr X → Prescriptions): saves with that context already filled in. No form appears before saving.
 - **Saved with each snap:** the original, time, origin (camera, photo library, file), original file name, and location with its accuracy and source when available.
   - Location is asked for in the background and never delays the save.

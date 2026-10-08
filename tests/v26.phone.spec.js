@@ -71,3 +71,48 @@ test("the phone Filter sheet and dock settings say Space, never group", async ({
   expect(options).toContain("Spaces");
   expect(options.join(" ")).not.toMatch(/group/i);
 });
+
+test("Snap is the dock's middle button; holding it opens New; Settings can put New back", async ({ page }) => {
+  const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.tap("#tab-bar [data-tab='snap']")]);
+  await chooser.setFiles({ name: "a.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64") });
+  await expect(page.locator(".item-row").first()).toContainText("Snap");
+  // Hold for the New menu.
+  const snap = page.locator("#tab-bar [data-tab='snap']");
+  const box = await snap.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.waitForTimeout(600);
+  await page.mouse.up();
+  await expect(page.locator("#new-menu")).toBeVisible();
+  await page.keyboard.press("Escape");
+  // Settings → Appearance → Middle: New.
+  await page.tap("#tab-bar [data-tab='more']");
+  await page.tap("#settings-btn");
+  await page.tap('.settings-nav-item[data-page="appearance"]');
+  await page.selectOption("#dock-middle", "new");
+  await expect(page.locator("#tab-bar [data-tab='new']")).toHaveCount(1);
+  await expect(page.locator("#tab-bar [data-tab='snap']")).toHaveCount(0);
+});
+
+test("What's new shows once after an update, never on a brand-new install", async ({ page }) => {
+  // Brand-new: nothing to announce.
+  await page.evaluate(() => { sessionStorage.setItem("cp-test-whatsnew", "1"); localStorage.removeItem("copypaster-seen-version"); });
+  await page.reload();
+  await expect(page.locator("#tab-bar")).toBeVisible();
+  await expect(page.locator("#whats-new")).toHaveCount(0);
+  // Someone updating from 2.5: they have notes and never saw this.
+  await page.tap("#new-btn");
+  await page.tap('#new-menu [data-new="note"]');
+  await page.keyboard.type("Milk");
+  await page.waitForTimeout(700);
+  await page.evaluate(() => localStorage.removeItem("copypaster-seen-version"));
+  await page.reload();
+  await expect(page.locator("#whats-new")).toBeVisible();
+  await expect(page.locator("#whats-new")).toContainText("Groups are now Spaces");
+  await page.tap("#whats-new-ok");
+  await expect(page.locator("#whats-new")).toHaveCount(0);
+  await page.reload();
+  await expect(page.locator("#tab-bar")).toBeVisible();
+  await page.waitForTimeout(300);
+  await expect(page.locator("#whats-new")).toHaveCount(0);
+});

@@ -135,10 +135,10 @@ test("profile switcher opens as a sheet on phones", async ({ page }) => {
   await expect(page.locator("#profile-name")).toHaveText("Work");
 });
 
-test("the dock: Inbox, Groups, +, Search, More; no second menu button; Settings goes list → section → back", async ({ page }) => {
-  await expect(page.locator("#tab-bar .tab-btn")).toHaveText(["Inbox", "Spaces", "New", "Search", "More"]);
+test("the dock: Inbox, Spaces, Snap, Search, More; New is the + at the top; no second menu button; Settings goes list → section → back", async ({ page }) => {
+  await expect(page.locator("#tab-bar .tab-btn")).toHaveText(["Inbox", "Spaces", "Snap", "Search", "More"]);
   await expect(page.locator("#menu-btn")).toBeHidden(); // More in the dock is the one menu button
-  await expect(page.locator("#new-btn")).toBeHidden(); // the dock's + is the one New button
+  await expect(page.locator("#new-btn")).toBeVisible(); // with Snap in the middle, New is the round + at the top
   await page.tap('.tab-btn[data-tab="search"]');
   await expect(page.locator("#tl-pane")).toBeVisible();
   await expect(page.locator('.tab-btn[data-tab="search"]')).toHaveClass(/active/);

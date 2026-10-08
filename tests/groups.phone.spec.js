@@ -43,9 +43,8 @@ test("Groups tab, a group screen, Snap, and back steps out one screen at a time"
   await expect(page.locator(".gp-home-title h1")).toHaveText("Spaces");
   await expect(page.locator("#tab-bar")).toBeVisible();
 
-  // Snap from the dock's + menu with no group open: saved to Inbox at once, no questions.
-  await page.click("#tab-bar [data-tab='new']");
-  const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.click("#new-menu [data-new='snap']")]);
+  // Snap from the dock's middle button with no space open: saved to Inbox at once, no questions.
+  const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.click("#tab-bar [data-tab='snap']")]);
   await chooser.setFiles(pngFile());
   await expect(lastToast(page)).toContainText("Saved to Inbox");
 

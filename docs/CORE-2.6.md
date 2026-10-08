@@ -9,7 +9,7 @@
 | `entities-core.js` | People, places and things: types, fields, did-you-mean matching, due dates, moving 2.5 main tags over. `window.CPEntities`. No screen code. |
 | `snap.js` | Snap: reads the picked photo into an original plus a display copy, capture details, and a separate location lookup. `window.CPSnap`. |
 
-`groups.js` adds pages, the person/place editor, merge, review and contextual Snap. `index.html` adds the dock picker, Spaces wording, the Captured filter, global Snap and the Reminders dates. Storage moves to IndexedDB version 6 with a new `entities` store.
+`groups.js` adds pages, the person/place editor, merge, review and contextual Snap. `index.html` adds the dock picker, Spaces wording, the Snaps filter, global Snap and the Reminders dates. Storage moves to IndexedDB version 6 with a new `entities` store.
 
 ## Fixes from phone testing
 
@@ -57,15 +57,21 @@ Starting templates are now **Health** (was Hospital), Food, **Trips** (new), **V
 ## Snap
 
 - **Capture, save, done.** Nothing is asked before the photo is saved, and saving works offline.
-- **Snap from the + menu** saves to the Inbox at once, under the **Captured** filter. Writing on it, or giving it a folder or a tag, counts as sorting it out.
+- **Snap is the dock's middle button** on phones (hold it for the New menu; New itself is the round + at the top). It saves to the Inbox at once, under the **Snaps** filter. The New menu has Snap too. Settings → Appearance can put New back in the middle. Writing on it, or giving it a folder or a tag, counts as sorting it out.
 - **Snap from inside a space, page or sub-chat** (the message bar's + → Snap) saves straight there. For example: Food → Nimrah Cafe → Dishes.
 - **Snap another** is offered right after each save.
+- **Location** tries GPS, then the quicker wifi/network fix, and says when it was added or why not (blocked, no fix).
+- **A guess at what it shows** ("Looks like food (trifle)") is worked out on the phone with a small image model (MediaPipe, about 5 MB, downloaded once and kept). The photo never leaves the phone. It's stored as an unconfirmed suggestion and never files or renames anything. Turn it off in Settings → Your data. For now it's for snaps in the Inbox.
 - **Each snap keeps:**
   - the original file as it was picked (up to 15 MB), with **Open original**;
   - the time, where it came from (camera or library) and the file name;
   - if allowed, the location with its accuracy. Location is looked up after saving and never delays it. Turn it off in Settings → Your data → Location on snaps.
 - **From Inbox** (the message bar's + menu) moves an earlier snap into the open space, page and sub-chat, with its capture details. It's moved, never copied.
-- Not in 2.6: reading text from photos, AI, and automatic matching. Those come in 2.7 at the earliest.
+- Not in 2.6: reading text from photos, AI that files things, and automatic matching. Those come in 2.7 at the earliest.
+
+## What's new
+
+The first time someone opens 2.6 after using an older version, a short **What's new** sheet explains the changes (Groups are now Spaces, Snap in the middle, the guess, pages, hiding with filters, the dock). It shows once. A brand-new install doesn't see it.
 
 ## Tests
 
