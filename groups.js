@@ -1501,17 +1501,41 @@
     let pick = prefill || C.TEMPLATES[0];
     sheet("New space", (body, close) => {
       const name = h("input", { class: "input gp-input", id: "gp-new-name", value: pick.key === "blank" ? "" : pick.name, placeholder: "Bike, Trips, Pets…", "aria-label": "Space name" });
+      const search = h("input", { class: "input gp-input", id: "gp-tpl-search", type: "search", placeholder: "Search templates: gym, rent, EMI\u2026", "aria-label": "Search templates", autocomplete: "off" });
       const draw = () => {
         body.replaceChildren();
         body.append(h("label", { class: "gp-label", for: "gp-new-name" }, "Name"), name);
-        body.append(h("span", { class: "gp-label" }, "Start from"));
-        const grid = h("div", { class: "gp-tpl-grid" });
+        body.append(h("span", { class: "gp-label" }, "Start from"), search);
         const list = prefill ? [prefill, ...C.TEMPLATES] : C.TEMPLATES;
-        list.forEach((t) => grid.append(h("button", { class: "gp-tpl" + (pick === t ? " active" : ""), onclick: () => {
+        const box = h("div", { class: "gp-tpl-sections", id: "gp-tpl-list" });
+        const card = (t) => h("button", { class: "gp-tpl" + (pick === t ? " active" : ""), onclick: () => {
           const wasDefault = !name.value.trim() || list.some((x) => x.name === name.value.trim());
           pick = t; if (wasDefault) name.value = t.key === "blank" ? "" : t.name; draw();
-        } }, h("b", null, tile(t.icon, t.color), t.name), h("small", null, t.desc), t.subs.length ? h("small", { class: "gp-dim" }, t.subs.map((s) => s.name).join(" · ")) : h("small", { class: "gp-dim" }, "No sub-chats yet"))));
-        body.append(grid);
+        } }, h("b", null, tile(t.icon, t.color), t.name), h("small", null, t.desc), t.subs.length ? h("small", { class: "gp-dim" }, t.subs.map((s) => s.name).join(" · ")) : h("small", { class: "gp-dim" }, "No sub-chats yet"));
+        // Sections (Health, Money, Home & family…); typing filters across all of them.
+        const drawList = () => {
+          box.replaceChildren();
+          const q = search.value.trim().toLowerCase();
+          // Every word typed must start a word in the template ("emi" finds EMIs, not "chemistry").
+          const hit = (t) => {
+            if (!q) return true;
+            const words = [t.name, t.desc, t.mainLabel, ...t.subs.map((x) => x.name)].join(" ").toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+            return q.split(/\s+/).every((w) => words.some((x) => x.startsWith(w)));
+          };
+          const sections = C.templateSections(list.filter((t) => t !== prefill));
+          if (prefill && hit(prefill)) sections.unshift({ name: "Imported", items: [prefill] });
+          let shown = 0;
+          for (const sec of sections) {
+            const items = sec.items.filter(hit);
+            if (!items.length) continue;
+            shown += items.length;
+            box.append(h("div", { class: "gp-tpl-sec" }, sec.name), h("div", { class: "gp-tpl-grid" }, ...items.map(card)));
+          }
+          if (!shown) box.append(h("p", { class: "gp-hint" }, "No template like that. Start from Blank and add your own sub-chats."));
+        };
+        search.oninput = drawList;
+        drawList();
+        body.append(box);
         body.append(h("p", { class: "gp-hint" }, "Everything can be changed later with Edit space: sub-chats, fields, currency, icon or photo."));
         body.append(h("div", { class: "gp-sheet-actions" },
           h("button", { class: "btn", onclick: () => importTemplateFile(close) }, ic("upload"), "Import template"),

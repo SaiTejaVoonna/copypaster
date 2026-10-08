@@ -438,3 +438,8 @@ body.group-mode #toast { top: calc(14px + env(safe-area-inset-top)); bottom: aut
 .gp-sort-facts small { font-size: var(--fs-sm); color: var(--text-2); }
 .gp-sort-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .gp-sort-row .gp-mini { height: 32px; font-size: var(--fs-sm); }
+
+/* Template picker: sections and search */
+#gp-tpl-search { margin-bottom: 4px; }
+.gp-tpl-sections { display: flex; flex-direction: column; gap: 8px; }
+.gp-tpl-sec { font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 6px; }

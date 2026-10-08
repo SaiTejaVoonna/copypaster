@@ -78,7 +78,16 @@ Starting templates are now **Health** (was Hospital), Food, **Trips** (new), **V
 
 ## Templates and colors
 
-- 20 templates to start a space from: Blank, Health, Food, Watchlist, Vehicles, Trips, Pets, Home, Bills & subscriptions, Shopping, Money, Documents & IDs, Fitness, Work, Study, Kids, Books, Events & gifts, Gadgets, Plants & garden.
+- 44 templates to start a space from, in sections with a search box (it matches the start of words: "emi" finds Loans & EMIs):
+  - **Health:** Health, Medicines & refills, Dental, Eye care, Fitness, Period & cycle, Therapy & wellbeing, Insurance claims
+  - **Food:** Food, Cooking & recipes
+  - **Money:** Money, Bills & subscriptions, Credit cards, Loans & EMIs, Tax, Shopping
+  - **Home & family:** Home, Kids, Parents & elders, Pets, Rent & landlord, House help & services, Events & gifts, Wedding & big events, Plants & garden
+  - **Travel & vehicles:** Trips, Tickets & bookings, Vehicles, Car, Daily commute
+  - **Work & study:** Work, Job hunt, Clients & invoices, Study, Courses & certificates
+  - **Documents & gadgets:** Documents & IDs, Gadgets
+  - **Hobbies:** Watchlist, Books, Gaming, Music & concerts, Photography, Collections
+  - Each comes with sub-chats, a page type where it fits (Dentist, Loan, Client…) and useful fields: expiry dates that turn into reminders (Next EMI, Policy ends, Agreement ends), numbers that add up (Litres, Hours) or show the latest (Odometer, Tablets left).
 - **Settings → Appearance → Color:** Blue (default), Violet, Green, Orange, Pink, Teal or Graphite.
 
 ## What's new

@@ -417,9 +417,16 @@ test("Sort this snap with no matching space offers to make one from the right te
   await expect(lastToast(page)).toContainText("Saved to Health → Medicines");
 });
 
-test("20 templates to start from, and a color you pick in Appearance", async ({ page }) => {
+test("44 templates in sections with search, and a color you pick in Appearance", async ({ page }) => {
   await page.click("#groups-add-btn");
-  await expect(page.locator(".gp-tpl")).toHaveCount(20);
+  await expect(page.locator(".gp-tpl")).toHaveCount(44);
+  await expect(page.locator(".gp-tpl-sec")).toHaveText(["Start", "Health", "Food", "Money", "Home & family", "Travel & vehicles", "Work & study", "Documents & gadgets", "Hobbies"]);
+  await page.fill("#gp-tpl-search", "emi");
+  await expect(page.locator(".gp-tpl")).toHaveCount(1);
+  await expect(page.locator(".gp-tpl")).toContainText("Loans & EMIs");
+  await page.locator(".gp-tpl", { hasText: "Loans & EMIs" }).click();
+  await expect(page.locator("#gp-new-name")).toHaveValue("Loans & EMIs");
+  await page.fill("#gp-tpl-search", "");
   for (const name of ["Pets", "Home", "Documents & IDs", "Fitness", "Kids", "Gadgets"]) await expect(page.locator(".gp-tpl", { hasText: name })).toHaveCount(1);
   await page.locator(".gp-sheet .gp-sheet-head button[aria-label='Close']").last().click();
   await page.click("#settings-btn");
