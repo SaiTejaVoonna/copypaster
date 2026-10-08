@@ -462,3 +462,11 @@ test("a photo added to a note can be guessed on request", async ({ page }) => {
   await page.click("#see-guess");
   await expect(page.locator("#see-text")).toContainText("Looks like food (pizza)");
 });
+
+test("an older see.js left in a cache never blanks the editor: the card just hides", async ({ page }) => {
+  await page.evaluate(() => { delete window.CPSee.PICKS; delete window.CPSee.picked; });
+  await page.click("#new-btn");
+  await pickFile(page, () => page.click('#new-menu [data-new="photo"]'));
+  await expect(page.locator("#title-input")).toBeVisible();
+  await expect(page.locator("#see-card")).toBeHidden();
+});

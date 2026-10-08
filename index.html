@@ -4840,7 +4840,7 @@
     // item that IS an image (contentType "image" below still renders its own way).
     if (!inTrash) {
       body.appendChild(buildGalleryRow(item));
-      body.appendChild(buildSeeCard(item));
+      body.appendChild(safeSeeCard(item));
     }
     if (item.audio.length) body.appendChild(buildAudioList(item, inTrash));
 
@@ -5985,11 +5985,24 @@
     card.append(line, actions, picks);
     return card;
   }
+  // The card is extra: if anything about it goes wrong (say a newer page with
+  // an older see.js still cached), it hides itself and the note opens as usual.
+  function safeSeeCard(item) {
+    try {
+      if (!window.CPSee || !Array.isArray(window.CPSee.PICKS) || typeof window.CPSee.picked !== "function") throw new Error("see.js is out of date");
+      return buildSeeCard(item);
+    } catch (err) {
+      console.warn("[See] card skipped:", err && err.message);
+      const card = document.createElement("div");
+      card.id = "see-card"; card.hidden = true;
+      return card;
+    }
+  }
   function refreshSeeCard(id) {
     if (currentId !== id) return;
     const old = document.getElementById("see-card");
     const item = cache.find((i) => i.id === id);
-    if (old && item) old.replaceWith(buildSeeCard(item));
+    if (old && item) old.replaceWith(safeSeeCard(item));
   }
   document.getElementById("snap-see").addEventListener("change", (e) => {
     try { localStorage.setItem(SNAP_SEE_KEY, e.target.checked ? "1" : "0"); } catch {}
