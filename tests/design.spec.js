@@ -7,7 +7,7 @@ test("N opens the New menu; its letters pick what to make", async ({ page }) => 
   await page.locator("#items").click({ position: { x: 5, y: 5 } }); // focus the page, not a text box
   await page.keyboard.press("n");
   await expect(page.locator("#new-menu")).toBeVisible();
-  await expect(page.locator("#new-menu [data-new]")).toHaveText([/Note/, /Paste/, /Command/, /Password/, /Photo/, /Folder/]);
+  await expect(page.locator("#new-menu [data-new]")).toHaveText([/Note/, /Paste/, /Command/, /Password/, /Photo/, /Checklist/, /Voice note/, /Sketch/, /Space entry/, /Snap/, /Folder/]);
   await page.keyboard.press("c");
   await expect(page.locator("#new-menu-overlay")).toHaveCount(0);
   await expect(page.locator("#type-select .type-btn.active")).toContainText("Command");
@@ -75,7 +75,7 @@ test("make a new tag right from an item, and find existing ones by typing", asyn
   await newNote(page, "second note");
   await page.click("#add-tag-to-item-btn");
   await page.keyboard.type("groc");
-  await expect(page.locator(".tag-picker .popover-list-item").first()).toHaveText("groceries");
+  await expect(page.locator(".tag-picker .popover-list-item").first()).toHaveText("groceries1"); // name, then how often it's used
   await page.keyboard.press("Enter"); // picks the first match, not "Create “groc”"
   await expect(page.locator("#tags-row .tag-chip")).toHaveText(/groceries/);
 });

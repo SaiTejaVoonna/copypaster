@@ -54,8 +54,14 @@ test("a Password item: fields, show, copy, generate, and it's encrypted", async 
   await page.getByRole("button", { name: "Copy username" }).click();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe("me@example.com");
 
-  await page.getByRole("button", { name: "Generate a strong password" }).click();
+  // Generate opens the password builder; "Replace password" puts it in.
+  await page.locator(".login-row", { hasText: "Password" }).getByRole("button", { name: /Make a password/ }).click();
+  await expect(page.locator(".pw-sheet")).toBeVisible();
+  const offered = await page.textContent("#pw-result");
+  await page.click("#pw-use");
+  await expect(page.locator(".pw-sheet")).toHaveCount(0);
   const generated = await page.inputValue("#login-password");
+  expect(generated).toBe(offered);
   expect(generated).toHaveLength(20);
   expect(generated).toMatch(/[A-Z]/);
   expect(generated).toMatch(/[a-z]/);

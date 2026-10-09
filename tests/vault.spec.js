@@ -59,9 +59,9 @@ test("items made in the Vault are stored encrypted; locking hides them, the pass
   expect(record.enc.ct.length).toBeGreaterThan(40);
 
   // Not in any other view.
-  await nav(page, "All Items").click();
+  await nav(page, "Inbox").click();
   await expect(page.locator(".item-row")).toHaveCount(0);
-  await expect(nav(page, "All Items").locator(".count")).toHaveText("0");
+  await expect(nav(page, "Inbox").locator(".count")).toHaveText("0");
   await expect(nav(page, "Vault").locator(".count")).toHaveText("1");
 
   await nav(page, "Vault").click();
@@ -194,7 +194,8 @@ test("locks itself after the chosen idle time", async ({ page }) => {
   await page.click("#settings-close-btn");
   await page.clock.runFor(30000);
   await expect(page.locator("#content-input")).toHaveValue(SECRET); // not yet
-  await page.clock.runFor(45000);
+  // Step a second at a time so the message is still showing when it locks.
+  for (let i = 0; i < 60 && !(await page.locator(".item-row.locked-row").count()); i++) await page.clock.runFor(1000);
   await expect(lastToast(page)).toContainText("Vault locked after 1 minute");
   await expect(page.locator(".item-row.locked-row")).toHaveCount(1);
   expect(await page.content()).not.toContain(SECRET);
@@ -204,7 +205,7 @@ test("pasting a token suggests the Vault; copying a Vault item clears the clipbo
   await page.clock.install();
   await page.reload();
   await setUpVault(page);
-  await nav(page, "All Items").click();
+  await nav(page, "Inbox").click();
   const token = "ghp_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8";
   await paste(page, token);
   await expect(lastToast(page)).toContainText("Looks like a GitHub token");
@@ -282,7 +283,7 @@ test("importing items from a different Vault re-encrypts them into this one", as
 test("deleting the Vault removes its items and lets you start again", async ({ page }) => {
   await setUpVault(page);
   await vaultNote(page, SECRET);
-  await nav(page, "All Items").click();
+  await nav(page, "Inbox").click();
   await newNote(page, "an ordinary note");
   await page.click("#settings-btn");
   await page.click('.settings-nav-item[data-page="vault"]');

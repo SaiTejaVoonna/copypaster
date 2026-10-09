@@ -6,7 +6,7 @@
 // (bump CACHE when they do).
 // Your items are never touched here: they live in IndexedDB, not in this cache.
 
-const CACHE = "copypaster-v2";
+const CACHE = "copypaster-v16";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -15,8 +15,24 @@ const APP_SHELL = [
   "./icons/icon-512.png",
   "./icons/icon-maskable-512.png",
   "./icons/apple-touch-icon.png",
-  "./icons/favicon-32.png"
+  "./icons/favicon-32.png",
+  "./groups-core.js",
+  "./entities-core.js",
+  "./snap.js",
+  "./see.js",
+  "./chat.js",
+  "./groups.js",
+  "./groups.css",
+  "./search-core.js",
+  "./password-core.js",
+  "./totp-core.js",
+  "./tools.js",
+  "./tools.css",
+  "./timeline.js"
 ];
+// The app's own code beside index.html. Like the page, fetched network-first
+// so an update never pairs a new page with old code; the saved copy is for offline.
+const CODE_FILES = ["./groups-core.js", "./entities-core.js", "./snap.js", "./see.js", "./chat.js", "./groups.js", "./groups.css", "./search-core.js", "./password-core.js", "./totp-core.js", "./tools.js", "./tools.css", "./timeline.js"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
@@ -54,6 +70,20 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
+  const isCodeFile = url.origin === self.location.origin && !url.search &&
+    CODE_FILES.some((path) => new URL(path, self.location).pathname === url.pathname);
+  if (isCodeFile) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((cache) => cache.put(req, copy)); }
+          return res;
+        })
+        .catch(() => caches.match(req))
+    );
+    return;
+  }
+
   // Only the app's own files and the color library are cache-first. Anything
   // else (e.g. the app's "is there a new version?" check) goes to the network.
   const isShellFile = url.origin === self.location.origin &&
@@ -68,5 +98,16 @@ self.addEventListener("fetch", (event) => {
       }
       return res;
     }))
+  );
+});
+
+// A reminder notification was tapped: bring CopyPaster to the front.
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((list) => {
+      const open = list.find((c) => "focus" in c);
+      return open ? open.focus() : self.clients.openWindow("./");
+    })
   );
 });
