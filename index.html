@@ -9,8 +9,8 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="groups.css">
 <link rel="stylesheet" href="tools.css">
-<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
-<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png" id="favicon-link">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" id="apple-icon-link">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Stash">
@@ -1658,6 +1658,9 @@
                   <button class="theme-opt" data-glass-pick="strong" role="radio">Strong</button>
                 </div>
               </div>
+              <div class="settings-line icon-style-line"><span>App icon<small>Changes the icon here and in the browser tab. On iPhone it's used the next time you Add to Home Screen; to change an icon already there, remove it and add it again (your data stays).</small></span>
+                <div id="icon-style-picker" role="radiogroup" aria-label="App icon"></div>
+              </div>
             </div>
           </div>
           <div class="settings-section">
@@ -2416,6 +2419,45 @@
     try { saved = localStorage.getItem(ACCENT_KEY); picked = !!localStorage.getItem(ACCENT_PICKED_KEY); } catch {}
     applyAccent(!saved || (saved === "blue" && !picked) ? "stash" : saved);
   })();
+
+  // App icon style: Default, Dark, Light, Glass, Monochrome or Mono light. The
+  // installed home-screen icon can't change from inside a web app; this sets the
+  // icon in the app and the browser tab, and the one iPhone uses for its next
+  // Add to Home Screen.
+  const ICON_STYLE_KEY = "copypaster-icon-style";
+  const ICON_STYLES = [["default", "Default"], ["dark", "Dark"], ["light", "Light"], ["glass", "Glass"], ["mono", "Monochrome"], ["mono-light", "Mono light"]];
+  function applyIconStyle(value) {
+    const pick = ICON_STYLES.some((x) => x[0] === value) ? value : "default";
+    const file = pick === "default" ? null : "icons/styles/style-" + pick;
+    const brand = document.querySelector("#brand-dot img");
+    if (brand) brand.src = file ? file + ".png" : "icons/icon-192.png";
+    const fav = document.getElementById("favicon-link");
+    if (fav) fav.href = file ? file + ".png" : "icons/favicon-32.png";
+    const apple = document.getElementById("apple-icon-link");
+    if (apple) apple.href = file ? file + "-apple.png" : "icons/apple-touch-icon.png";
+    try { localStorage.setItem(ICON_STYLE_KEY, pick); } catch {}
+    const box = document.getElementById("icon-style-picker");
+    if (!box) return;
+    box.replaceChildren();
+    for (const [key, label] of ICON_STYLES) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "icon-style-opt" + (key === pick ? " active" : "");
+      b.dataset.iconStyle = key;
+      b.setAttribute("role", "radio");
+      b.setAttribute("aria-checked", key === pick ? "true" : "false");
+      b.setAttribute("aria-label", label);
+      const img = document.createElement("img");
+      img.src = key === "default" ? "icons/icon-192.png" : "icons/styles/style-" + key + ".png";
+      img.alt = "";
+      const cap = document.createElement("span");
+      cap.textContent = label;
+      b.append(img, cap);
+      b.addEventListener("click", () => { applyIconStyle(key); showToast(label + " icon"); });
+      box.appendChild(b);
+    }
+  }
+  try { applyIconStyle(localStorage.getItem(ICON_STYLE_KEY)); } catch { applyIconStyle("default"); }
 
   // Glass: how see-through the dock and pop-ups are. Stored per device.
   const GLASS_KEY = "copypaster-glass";

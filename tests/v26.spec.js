@@ -602,3 +602,17 @@ test("Stash colors are the default; someone who had the old default blue gets St
   expect(await page.evaluate(() => document.documentElement.dataset.accent)).toBeUndefined();
   expect(await page.evaluate(() => localStorage.getItem("copypaster-accent"))).toBe("blue");
 });
+
+test("App icon style: pick one in Appearance; the app logo, tab icon and iPhone icon follow, and it's remembered", async ({ page }) => {
+  await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="appearance"]');
+  await expect(page.locator(".icon-style-opt")).toHaveCount(6);
+  await expect(page.locator('.icon-style-opt[data-icon-style="default"]')).toHaveClass(/active/);
+  await page.click('.icon-style-opt[data-icon-style="glass"]');
+  const now = () => page.evaluate(() => [document.querySelector("#brand-dot img").getAttribute("src"), document.getElementById("favicon-link").getAttribute("href"), document.getElementById("apple-icon-link").getAttribute("href")]);
+  expect(await now()).toEqual(["icons/styles/style-glass.png", "icons/styles/style-glass.png", "icons/styles/style-glass-apple.png"]);
+  // The picked icon files load.
+  expect(await page.evaluate(() => new Promise((r) => { const i = new Image(); i.onload = () => r(i.naturalWidth); i.onerror = () => r(0); i.src = "icons/styles/style-glass-apple.png"; }))).toBe(180);
+  await page.reload();
+  expect(await now()).toEqual(["icons/styles/style-glass.png", "icons/styles/style-glass.png", "icons/styles/style-glass-apple.png"]);
+});

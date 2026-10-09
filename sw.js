@@ -6,7 +6,7 @@
 // (bump CACHE when they do).
 // Your items are never touched here: they live in IndexedDB, not in this cache.
 
-const CACHE = "copypaster-v19";
+const CACHE = "copypaster-v20";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -16,6 +16,11 @@ const APP_SHELL = [
   "./icons/icon-maskable-512.png",
   "./icons/apple-touch-icon.png",
   "./icons/favicon-32.png",
+  "./icons/styles/style-dark.png",
+  "./icons/styles/style-light.png",
+  "./icons/styles/style-glass.png",
+  "./icons/styles/style-mono.png",
+  "./icons/styles/style-mono-light.png",
   "./groups-core.js",
   "./entities-core.js",
   "./snap.js",
