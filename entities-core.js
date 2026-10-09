@@ -1,4 +1,4 @@
-// CopyPaster entities: reusable people, places and things. The data rules,
+// Stash entities: reusable people, places and things. The data rules,
 // with no screen code. window.CPEntities
 //
 // An entity has one identity (its id). Groups show a *page* for it: an item

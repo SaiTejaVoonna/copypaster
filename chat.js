@@ -1,4 +1,4 @@
-// CopyPaster Me: a chat with yourself. Drop text, photos and files the way
+// Stash Me: a chat with yourself. Drop text, photos and files the way
 // you'd message yourself on WhatsApp; each message is saved at once, with when
 // (and, for photos, where) it was taken. Later, select messages and forward
 // them into a space, sub-chat and page. window.CPChat

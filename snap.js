@@ -1,4 +1,4 @@
-// CopyPaster Snap: take a photo and keep it, before anything else happens.
+// Stash Snap: take a photo and keep it, before anything else happens.
 // window.CPSnap
 //
 // capture() resolves as soon as the photo is read: the original file (kept
@@ -104,7 +104,7 @@
   }
   // What to tell someone when a snap couldn't get a location.
   function locateMessage(why) {
-    if (why === "denied") return "Location not added: it's blocked for CopyPaster. Allow location for this site or app in your phone's settings.";
+    if (why === "denied") return "Location not added: it's blocked for Stash. Allow location for this site or app in your phone's settings.";
     if (why === "unsupported") return "Location not added: this browser can't share a location.";
     return "Location not added: couldn't get a location fix. The photo is saved.";
   }

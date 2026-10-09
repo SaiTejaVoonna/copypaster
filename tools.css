@@ -1,4 +1,4 @@
-/* CopyPaster tools (tools.js), timeline (timeline.js) and the v2.5 extras.
+/* Stash tools (tools.js), timeline (timeline.js) and the v2.5 extras.
    Built on the app's design tokens (see docs/DESIGN.md). */
 
 /* ---------- Tool sheets ---------- */
@@ -440,3 +440,11 @@ body.chat-mode:not(.detail-open) #detail-pane { display: none !important; }
   .cx-msg { max-width: 84%; }
   body.chat-mode.detail-open #chat-pane { display: none; }
 }
+
+/* App icon style (Settings → Appearance) */
+.icon-style-line { flex-wrap: wrap; }
+#icon-style-picker { display: grid; grid-template-columns: repeat(6, 64px); gap: 10px; justify-content: end; }
+.icon-style-opt { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 4px; border: 2px solid transparent; border-radius: 16px; background: none; color: var(--text-2); font-size: 11px; cursor: pointer; }
+.icon-style-opt img { width: 52px; height: 52px; border-radius: 12px; display: block; }
+.icon-style-opt.active { border-color: var(--accent); color: var(--text); }
+@media (max-width: 720px) { #icon-style-picker { grid-template-columns: repeat(3, 72px); justify-content: start; width: 100%; } }

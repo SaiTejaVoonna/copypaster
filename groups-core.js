@@ -1,4 +1,4 @@
-// CopyPaster Groups: the data rules, with no screen code.
+// Stash Groups: the data rules, with no screen code.
 //
 // A Group (shown as a Space) is a timeline for one topic (Health, Food, Trips...). It is plain
 // data: sub-chats, main tags, which fields are on, and how cards group.
@@ -531,7 +531,7 @@
   }
   // Imported templates are untrusted: only known keys survive, everything is length-capped and checked.
   function validateTemplate(raw) {
-    if (!raw || typeof raw !== "object" || raw.cpTemplate !== 1) throw new Error("This isn't a CopyPaster template.");
+    if (!raw || typeof raw !== "object" || raw.cpTemplate !== 1) throw new Error("This isn't a Stash template.");
     const g = normalizeGroup({ ...raw, id: "preview", mainTags: [], cover: null });
     return { name: g.name, desc: g.desc, icon: g.icon, color: g.color,
       subs: g.subs.map(({ id, ...s }) => s), mainLabel: g.mainLabel, mainType: g.mainType,

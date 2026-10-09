@@ -26,7 +26,7 @@ test("each profile keeps its own notes", async ({ page }) => {
   await expect(lastToast(page)).toContainText("Switched to");
   await expect(page.locator(".item-row")).toHaveCount(0);
   await newNote(page, "work note");
-  await expect(page).toHaveTitle("CopyPaster · Work");
+  await expect(page).toHaveTitle("Stash · Work");
 
   await switchTo(page, "Personal");
   await expect.poll(() => rowTexts(page)).toEqual(["personal note"]);

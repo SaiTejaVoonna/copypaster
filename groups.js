@@ -1,4 +1,4 @@
-// CopyPaster Groups: the screens.
+// Stash Groups: the screens.
 //
 // Groups are separate from notes. When a group is open, the notes list and
 // editor step aside and #group-pane takes their place. Everything here talks
@@ -1608,7 +1608,7 @@
         const t = C.validateTemplate(JSON.parse(await file.text()));
         if (closeParent) closeParent();
         previewImport(t);
-      } catch (err) { api.showToast(err.message || "That isn't a CopyPaster template"); }
+      } catch (err) { api.showToast(err.message || "That isn't a Stash template"); }
     });
     document.body.append(input);
     input.click();
@@ -1659,7 +1659,7 @@
       const linkBox = h("input", { class: "input gp-input", readonly: true, value: link, "aria-label": "Template link", onfocus: (e) => e.target.select() });
       body.append(linkBox);
       const actions = h("div", { class: "gp-sheet-actions" });
-      if (navigator.share) actions.append(h("button", { class: "btn", onclick: () => navigator.share({ title: g.name + " template", text: "A CopyPaster template for " + g.name, url: link }).catch(() => {}) }, ic("share"), "Share…"));
+      if (navigator.share) actions.append(h("button", { class: "btn", onclick: () => navigator.share({ title: g.name + " template", text: "A Stash template for " + g.name, url: link }).catch(() => {}) }, ic("share"), "Share…"));
       actions.append(h("button", { class: "btn", onclick: () => {
         const blob = new Blob([JSON.stringify(t, null, 2)], { type: "application/json" });
         const url = URL.createObjectURL(blob);

@@ -1,4 +1,4 @@
-// CopyPaster tools: password builder, 2FA codes, voice recorder, sketch pad.
+// Stash tools: password builder, 2FA codes, voice recorder, sketch pad.
 // Each opens as a sheet and hands its result back; the app decides where it
 // goes. window.CPTools, set up by CPTools.init(api) from index.html.
 //
@@ -374,7 +374,7 @@
       } else {
         scanBox.append(h("p", { class: "gp-hint" }, "This browser can't scan QR codes. On the website, choose “Can't scan?” or “Enter key manually”, and paste the key here."));
       }
-      body.append(h("p", { class: "gp-hint" }, "When a website turns on two-step login, it shows a QR code and a setup key. CopyPaster then makes the 6-digit codes, like Google Authenticator."),
+      body.append(h("p", { class: "gp-hint" }, "When a website turns on two-step login, it shows a QR code and a setup key. Stash then makes the 6-digit codes, like Google Authenticator."),
         scanBox,
         h("label", { class: "gp-label", for: "otp-key" }, "Setup key"), keyInput, msg, preview,
         h("label", { class: "gp-label", for: "otp-account" }, "Account"), account,

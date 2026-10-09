@@ -1,4 +1,4 @@
-// CopyPaster smart search: reads a search like
+// Stash smart search: reads a search like
 //   apollo #lab space:health date:2026-03 is:fav
 // into filters plus plain words. No screen code. window.CPSearch
 //
