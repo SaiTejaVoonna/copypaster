@@ -1,4 +1,4 @@
-// CopyPaster Timeline: every note and group entry in one list, by date, with
+// Stash Timeline: every note and group entry in one list, by date, with
 // one filter bar (Search, Group, Tag, Date, Type, Sort). window.CPTimeline
 //
 // The search box is the single source of truth: picking a group, tag, date or

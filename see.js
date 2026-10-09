@@ -1,4 +1,4 @@
-// CopyPaster See: a rough guess at what a photo shows, worked out on this
+// Stash See: a rough guess at what a photo shows, worked out on this
 // device. window.CPSee
 //
 // The photo never leaves the phone. The first time it's used, the browser

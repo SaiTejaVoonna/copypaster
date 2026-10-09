@@ -47,7 +47,7 @@ test("an older version open in another tab: says so, then opens once it's closed
 
   const page = await context.newPage();
   await page.goto("./");
-  await expect(page.locator("#empty-state")).toContainText("Waiting for another CopyPaster window");
+  await expect(page.locator("#empty-state")).toContainText("Waiting for another Stash window");
   await oldTab.close();
   await expect(page.locator("#main-nav .nav-item").first()).toBeVisible();
   await page.click("#new-btn");

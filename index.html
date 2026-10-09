@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>CopyPaster</title>
+<title>Stash</title>
 <meta name="description" content="Your private clipboard, notes and commands. Local-first, no account.">
 <meta name="theme-color" content="#0b0d11">
 <link rel="manifest" href="manifest.webmanifest">
@@ -13,7 +13,7 @@
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="CopyPaster">
+<meta name="apple-mobile-web-app-title" content="Stash">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <script>
   // Set the theme before anything is drawn, so there's no flash of the wrong one.
@@ -1517,7 +1517,7 @@
     <symbol id="icon-wand" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2M15 10V8M11 6h2M17 6h2M18.5 3.5l-1 1M4 20l10-10"/><path d="M13 11l-1.5-1.5"/></g></symbol>
     <symbol id="icon-users" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3.5"/><path d="M2.5 20c.6-3.3 3.2-5.3 6.5-5.3s5.9 2 6.5 5.3M16 5.2a3.3 3.3 0 0 1 0 6.6M18 14.9c1.9.6 3.2 2.3 3.5 5.1"/></g></symbol>
     <symbol id="icon-upload" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V9M7 13.5l5-5 5 5M5 4.5h14"/></g></symbol>
-    <symbol id="icon-logo" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4.5" width="12" height="16" rx="2.5"/><path d="M9.5 4.5V3.8a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1v.7M9.5 11h5M9.5 15h3.5"/></g></symbol>
+    <symbol id="icon-logo" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><g transform="rotate(-16 12 8)"><path d="M8.6 12.2V4.4a1.2 1.2 0 0 1 1.2-1.2h4.6a1.2 1.2 0 0 1 1.2 1.2v7.8"/><path d="M10.6 6.2h2.6"/></g><path d="M2.8 12.2h18.4"/><path d="M4.2 12.2l.9 6.6a2 2 0 0 0 2 1.7h9.8a2 2 0 0 0 2-1.7l.9-6.6"/><path d="M9.6 15.6h4.8"/></g></symbol>
     <symbol id="icon-folder-plus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6.5A1.5 1.5 0 015.5 5H10l2 2h6.5A1.5 1.5 0 0120 8.5v9A1.5 1.5 0 0118.5 19h-13A1.5 1.5 0 014 17.5z"/><path d="M12 10.5v5M9.5 13h5"/></g></symbol>
     <symbol id="icon-hash" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9h15M4 15h15M10 3.5L8 20.5M16 3.5l-2 17"/></g></symbol>
     <symbol id="icon-shield-check" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.3-7.5 9.5-4.3-1.2-7.5-4.9-7.5-9.5V6L12 3z"/><path d="M8.8 12.2l2.2 2.2 4.3-4.6"/></g></symbol>
@@ -1530,7 +1530,7 @@
 <div id="app">
   <div id="sidebar-backdrop"></div>
   <div id="sidebar">
-    <div id="brand"><span id="brand-dot"><svg class="icon"><use href="#icon-logo"></use></svg></span><span id="brand-label">CopyPaster</span>
+    <div id="brand"><span id="brand-dot"><svg class="icon"><use href="#icon-logo"></use></svg></span><span id="brand-label">Stash</span>
       <button id="sidebar-collapse-btn" title="Collapse sidebar" aria-label="Collapse sidebar"><svg class="icon"><use href="#icon-sidebar"></use></svg></button>
     </div>
     <button id="profile-btn" type="button" title="Switch profile"><span class="profile-avatar" id="profile-avatar"></span><span id="profile-name"></span><span id="profile-caret"><svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></span></button>
@@ -1741,7 +1741,7 @@
             <div id="update-status" class="hidden" aria-live="polite"><div class="update-bar"></div><div class="update-text"></div></div>
           </div>
           <div class="settings-section">
-            <div class="settings-group padded"><div class="rights" id="rights-notice">© 2026 Sai Teja Voonna. All rights reserved.<br>CopyPaster keeps everything on your device. Nothing is collected or sent to us.</div></div>
+            <div class="settings-group padded"><div class="rights" id="rights-notice">© 2026 Sai Teja Voonna. All rights reserved.<br>Stash keeps everything on your device. Nothing is collected or sent to us.</div></div>
           </div>
           <div class="settings-section">
             <div class="settings-section-title">Install</div>
@@ -1883,8 +1883,8 @@
         itemsEl.innerHTML = "";
         const box = document.createElement("div");
         box.id = "empty-state";
-        box.innerHTML = '<div class="empty-icon">\u23f3</div><div class="empty-title">Waiting for another CopyPaster window</div>' +
-          '<div class="empty-hint">CopyPaster is open in another tab or window with an older version. Close or reload that one, and this opens by itself. Your notes are safe.</div>';
+        box.innerHTML = '<div class="empty-icon">\u23f3</div><div class="empty-title">Waiting for another Stash window</div>' +
+          '<div class="empty-hint">Stash is open in another tab or window with an older version. Close or reload that one, and this opens by itself. Your notes are safe.</div>';
         itemsEl.appendChild(box);
       };
       req.onsuccess = (e) => {
@@ -1894,7 +1894,7 @@
         database.onversionchange = () => {
           database.close();
           db = null;
-          showToast("CopyPaster was updated in another tab", { sticky: true, action: { label: "Reload", onClick: () => location.reload() } });
+          showToast("Stash was updated in another tab", { sticky: true, action: { label: "Reload", onClick: () => location.reload() } });
         };
         resolve(database);
       };
@@ -1966,7 +1966,7 @@
       const full = err && (err.name === "QuotaExceededError" || /quota/i.test(err.message || ""));
       const notReady = err && err.message === "not-ready";
       showToast(full ? "Couldn't save \u2014 this device is out of storage space"
-        : notReady ? "Couldn't save \u2014 CopyPaster isn't ready. Close other CopyPaster tabs, or reload."
+        : notReady ? "Couldn't save \u2014 Stash isn't ready. Close other Stash tabs, or reload."
         : "Couldn't save that change \u2014 please try again", { sticky: true });
       throw err;
     }
@@ -3887,7 +3887,7 @@
         .then(() => Promise.all(languages.map(([file, hash]) => loadScript(HLJS_BASE + file, hash))))
         .then(() => window.hljs)
         .catch((err) => {
-          console.warn("[CopyPaster] code colors unavailable:", err.message);
+          console.warn("[Stash] code colors unavailable:", err.message);
           highlighterPromise = null; // try again next time (e.g. back online)
           return null;
         });
@@ -5869,7 +5869,7 @@
 
   // ---------- Reminders ----------
   // A time on a note. When it comes, the note shows a reminder (and a system
-  // notification, if allowed). Browsers only run this while CopyPaster is
+  // notification, if allowed). Browsers only run this while Stash is
   // open; a closed app catches up the next time it opens.
   function reminderPresets() {
     const now = new Date();
@@ -6409,7 +6409,7 @@
     const a = document.createElement("a");
     const stamp = new Date().toISOString().slice(0, 10);
     a.href = url;
-    a.download = "copypaster-export-" + stamp + ".cps";
+    a.download = "stash-export-" + stamp + ".cps";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -7112,7 +7112,7 @@
   }
 
   async function addImageItem(dataUrl, toastMsg) {
-    console.log("[CopyPaster] image data URL length:", dataUrl.length, "chars (~" + Math.round(dataUrl.length * 0.75 / 1024) + "KB)");
+    console.log("[Stash] image data URL length:", dataUrl.length, "chars (~" + Math.round(dataUrl.length * 0.75 / 1024) + "KB)");
     await saveOpenDraft();
     if (currentView === "vault" && !isVaultUnlocked()) { promptUnlock(() => addImageItem(dataUrl, toastMsg)); return; }
     const item = normalize({ id: uuid(), type: "note", content: "", images: [dataUrl], createdAt: Date.now(), updatedAt: Date.now() });
@@ -7368,7 +7368,7 @@
 
     const clipItems = e.clipboardData ? e.clipboardData.items : null;
     const availableTypes = clipItems ? Array.from(clipItems).map((ci) => ci.type) : [];
-    console.log("[CopyPaster] paste event fired. Clipboard item types:", availableTypes);
+    console.log("[Stash] paste event fired. Clipboard item types:", availableTypes);
 
     let imageFile = null;
     if (clipItems) {
@@ -7378,7 +7378,7 @@
     }
     if (!imageFile && e.clipboardData && e.clipboardData.files && e.clipboardData.files.length) {
       const f = e.clipboardData.files[0];
-      console.log("[CopyPaster] falling back to clipboardData.files:", f.type, f.name);
+      console.log("[Stash] falling back to clipboardData.files:", f.type, f.name);
       if (f.type && f.type.startsWith("image/")) imageFile = f;
     }
 
@@ -7778,7 +7778,7 @@
   // web addresses (http/https), not when the file is opened from disk.
   if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("sw.js").catch((err) => console.warn("[CopyPaster] offline support unavailable:", err));
+      navigator.serviceWorker.register("sw.js").catch((err) => console.warn("[Stash] offline support unavailable:", err));
     });
   }
 
@@ -7824,7 +7824,7 @@
     return Array.from(new Uint8Array(bytes), (b) => b.toString(16).padStart(2, "0")).join("");
   }
   function offerReload() {
-    showToast("A new version of CopyPaster is ready", {
+    showToast("A new version of Stash is ready", {
       sticky: true,
       action: { label: "Reload", onClick: async () => { await saveOpenDraft(); location.reload(); } }
     });
@@ -7914,11 +7914,12 @@
   }
   renderPlaceholder();
   document.getElementById("app-version").textContent = "Version " + APP_VERSION;
-  document.getElementById("settings-footer").textContent = "CopyPaster v" + APP_VERSION + " \u00b7 local-first, no account";
+  document.getElementById("settings-footer").textContent = "Stash v" + APP_VERSION + " \u00b7 local-first, no account";
 
   // ---------- What's new: shown once after an update ----------
   const SEEN_VERSION_KEY = "copypaster-seen-version";
   const WHATS_NEW = [
+    ["logo", "CopyPaster is now Stash", "New name, new icon, same app. Everything you saved is still here."],
     ["layers", "Groups are now Spaces", "Same data, new name: Health, Food, Trips… Personal and Work are still your Profiles."],
     ["chat", "Me: message yourself", "Drop text, photos and files like a chat with yourself. Saved at once with when and where. Select messages and Forward them into a space."],
     ["camera", "Snap in the middle", "Tap the middle of the dock to snap a photo straight into Me. Hold it for the New menu."],
@@ -7948,7 +7949,7 @@
     h.id = "wn-title";
     h.textContent = "What's new in " + APP_VERSION;
     const p = document.createElement("p");
-    p.textContent = "CopyPaster was updated. Everything you saved is still here.";
+    p.textContent = "Stash was updated. Everything you saved is still here.";
     head.append(h, p);
     const list = document.createElement("ul");
     list.className = "wn-list";
@@ -7998,9 +7999,9 @@
     const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
     btn.hidden = true;
     if (isStandalone()) {
-      hint.textContent = "Installed \u2713 CopyPaster runs as its own app and works offline.";
+      hint.textContent = "Installed \u2713 Stash runs as its own app and works offline.";
     } else if (deferredInstallPrompt) {
-      hint.textContent = "Install CopyPaster as an app: its own icon, full screen, works offline.";
+      hint.textContent = "Install Stash as an app: its own icon, full screen, works offline.";
       btn.hidden = false;
     } else if (isiOS) {
       hint.textContent = "To install on iPhone or iPad: open this page in Safari, tap Share (the square with an arrow), then \u201cAdd to Home Screen\u201d.";
@@ -8016,7 +8017,7 @@
   window.addEventListener("appinstalled", () => {
     deferredInstallPrompt = null;
     renderInstallSection();
-    showToast("Installed \u2014 find CopyPaster on your home screen");
+    showToast("Installed \u2014 find Stash on your home screen");
   });
   document.getElementById("install-btn").addEventListener("click", async () => {
     if (!deferredInstallPrompt) return;
@@ -8211,7 +8212,7 @@
   function startVaultSetup(then) {
     openDialog({
       title: "Set up your Vault",
-      text: "Vault items are encrypted with a password only you know. There's no account and no reset by email: if you forget the password and lose the recovery key, nobody can open them, not even CopyPaster.",
+      text: "Vault items are encrypted with a password only you know. There's no account and no reset by email: if you forget the password and lose the recovery key, nobody can open them, not even Stash.",
       fields: newPasswordFields(),
       submitLabel: "Create Vault",
       onSubmit: async ({ password, confirm }) => {
@@ -8229,7 +8230,7 @@
   function showRecoveryKey(code, after) {
     openDialog({
       title: "Save your recovery key",
-      text: "If you forget your Vault password, this key is the only way back in. It's shown only now. Keep it somewhere safe outside CopyPaster: a password manager, or written on paper.",
+      text: "If you forget your Vault password, this key is the only way back in. It's shown only now. Keep it somewhere safe outside Stash: a password manager, or written on paper.",
       cancelLabel: null,
       submitLabel: "Done",
       persistent: true,
@@ -8250,8 +8251,8 @@
         saveBtn.className = "dialog-wide";
         saveBtn.textContent = "Download";
         saveBtn.addEventListener("click", () => {
-          const text = "CopyPaster Vault recovery key\n\n" + code + "\n\nCreated " + new Date().toLocaleString() +
-            "\nKeep this safe. With this key, someone who has your CopyPaster data or backup can open your Vault.\n";
+          const text = "Stash Vault recovery key\n\n" + code + "\n\nCreated " + new Date().toLocaleString() +
+            "\nKeep this safe. With this key, someone who has your Stash data or backup can open your Vault.\n";
           const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
           const a = document.createElement("a");
           a.href = url;
@@ -8672,8 +8673,8 @@
   async function addVaultPasskey() {
     const prfSalt = randomBytes(32);
     const credential = await navigator.credentials.create({ publicKey: {
-      rp: { name: "CopyPaster" },
-      user: { id: randomBytes(16), name: "CopyPaster Vault", displayName: "CopyPaster Vault" },
+      rp: { name: "Stash" },
+      user: { id: randomBytes(16), name: "Stash Vault", displayName: "Stash Vault" },
       challenge: randomBytes(32),
       pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
       authenticatorSelection: { userVerification: "required", residentKey: "preferred" },
@@ -9190,7 +9191,7 @@
     avatar.style.background = currentProfile.color;
     document.getElementById("profile-name").textContent = currentProfile.name;
     document.getElementById("profile-btn").title = "Profile: " + currentProfile.name + " — click to switch";
-    document.title = profiles.length > 1 ? "CopyPaster · " + currentProfile.name : "CopyPaster";
+    document.title = profiles.length > 1 ? "Stash · " + currentProfile.name : "Stash";
   }
 
   // Switching reloads the page: the simplest way to be sure nothing from the
@@ -9359,7 +9360,7 @@
   if (navigator.storage && navigator.storage.persist) {
     navigator.storage.persisted()
       .then((already) => already || navigator.storage.persist())
-      .then((granted) => console.log("[CopyPaster] persistent storage:", granted))
+      .then((granted) => console.log("[Stash] persistent storage:", granted))
       .catch(() => {});
   }
 
@@ -9522,7 +9523,7 @@
         onExit: () => { renderNav(); renderTabBar(); }
       });
     } catch (err) {
-      console.error("[CopyPaster] Chat failed to start:", err);
+      console.error("[Stash] Chat failed to start:", err);
     }
   }
   // Opens a file from the chat in a new tab, or downloads it where that isn't allowed.
@@ -9568,7 +9569,7 @@
         }
       });
     } catch (err) {
-      console.error("[CopyPaster] Timeline failed to start:", err);
+      console.error("[Stash] Timeline failed to start:", err);
     }
   }
   // A tag tapped anywhere: everything with it, notes and group entries.
@@ -9613,7 +9614,7 @@
       renderTabBar();
       await registerEntryTags();
     } catch (err) {
-      console.error("[CopyPaster] Groups failed to start:", err);
+      console.error("[Stash] Groups failed to start:", err);
     }
   }
 

@@ -1,7 +1,7 @@
 {
-  "name": "CopyPaster",
-  "short_name": "CopyPaster",
-  "description": "Your private clipboard, notes and commands. Local-first, no account.",
+  "name": "Stash",
+  "short_name": "Stash",
+  "description": "Stash anything: snaps, notes, files and records, sorted into spaces. Private, on your device, no account.",
   "id": "./",
   "start_url": "./",
   "scope": "./",

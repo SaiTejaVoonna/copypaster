@@ -1,4 +1,4 @@
-// CopyPaster 2FA codes (TOTP, RFC 6238): the rules, no screen code. window.CPTotp
+// Stash 2FA codes (TOTP, RFC 6238): the rules, no screen code. window.CPTotp
 //
 // A 2FA setup key is a shared secret: the site and this device both turn it
 // and the current time into the same 6-digit code. The key is kept inside a

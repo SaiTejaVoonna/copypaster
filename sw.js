@@ -1,4 +1,4 @@
-// CopyPaster service worker: makes the app open with no signal.
+// Stash service worker: makes the app open with no signal.
 //
 // The page itself is fetched network-first, so when you're online you always
 // get the latest version, and the saved copy is only used when offline.
@@ -6,7 +6,7 @@
 // (bump CACHE when they do).
 // Your items are never touched here: they live in IndexedDB, not in this cache.
 
-const CACHE = "copypaster-v16";
+const CACHE = "copypaster-v17";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -101,7 +101,7 @@ self.addEventListener("fetch", (event) => {
   );
 });
 
-// A reminder notification was tapped: bring CopyPaster to the front.
+// A reminder notification was tapped: bring Stash to the front.
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   event.waitUntil(

@@ -1,4 +1,4 @@
-// CopyPaster password builder: the rules, no screen code. window.CPPassword
+// Stash password builder: the rules, no screen code. window.CPPassword
 //
 // Every random choice uses the browser's secure random numbers
 // (crypto.getRandomValues) with rejection sampling, so no character is more

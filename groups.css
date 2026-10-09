@@ -1,4 +1,4 @@
-/* CopyPaster Groups. Built on the app's design tokens (see docs/DESIGN.md). */
+/* Stash Groups. Built on the app's design tokens (see docs/DESIGN.md). */
 
 /* While a group is open, it takes the place of the notes list and editor. */
 body.group-mode #list-pane, body.group-mode #resize-list, body.group-mode #detail-pane { display: none !important; }
