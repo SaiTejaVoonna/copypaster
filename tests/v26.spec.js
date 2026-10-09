@@ -242,13 +242,14 @@ async function pickFile(page, click, name = "IMG_0042.png") {
   await (await chooser).setFiles({ name, mimeType: "image/png", buffer: PNG });
 }
 
-test("Snap saves to Inbox at once, keeps the original and when and where it was taken", async ({ page, context }) => {
+test("Snap saves into the Me chat at once, keeps the original and when and where it was taken", async ({ page, context }) => {
   await context.grantPermissions(["geolocation"]);
   await context.setGeolocation({ latitude: 17.385, longitude: 78.4867, accuracy: 12 });
   await page.click("#new-btn");
   await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
-  await expect(lastToast(page)).toContainText("Saved to Inbox");
-  await expect(page.locator('#filter-chips .chip[data-kind="captured"]')).toContainText("Snaps 1");
+  await expect(lastToast(page)).toContainText("Saved");
+  await expect(page.locator("#chat-pane .cx-msg")).toHaveCount(1);
+  await expect(page.locator(".item-row")).toHaveCount(0); // not in the notes list
   await expect.poll(async () => {
     const items = await page.evaluate(async () => {
       const db = await new Promise((r) => { const q = indexedDB.open("copypaster"); q.onsuccess = () => r(q.result); });
@@ -257,17 +258,17 @@ test("Snap saves to Inbox at once, keeps the original and when and where it was 
     });
     return items[0] && items[0].capture && items[0].capture.location ? items[0].capture.location.lat : null;
   }).toBe(17.385);
-  // Shown with the note, with the original one tap away.
-  await page.click('#filter-chips .chip[data-kind="captured"]');
-  await page.locator(".item-row").first().click();
+  // Shown with the message, with the original one tap away.
+  await expect(page.locator("#chat-pane .cx-msg")).toContainText("17.385");
+  await page.locator("#chat-pane .cx-msg").last().click();
   await page.locator("#detail-properties .props-head").click().catch(() => {});
   await expect(page.locator("#capture-meta")).toContainText("Camera · IMG_0042.png");
   await expect(page.locator("#capture-meta")).toContainText("17.3850, 78.4867 (±12 m)");
   await expect(page.locator("#open-original")).toBeVisible();
-  // Writing something on it counts as sorting it out.
+  // Writing on it keeps it in Me until it's forwarded.
   await page.fill("#title-input", "Pharmacy bill");
   await page.dispatchEvent("#title-input", "input");
-  await expect.poll(() => page.locator('#filter-chips .chip[data-kind="captured"]').count(), { timeout: 4000 }).toBe(0);
+  await expect(page.locator("#chat-pane .cx-msg", { hasText: "Pharmacy bill" })).toHaveCount(1);
 });
 
 test("Snap says when the location was added, and says why when it wasn't", async ({ page, context }) => {
@@ -276,15 +277,15 @@ test("Snap says when the location was added, and says why when it wasn't", async
   await expect(page.locator(".toast-item", { hasText: "Location not added" })).toContainText("blocked");
   await context.grantPermissions(["geolocation"]);
   await context.setGeolocation({ latitude: 17.385, longitude: 78.4867, accuracy: 12 });
-  await page.click("#new-btn");
-  await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
+  // The snap opened the Me chat; its camera button snaps again.
+  await pickFile(page, () => page.click("#cx-snap"));
   await expect(page.locator(".toast-item", { hasText: "Location added to the snap" })).toBeVisible();
 });
 
 test("Snap inside a group saves straight to that page and sub-chat; From Inbox moves an earlier snap in", async ({ page }) => {
   await page.click("#new-btn");
   await pickFile(page, () => page.click('#new-menu [data-new="snap"]'), "earlier.png");
-  await expect(lastToast(page)).toContainText("Saved to Inbox");
+  await expect(lastToast(page)).toContainText("Saved");
 
   await createGroup(page, "Food");
   await page.click("#gp-page-new");
@@ -335,8 +336,8 @@ test("a snap gets a guess made on the device; it's only a suggestion and can be 
   await stub();
   await page.click("#new-btn");
   await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
-  await expect(page.locator(".item-row").first()).toContainText("Looks like food (trifle)");
-  await page.locator(".item-row").first().click();
+  await expect(page.locator("#chat-pane .cx-msg").last()).toContainText("Looks like food (trifle)");
+  await page.locator("#chat-pane .cx-msg").last().click();
   await page.locator("#detail-properties .props-head").click().catch(() => {});
   await expect(page.locator("#see-text")).toContainText("a guess made on this phone");
   // Nothing was filed or renamed because of it.
@@ -358,7 +359,7 @@ test("a snap gets a guess made on the device; it's only a suggestion and can be 
   await page.click("#new-btn");
   await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
   await page.waitForTimeout(500);
-  await expect(page.locator(".item-row", { hasText: "Looks like" })).toHaveCount(1);
+  await expect(page.locator("#chat-pane .cx-msg", { hasText: "Looks like" })).toHaveCount(1);
 });
 
 test("guesses: kinds come from the model's labels, and an unsure answer gives no guess", async ({ page }) => {
@@ -387,8 +388,8 @@ test("Sort this snap: the guess picks the space and sub-chat, the title is fille
   await page.evaluate(() => { window.CPSee.engine = async () => ({ classify: () => ({ classifications: [{ categories: [{ categoryName: "trifle", index: 927, score: 0.5 }] }] }) }); });
   await page.click("#new-btn");
   await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
-  await expect(page.locator(".item-row").first()).toContainText("Looks like food");
-  await page.locator(".item-row").first().click();
+  await expect(page.locator("#chat-pane .cx-msg").last()).toContainText("Looks like food");
+  await page.locator("#chat-pane .cx-msg").last().click();
   await openOrganise(page);
   await page.click("#see-sort");
   await expect(page.locator("#gp-sort-title")).toHaveValue("Trifle");
@@ -406,8 +407,8 @@ test("Sort this snap with no matching space offers to make one from the right te
   await page.evaluate(() => { window.CPSee.engine = async () => ({ classify: () => ({ classifications: [{ categories: [{ categoryName: "pill bottle", index: 720, score: 0.6 }] }] }) }); });
   await page.click("#new-btn");
   await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
-  await expect(page.locator(".item-row").first()).toContainText("Looks like medicine");
-  await page.locator(".item-row").first().click();
+  await expect(page.locator("#chat-pane .cx-msg").last()).toContainText("Looks like medicine");
+  await page.locator("#chat-pane .cx-msg").last().click();
   await openOrganise(page);
   await page.click("#see-sort");
   await page.click("#gp-sort-new-space");
@@ -442,7 +443,7 @@ test("What is this? shows in the editor: the guess, why there isn't one, and pic
   await page.evaluate(() => { window.CPSee.engine = async () => { throw new Error("offline"); }; });
   await page.click("#new-btn");
   await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
-  await page.locator(".item-row").first().click();
+  await page.locator("#chat-pane .cx-msg").last().click();
   await expect(page.locator("#see-text")).toContainText("Couldn't load the photo model");
   await expect(page.locator("#see-retry")).toBeVisible();
   // Now it works but isn't sure.
@@ -452,7 +453,7 @@ test("What is this? shows in the editor: the guess, why there isn't one, and pic
   // Pick it yourself.
   await page.locator('#see-picks .gp-mini[data-kind="pet"]').click();
   await expect(page.locator("#see-text")).toContainText("Pet · set by you");
-  await expect(page.locator(".item-row").first()).toContainText("Pet");
+  await expect(page.locator("#chat-pane .cx-msg").last()).toContainText("Pet");
   // A dog photo: the breed counts as Dog, looking at the whole photo and its middle.
   await page.evaluate(() => { window.CPSee.engine = async () => ({ classify: () => ({ classifications: [{ categories: [
     { categoryName: "beagle", index: 162, score: 0.3 }, { categoryName: "English foxhound", index: 167, score: 0.2 }, { categoryName: "laptop", index: 620, score: 0.15 }] }] }) }); });
@@ -575,7 +576,7 @@ test("@fzv3 on a snap picks that vehicle's page when sorting", async ({ page }) 
   await page.evaluate(() => { window.CPSee.engine = async () => ({ classify: () => ({ classifications: [{ categories: [{ categoryName: "moped", index: 665, score: 0.6 }] }] }) }); });
   await page.click("#new-btn");
   await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
-  await page.locator(".item-row").first().click();
+  await page.locator("#chat-pane .cx-msg").last().click();
   await page.fill("#content-input", "@fzv3 petrol");
   await page.dispatchEvent("#content-input", "input");
   await page.waitForTimeout(600);

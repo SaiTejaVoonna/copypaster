@@ -43,10 +43,12 @@ test("Groups tab, a group screen, Snap, and back steps out one screen at a time"
   await expect(page.locator(".gp-home-title h1")).toHaveText("Spaces");
   await expect(page.locator("#tab-bar")).toBeVisible();
 
-  // Snap from the dock's middle button with no space open: saved to Inbox at once, no questions.
+  // Snap from the dock's middle button with no space open: saved into the Me chat at once, no questions.
   const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.click("#tab-bar [data-tab='snap']")]);
   await chooser.setFiles(pngFile());
-  await expect(lastToast(page)).toContainText("Saved to Inbox");
+  await expect(lastToast(page)).toContainText("Saved");
+  await expect(page.locator("#chat-pane .cx-msg")).toHaveCount(1);
+  await page.click("#tab-bar [data-tab='groups']");
 
   // Inside a sub-chat, Snap saves straight there.
   await page.locator(".gp-home-sub", { hasText: "Spare parts" }).click();

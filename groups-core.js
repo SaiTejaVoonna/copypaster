@@ -303,6 +303,9 @@
       link: e.link ? String(e.link).slice(0, 2000) : null,
       // A snap's original photo and how, when and where it was taken (see snap.js).
       capture: e.capture && window.CPSnap ? window.CPSnap.normalizeCapture(e.capture) : null,
+      // Files forwarded from the Me chat (PDFs and the like), kept as they were.
+      files: (Array.isArray(e.files) ? e.files : []).filter((f) => f && typeof f.data === "string" && /^data:[\w.+-]+\/[\w.+-]+(;[\w=.+-]+)*;base64,/.test(f.data) && !/^data:(text\/html|image\/svg)/i.test(f.data))
+        .slice(0, 10).map((f) => ({ name: String(f.name || "file").slice(0, 200), type: String(f.type || "application/octet-stream").slice(0, 100), size: Number(f.size) || 0, data: f.data })),
       happenedOn: typeof e.happenedOn === "number" ? e.happenedOn : (e.addedOn || now),
       addedOn: typeof e.addedOn === "number" ? e.addedOn : now,
       updatedAt: e.updatedAt || now,

@@ -1330,6 +1330,7 @@
       e.happenedOn = t; await saveEntry(e); api.showToast("Moved to " + fmtDate(t)); render();
     } })));
     cell("Added on", h("span", { class: "gp-v" }, fmtDate(e.addedOn) + ", " + fmtTime(e.addedOn)));
+    if (e.files && e.files.length) cell("Files", h("span", { class: "gp-v gp-files" }, ...e.files.map((f) => h("button", { class: "btn gp-small", onclick: () => api.openFile(f) }, ic("file", "icon-sm"), f.name))), true);
     if (e.capture && window.CPSnap) cell("Snapped", h("span", { class: "gp-v gp-capture", id: "gp-capture", "data-entry": e.id }, window.CPSnap.describe(e.capture),
       e.capture.original ? h("button", { class: "btn gp-small", id: "gp-open-original", onclick: () => api.openPhoto(e.capture.original) }, "Open original") : null), true);
     if (g.fields.amount.on || e.amount) {
@@ -1957,7 +1958,7 @@
     const photos = (n.images || []).filter((p) => typeof p === "string" && /^data:image\/(jpeg|png|webp|gif);/.test(p));
     const e = C.normalizeEntry({ refs: [where], title: (title || "").trim() || (n.title || "").trim() || (n.content || "").split("\n")[0].slice(0, 120) || "Photo",
       note: n.title ? n.content || "" : (n.content || "").split("\n").slice(1).join("\n"),
-      photos, capture: n.capture, happenedOn: (n.capture && n.capture.at) || n.createdAt || Date.now(), addedOn: Date.now() });
+      photos, files: n.files || [], capture: n.capture, happenedOn: (n.capture && n.capture.at) || n.createdAt || Date.now(), addedOn: Date.now() });
     await saveEntry(e);
     entries.push(e);
     changed();
@@ -1965,30 +1966,36 @@
     return e;
   }
   // "Sort this snap": everything filled in from what's known; one tap to file it.
-  function sortSnap(n) {
-    if (!n) return;
-    const guess = n.suggest || null;
+  // n: one snap or message, or a list of them (Forward from the Me chat).
+  function sortSnap(nOrList, opts = {}) {
+    const list = (Array.isArray(nOrList) ? nOrList : [nOrList]).filter(Boolean);
+    if (!list.length) return;
+    const n = list[0];
+    const many = list.length > 1;
+    const guess = (list.find((x) => x.suggest) || {}).suggest || null;
     const m = guess && SNAP_MATCH[guess.kind];
     let g = (guess && snapSpaceFor(guess.kind)) || null;
     let subId = null, tagId = null;
     const pickSub = () => { subId = null; if (g && m) for (const re of m.sub) { const s = g.subs.find((x) => re.test(x.name)); if (s) { subId = s.id; break; } } };
     // "@fzv3" written on it picks that page and its space.
-    const mention = mentionIn((n.title || "") + " " + (n.content || ""));
+    const mention = mentionIn(list.map((x) => (x.title || "") + " " + (x.content || "")).join(" "));
     if (mention) { g = mention.g; tagId = mention.t.id; }
     const suggestedId = g && g.id;
     pickSub();
     const cap = n.capture || {};
     const nice = (t) => t ? t.charAt(0).toUpperCase() + t.slice(1) : "";
-    sheet("Sort this snap", (body, close) => {
+    sheet(many ? "Forward " + list.length + " messages" : n.images && n.images.length ? "Sort this snap" : "Forward to a space", (body, close) => {
       const written = ((n.title || "").trim() || (n.content || "").split("\n")[0]).replace(/@[\w.-]+/g, "").replace(/\s+/g, " ").trim();
       const title = h("input", { class: "input gp-input", id: "gp-sort-title", placeholder: "What is it?", value: written || (guess && guess.detail ? nice(guess.detail) : ""), "aria-label": "Title" });
       const draw = () => {
         body.replaceChildren();
         const facts = [guess ? (window.CPSee ? window.CPSee.describe(guess) : guess.label) : "", cap.at ? fmtDay(cap.at) + ", " + fmtTime(cap.at) : "",
           cap.location ? "\u{1F4CD} " + cap.location.lat.toFixed(4) + ", " + cap.location.lng.toFixed(4) : ""].filter(Boolean);
-        body.append(h("div", { class: "gp-sort-top" }, n.images && n.images[0] ? h("img", { src: n.images[0], alt: "", class: "gp-sort-img" }) : null,
-          h("div", { class: "gp-sort-facts" }, ...facts.map((f) => h("small", null, f)), guess ? h("small", { class: "gp-dim" }, "A guess made on this phone") : null)));
-        body.append(h("label", { class: "gp-label", for: "gp-sort-title" }, "Title"), title);
+        const firstPhoto = (list.find((x) => x.images && x.images[0]) || {}).images;
+        body.append(h("div", { class: "gp-sort-top" }, firstPhoto ? h("img", { src: firstPhoto[0], alt: "", class: "gp-sort-img" }) : null,
+          h("div", { class: "gp-sort-facts" }, ...(many ? [list.length + " messages, each becomes an entry"] : facts).map((f) => h("small", null, f)),
+            guess && !many ? h("small", { class: "gp-dim" }, "A guess made on this phone") : null)));
+        if (!many) body.append(h("label", { class: "gp-label", for: "gp-sort-title" }, "Title"), title);
         body.append(h("span", { class: "gp-label" }, "Space"));
         const row = h("div", { class: "gp-sort-row", id: "gp-sort-spaces" });
         const ordered = suggestedId ? [groups.find((x) => x.id === suggestedId), ...groups.filter((x) => x.id !== suggestedId)] : groups.slice();
@@ -2020,11 +2027,12 @@
           h("button", { class: "btn", onclick: () => close() }, "Leave in Inbox"),
           h("button", { class: "btn primary", id: "gp-sort-save", disabled: !g, onclick: async () => {
             if (!g) return;
-            try { await moveSnapInto(n, { g: g.id, s: subId, tag: tagId }, title.value); } catch (err) { console.error(err); api.showToast("Couldn't move it"); return; }
+            try { for (const x of list) await moveSnapInto(x, { g: g.id, s: subId, tag: tagId }, many ? null : title.value); } catch (err) { console.error(err); api.showToast("Couldn't move it"); return; }
             close();
+            if (opts.onDone) opts.onDone();
             const sub = subId ? C.subOf(g, subId) : null;
             api.showToast("Saved to " + [g.name, sub && sub.name].filter(Boolean).join(" → "), { action: { label: "Open", onClick: () => openGroup(g.id, subId || "all") } });
-          } }, g ? "Save to " + g.name : "Pick a space")));
+          } }, g ? (many ? "Forward to " : "Save to ") + g.name : "Pick a space")));
       };
       draw();
     });

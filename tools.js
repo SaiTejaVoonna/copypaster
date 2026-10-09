@@ -584,6 +584,9 @@
     filter: '<path d="M4 6h16M7 12h10M10 18h4"/>',
     "hard-drive": '<rect x="3" y="13" width="18" height="7" rx="2"/><path d="M5.5 13L8 5h8l2.5 8M7 16.5h.01M10 16.5h.01"/>',
     flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
+    chat: '<path d="M20 12a8 8 0 0 1-11.6 7.1L4 20l1-4.2A8 8 0 1 1 20 12z"/><path d="M8.5 11h7M8.5 14.5h4"/>',
+    file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
+    forward: '<path d="M14 5l7 7-7 7M21 12H9a6 6 0 0 0-6 6v1"/>',
     "eye-off": '<path d="M3 3l18 18M10.6 6.1A9.8 9.8 0 0 1 12 6c5 0 8.5 4.2 9.5 6-.4.8-1.3 2-2.5 3.2M6.7 7.7C4.6 9 3.2 10.9 2.5 12c1 1.8 4.5 6 9.5 6 1.6 0 3-.4 4.3-1.1M9.9 10a3 3 0 0 0 4.1 4.1"/>'
   };
   function injectIcons() {

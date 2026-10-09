@@ -90,6 +90,14 @@ Starting templates are now **Health** (was Hospital), Food, **Trips** (new), **V
   - Each comes with sub-chats, a page type where it fits (Dentist, Loan, Client…) and useful fields: expiry dates that turn into reminders (Next EMI, Policy ends, Agreement ends), numbers that add up (Litres, Hours) or show the latest (Odometer, Tablets left).
 - **Settings → Appearance → Color:** Blue (default), Violet, Green, Orange, Pink, Teal or Graphite.
 
+## Me: message yourself
+
+- **Me** is a chat with yourself, like WhatsApp's "message yourself": text, **Camera**, **Gallery** and **Files** (PDFs and any file up to 10 MB). Each message is saved at once; photos keep their original, when and where, and get a guess.
+- Snaps (the dock's middle button or the New menu) land in Me too.
+- Messages stay out of the notes list until they're forwarded. Search, backup and Trash work as usual.
+- **Select** (or hold a message) → **Forward**: pick the space, sub-chat and page; each message becomes an entry there, with its photos, files and capture details. **@name** in a message picks that page.
+- On phones the dock starts with **Me · Spaces · Snap · Search · More**; Inbox is under More (or put it back in Settings → Appearance).
+
 ## Vehicles
 
 - **One Vehicles template** for bikes, cars and scooters (Car was merged into it). Each vehicle gets its own page. Sub-chats: Fuel, Service, Spare parts, Insurance & papers, Tolls & parking, Photos.

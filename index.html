@@ -1763,6 +1763,7 @@
 <script src="entities-core.js"></script>
 <script src="snap.js"></script>
 <script src="see.js"></script>
+<script src="chat.js"></script>
 <script src="groups.js"></script>
 <script src="search-core.js"></script>
 <script src="password-core.js"></script>
@@ -2276,6 +2277,10 @@
     // v2.6: a snap waits in Inbox as "captured" until it's organised; capture keeps the original and how/when/where it was taken.
     item.captured = !!item.captured;
     item.capture = window.CPSnap && item.capture ? window.CPSnap.normalizeCapture(item.capture) : null;
+    // v2.6: a message in the Me chat, and files dropped there (PDFs and the like, up to 10 MB each).
+    item.chat = !!item.chat;
+    item.files = (Array.isArray(item.files) ? item.files : []).filter((f) => f && typeof f.data === "string" && /^data:[\w.+-]+\/[\w.+-]+(;[\w=.+-]+)*;base64,/.test(f.data) && !/^data:(text\/html|image\/svg)/i.test(f.data))
+      .slice(0, 10).map((f) => ({ name: String(f.name || "file").slice(0, 200), type: String(f.type || "application/octet-stream").slice(0, 100), size: Number(f.size) || 0, data: f.data }));
     // A guess at what a snap shows (worked out on this device). Only a suggestion.
     item.suggest = window.CPSee && item.suggest ? window.CPSee.normalize(item.suggest) : null;
     if (item.type === "password") item.login = { url: "", username: "", password: "", ...(item.login || {}) };
@@ -2925,6 +2930,7 @@
   // ---------- Nav ----------
 
   const NAV_ITEMS = [
+    { key: "chat", label: "Me", icon: "chat" },
     { key: "all", label: "Inbox", icon: "inbox" },
     // Everything (notes and group entries) by date; opens its own pane.
     { key: "timeline", label: "Timeline", icon: "timeline" },
@@ -2942,8 +2948,9 @@
 
   function countForNav(key) {
     // Vault items only count in the Vault (and in Trash once deleted).
-    const live = (i) => !i.vaulted && !i.deletedAt && !i.archivedAt;
+    const live = (i) => !i.vaulted && !i.deletedAt && !i.archivedAt && !i.chat;
     switch (key) {
+      case "chat": return cache.filter((i) => i.chat && !i.deletedAt && !i.vaulted).length;
       case "all": return cache.filter(live).length;
       case "timeline": return cache.filter(live).length + (groupsApi ? groupsApi.timelineRows().length : 0);
       case "reminders": return cache.filter((i) => i.remindAt && live(i)).length + (groupsApi ? groupsApi.dueRows().length : 0);
@@ -2965,7 +2972,8 @@
     const tlOpen = !!(timelineApi && timelineApi.isOpen());
     const elsewhere = tlOpen || !!(groupsApi && groupsApi.isActive());
     for (const item of NAV_ITEMS) {
-      const isActive = item.key === "timeline" ? tlOpen : currentView === item.key && !elsewhere;
+      const chatOpen = !!(chatApi && chatApi.isOpen());
+    const isActive = item.key === "timeline" ? tlOpen : item.key === "chat" ? chatOpen : currentView === item.key && !elsewhere && !chatOpen;
       if (item.hideWhenEmpty && !isActive && countForNav(item.key) === 0) continue;
       const el = document.createElement("div");
       el.className = "nav-item" + (isActive ? " active" : "");
@@ -2975,6 +2983,7 @@
       el.dataset.nav = item.key;
       el.addEventListener("click", () => {
         if (item.key === "timeline") { openTimeline(); return; }
+        if (item.key === "chat") { openChat(); return; }
         switchView(item.key);
       });
       nav.appendChild(el);
@@ -3009,6 +3018,7 @@
   // The phone dock: three tabs you pick, plus New in the middle and More at the end.
   const DOCK_KEY = "copypaster-dock";
   const DOCK_CHOICES = [
+    { key: "chat", label: "Me", icon: "chat" },
     { key: "all", label: "Inbox", icon: "inbox" },
     { key: "groups", label: "Spaces", icon: "layers", needsGroups: true },
     { key: "timeline", label: "Timeline", icon: "timeline" },
@@ -3026,7 +3036,7 @@
   }
   function dockTabs() {
     const groupsOn = !!(groupsApi && groupsApi.enabled());
-    const keys = dockChoice() || ["all", "groups", "search"];
+    const keys = dockChoice() || ["chat", "groups", "search"];
     const picked = keys.map((k) => DOCK_CHOICES.find((c) => c.key === k))
       .map((c) => (c.needsGroups && !groupsOn ? DOCK_CHOICES.find((x) => x.key === "saved") : c));
     const mid = dockMiddle() === "new" ? { key: "new", label: "New", icon: "plus" } : { key: "snap", label: "Snap", icon: "camera" };
@@ -3039,7 +3049,7 @@
   function renderDockSettings() {
     const box = document.getElementById("dock-picker");
     if (!box) return;
-    const keys = dockChoice() || ["all", "groups", "search"];
+    const keys = dockChoice() || ["chat", "groups", "search"];
     box.replaceChildren();
     const midSel = document.createElement("select");
     midSel.className = "input dock-slot";
@@ -3096,7 +3106,8 @@
     const inGroups = !!(groupsApi && groupsApi.enabled() && groupsApi.isActive());
     const tlOpen = !!(timelineApi && timelineApi.isOpen());
     const tabs = dockTabs();
-    const activeKey = tlOpen ? (tabs.some((t) => t.key === timelineTab) ? timelineTab : tabs.some((t) => t.key === "timeline") ? "timeline" : "search") : inGroups ? "groups" : currentView;
+    const chatOpen = !!(chatApi && chatApi.isOpen());
+    const activeKey = chatOpen ? "chat" : tlOpen ? (tabs.some((t) => t.key === timelineTab) ? timelineTab : tabs.some((t) => t.key === "timeline") ? "timeline" : "search") : inGroups ? "groups" : currentView;
     const onTab = tabs.some((tab) => tab.key === activeKey);
     bar.innerHTML = "";
     for (const tab of tabs) {
@@ -3125,6 +3136,8 @@
           if (tlOpen && timelineTab === "timeline") { timelineApi.close(); renderTabBar(); renderNav(); return; }
           timelineTab = "timeline"; openTimeline({ q: tlOpen ? undefined : "" }); return;
         }
+        if (tab.key === "chat") { openChat(); return; }
+        if (chatApi && chatApi.isOpen()) chatApi.close();
         if (tab.key === "groups") { closeTimeline(); groupsApi.showHome(); return; }
         if (tlOpen) closeTimeline();
         if (inGroups) { groupsApi.exit(); switchView(tab.key); return; }
@@ -3140,6 +3153,7 @@
   function switchView(view) {
     closeSidebarOnMobile();
     closeTimeline();
+    if (chatApi && chatApi.isOpen()) chatApi.close();
     const apply = () => {
       currentView = view;
       renderNav(); renderFoldersList(); renderTagsList(); renderList();
@@ -3589,6 +3603,8 @@
     if (currentView === "vault") return false;
     if (currentView === "trash") return !!item.deletedAt;
     if (item.deletedAt) return false;
+    // Me-chat messages live in the chat until they're forwarded.
+    if (item.chat) return false;
     if (currentView === "archive") return !!item.archivedAt;
     if (item.archivedAt) return false;
     if (currentView === "all") return true;
@@ -4242,6 +4258,8 @@
 
   function renderList() {
     document.getElementById("list-title").textContent = currentViewLabel();
+    // The Me chat shows the same items; keep it current (a guess or a location arriving, an edit).
+    if (chatApi && chatApi.isOpen()) chatApi.render();
 
     let filtered = cache.filter((i) => matchesView(i) && matchesSearch(i));
     renderFilterChips(filtered);
@@ -4910,6 +4928,19 @@
     // item that IS an image (contentType "image" below still renders its own way).
     if (!inTrash) {
       body.appendChild(buildGalleryRow(item));
+      if (item.files && item.files.length) {
+        const box = document.createElement("div");
+        box.className = "note-files";
+        for (const f of item.files) {
+          const b = document.createElement("button");
+          b.type = "button"; b.className = "btn gp-small";
+          b.innerHTML = icon("file", "icon-sm");
+          b.append(" " + f.name);
+          b.addEventListener("click", () => openChatFile(f));
+          box.appendChild(b);
+        }
+        body.appendChild(box);
+      }
       body.appendChild(safeSeeCard(item));
     }
     if (item.audio.length) body.appendChild(buildAudioList(item, inTrash));
@@ -5951,10 +5982,12 @@
     const shot = await window.CPSnap.capture({ camera: true });
     if (!shot) return;
     const now = Date.now();
-    const item = normalize({ id: uuid(), type: "note", title: "", content: "", images: [shot.display], captured: true, capture: shot.capture, createdAt: now, updatedAt: now });
+    const item = normalize({ id: uuid(), type: "note", title: "", content: "", images: [shot.display], captured: true, chat: true, capture: shot.capture, createdAt: now, updatedAt: now });
     try { await saveItem(item); } catch { return; }
     renderAllViews();
-    showToast("Saved to Inbox", groupsApi ? { action: { label: "Sort", onClick: () => sortSnapById(item.id) } } : { action: { label: "Snap another", onClick: () => snapNow() } });
+    // A snap is a message to yourself: show it in the Me chat.
+    if (chatApi) { if (!chatApi.isOpen()) await openChat(); else chatApi.render(); }
+    showToast("Saved", groupsApi ? { action: { label: "Sort", onClick: () => sortSnapById(item.id) } } : { action: { label: "Snap another", onClick: () => snapNow() } });
     if (snapLocationOn()) addSnapLocation(item.id);
     if (snapSeeOn()) addSnapGuess(item.id, shot.display);
   }
@@ -6093,6 +6126,7 @@
     item.capture = { ...item.capture, location: loc };
     await saveItem(item);
     if (currentId === id) redrawDetail("properties");
+    renderList();
     showToast("Location added to the snap");
   }
 
@@ -6154,6 +6188,14 @@
     if (document.querySelector(".popover, .context-menu")) { closeAnyPopover(); return true; }
     if (groupsApi && groupsApi.stepBack()) return true;
     if (openSwipe) { closeOpenSwipe(); return true; }
+    // The Me chat: an open message closes first, then the chat.
+    if (chatApi && chatApi.isOpen()) {
+      if (sidebarEl.classList.contains("open")) { closeSidebarOnMobile(); return true; }
+      if (currentId) { closeDetail(); return true; }
+      chatApi.stepBack();
+      renderNav(); renderTabBar();
+      return true;
+    }
     // The Timeline: an open note over it closes first, then the Timeline.
     if (timelineApi && timelineApi.isOpen()) {
       if (sidebarEl.classList.contains("open")) { closeSidebarOnMobile(); return true; }
@@ -7878,7 +7920,8 @@
   const SEEN_VERSION_KEY = "copypaster-seen-version";
   const WHATS_NEW = [
     ["layers", "Groups are now Spaces", "Same data, new name: Health, Food, Trips… Personal and Work are still your Profiles."],
-    ["camera", "Snap in the middle", "Tap the middle of the dock to snap a photo. It's saved at once with when and where. Hold it for the New menu."],
+    ["chat", "Me: message yourself", "Drop text, photos and files like a chat with yourself. Saved at once with when and where. Select messages and Forward them into a space."],
+    ["camera", "Snap in the middle", "Tap the middle of the dock to snap a photo straight into Me. Hold it for the New menu."],
     ["sparkle", "It guesses what you snapped", "\u201cLooks like food\u201d, worked out on your phone. The photo never leaves it. Only a suggestion."],
     ["users", "People, places and things", "Doctors, cafes and bikes get their own page inside a space, with their visits and totals."],
     ["eye-off", "Hide with filters", "Tap a filter twice to hide it, like everything except Notes. Pick your own dates."],
@@ -9395,12 +9438,105 @@
   }
   async function openTimeline(opts = {}) {
     if (!timelineApi) return;
+    if (chatApi && chatApi.isOpen()) chatApi.close();
     await timelineApi.open(opts);
     renderNav();
     renderTabBar();
   }
   function closeTimeline() {
     if (timelineApi && timelineApi.isOpen()) timelineApi.close();
+  }
+  // ---------- Me chat ----------
+  let chatApi = null;
+  async function openChat() {
+    if (!chatApi) return;
+    if (timelineApi && timelineApi.isOpen()) timelineApi.close();
+    await chatApi.open();
+    renderNav();
+    renderTabBar();
+  }
+  const CHAT_FILE_MAX = 10 * 1024 * 1024;
+  function readFileData(file) {
+    return new Promise((resolve) => { const r = new FileReader(); r.onload = () => resolve(typeof r.result === "string" ? r.result : null); r.onerror = () => resolve(null); r.readAsDataURL(file); });
+  }
+  async function chatAdd(fields) {
+    const now = Date.now();
+    const item = normalize({ id: uuid(), type: "note", title: "", content: "", chat: true, createdAt: now, updatedAt: now, ...fields });
+    await saveItem(item);
+    return item;
+  }
+  function startChat() {
+    if (!window.CPChat) return;
+    try {
+      chatApi = window.CPChat.init({
+        icon,
+        items: () => cache.filter((i) => i.chat && !i.deletedAt && !i.vaulted && !i._locked).sort((a, b) => a.createdAt - b.createdAt),
+        addText: async (text) => { await chatAdd({ content: text }); renderNav(); },
+        // Photos keep their original and capture details, like a snap; other files are kept as they are.
+        addFiles: async (files, origin) => {
+          let skipped = 0;
+          for (const f of files) {
+            if (/^image\//.test(f.type) && f.type !== "image/svg+xml" && window.CPSnap) {
+              const shot = await window.CPSnap.fromFile(f, origin === "library" ? "library" : "file");
+              if (shot) {
+                const item = await chatAdd({ images: [shot.display], captured: true, capture: shot.capture });
+                if (snapSeeOn()) addSnapGuess(item.id, shot.display);
+                continue;
+              }
+            }
+            if (f.size > CHAT_FILE_MAX || /^(text\/html|image\/svg)/i.test(f.type)) { skipped++; continue; }
+            const data = await readFileData(f);
+            if (!data) { skipped++; continue; }
+            await chatAdd({ title: f.name.slice(0, 200), files: [{ name: f.name, type: f.type || "application/octet-stream", size: f.size, data }] });
+          }
+          if (skipped) showToast(skipped === 1 ? "One file was skipped (over 10 MB, or a web page)" : skipped + " files were skipped (over 10 MB, or web pages)");
+          renderNav();
+          if (chatApi) chatApi.render();
+        },
+        camera: () => snapNow(),
+        open: async (id) => { if (currentId && currentId !== id) await saveOpenDraft(); openDetail(id); },
+        openFile: (f) => openChatFile(f),
+        describeGuess: (g) => (window.CPSee ? window.CPSee.describe(g) : ""),
+        remove: async (list) => {
+          const now = Date.now();
+          list.forEach((i) => { i.deletedAt = now; i.updatedAt = now; });
+          await saveItems(list);
+          renderNav();
+          showTrashUndo(list, list.length === 1 ? "Moved to Trash" : list.length + " moved to Trash");
+          if (chatApi) chatApi.render();
+        },
+        forward: (list, done) => {
+          if (!groupsApi) return;
+          if (editor && list.some((i) => i.id === currentId)) editor.flush();
+          if (!groupsApi.enabled()) groupsApi.setEnabled(true);
+          groupsApi.sortSnap(list.length === 1 ? list[0] : list, { onDone: () => { done(); renderNav(); if (chatApi) chatApi.render(); } });
+        },
+        openSidebarDrawer,
+        onEnter: async () => {
+          closeSidebarOnMobile();
+          closeSettings();
+          if (groupsApi && groupsApi.isActive()) groupsApi.exit();
+          if (selectMode) document.getElementById("select-mode-btn").click();
+          if (currentId && window.matchMedia("(max-width: 720px)").matches) await closeDetail();
+        },
+        onExit: () => { renderNav(); renderTabBar(); }
+      });
+    } catch (err) {
+      console.error("[CopyPaster] Chat failed to start:", err);
+    }
+  }
+  // Opens a file from the chat in a new tab, or downloads it where that isn't allowed.
+  function openChatFile(f) {
+    try {
+      const bin = atob(f.data.split(",")[1]);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const url = URL.createObjectURL(new Blob([bytes], { type: f.type }));
+      const a = document.createElement("a");
+      a.href = url; a.download = f.name; a.target = "_blank"; a.rel = "noopener";
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 60000);
+    } catch { showToast("Couldn't open that file"); }
   }
   function startTimeline() {
     if (!window.CPTimeline || !window.CPTools) return;
@@ -9453,8 +9589,10 @@
         changed: () => { renderTagsList(); renderNav(); if (timelineApi) timelineApi.refresh(); },
         copy: (text, msg) => copyToClipboard(text, msg),
         openPhoto: (src) => openImageLightbox(src),
+        openFile: (f) => openChatFile(f),
         leaveNotes: async () => {
           closeTimeline();
+          if (chatApi && chatApi.isOpen()) chatApi.close();
           await saveOpenDraft();
           if (currentId) await closeDetail();
           if (selectMode) document.getElementById("select-mode-btn").click();
@@ -9487,6 +9625,7 @@
       await refresh();
       await startGroups();
       startTimeline();
+      startChat();
       renderNav();
       checkReminders();
       setInterval(checkReminders, 15000);
