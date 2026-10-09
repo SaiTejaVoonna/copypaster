@@ -1647,14 +1647,13 @@
                 </div>
               </div>
               <div class="settings-line"><span>Color<small>Buttons, the dock and highlights.</small></span>
-                <div id="accent-picker" role="radiogroup" aria-label="Color">
-                  <button class="accent-opt" data-accent-pick="blue" role="radio" aria-label="Blue" title="Blue" style="--sw:#4c8dff"></button>
-                  <button class="accent-opt" data-accent-pick="violet" role="radio" aria-label="Violet" title="Violet" style="--sw:#8b5cf6"></button>
-                  <button class="accent-opt" data-accent-pick="green" role="radio" aria-label="Green" title="Green" style="--sw:#16a34a"></button>
-                  <button class="accent-opt" data-accent-pick="orange" role="radio" aria-label="Orange" title="Orange" style="--sw:#f97316"></button>
-                  <button class="accent-opt" data-accent-pick="pink" role="radio" aria-label="Pink" title="Pink" style="--sw:#ec4899"></button>
-                  <button class="accent-opt" data-accent-pick="teal" role="radio" aria-label="Teal" title="Teal" style="--sw:#0d9488"></button>
-                  <button class="accent-opt" data-accent-pick="mono" role="radio" aria-label="Graphite" title="Graphite" style="--sw:#9ca3af"></button>
+                <div id="accent-picker" role="radiogroup" aria-label="Color"></div>
+              </div>
+              <div class="settings-line"><span>Glass<small>See-through, blurred dock and pop-ups. Off is solid and lightest on battery.</small></span>
+                <div id="glass-picker" class="segmented" role="radiogroup" aria-label="Glass">
+                  <button class="theme-opt" data-glass-pick="off" role="radio">Off</button>
+                  <button class="theme-opt" data-glass-pick="subtle" role="radio">Subtle</button>
+                  <button class="theme-opt" data-glass-pick="strong" role="radio">Strong</button>
                 </div>
               </div>
             </div>
@@ -2334,19 +2333,86 @@
 
   // Accent color: blue by default; picked in Settings → Appearance. Stored per device.
   const ACCENT_KEY = "copypaster-accent";
-  const ACCENTS = ["blue", "violet", "green", "orange", "pink", "teal", "mono"];
-  function applyAccent(name) {
-    const pick = ACCENTS.includes(name) ? name : "blue";
-    if (pick === "blue") delete document.documentElement.dataset.accent; else document.documentElement.dataset.accent = pick;
+  const ACCENTS = [["blue", "Blue", "#4c8dff"], ["indigo", "Indigo", "#6366f1"], ["violet", "Violet", "#8b5cf6"], ["pink", "Pink", "#ec4899"],
+    ["red", "Red", "#ef4444"], ["orange", "Orange", "#f97316"], ["amber", "Amber", "#f59e0b"], ["lime", "Lime", "#84cc16"], ["green", "Green", "#16a34a"],
+    ["teal", "Teal", "#0d9488"], ["cyan", "Cyan", "#06b6d4"], ["mono", "Graphite", "#9ca3af"]];
+  const ACCENT_PROPS = ["--accent", "--accent-hover", "--accent-text", "--accent-soft", "--accent-ring", "--primary-shadow", "--accent-grad", "--accent-glow"];
+  const isHex = (v) => typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v);
+  // Dark text on light colors (amber, lime, cyan…), white on the rest.
+  function textOn(hex) {
+    const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.42 ? "#111318" : "#ffffff";
+  }
+  // value: a preset name, or "#rrggbb" for a color you picked.
+  function applyAccent(value) {
+    const root = document.documentElement;
+    const preset = ACCENTS.find((a) => a[0] === value);
+    const pick = preset ? value : isHex(value) ? value.toLowerCase() : "blue";
+    ACCENT_PROPS.forEach((p) => root.style.removeProperty(p));
+    delete root.dataset.accent;
+    if (pick === "mono") root.dataset.accent = "mono";
+    else if (pick !== "blue") {
+      const hex = preset ? preset[2] : pick;
+      root.dataset.accent = preset ? pick : "custom";
+      const mix = (pct, other) => "color-mix(in srgb, " + hex + " " + pct + "%, " + other + ")";
+      const set = {
+        "--accent": hex, "--accent-hover": mix(82, "white"), "--accent-text": textOn(hex),
+        "--accent-soft": mix(15, "transparent"), "--accent-ring": mix(38, "transparent"),
+        "--primary-shadow": "0 4px 14px -4px " + mix(60, "transparent") + ", inset 0 1px 0 rgba(255, 255, 255, 0.18)",
+        "--accent-grad": "linear-gradient(145deg, " + mix(78, "white") + ", " + hex + ")", "--accent-glow": mix(60, "transparent")
+      };
+      for (const [k, v] of Object.entries(set)) root.style.setProperty(k, v);
+    }
     try { localStorage.setItem(ACCENT_KEY, pick); } catch {}
-    document.querySelectorAll("[data-accent-pick]").forEach((b) => {
-      const on = b.dataset.accentPick === pick;
+    renderAccentPicker(pick);
+  }
+  function renderAccentPicker(pick) {
+    const box = document.getElementById("accent-picker");
+    if (!box) return;
+    box.replaceChildren();
+    for (const [key, label, hex] of ACCENTS) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "accent-opt" + (key === pick ? " active" : "");
+      b.dataset.accentPick = key;
+      b.setAttribute("role", "radio");
+      b.setAttribute("aria-checked", key === pick ? "true" : "false");
+      b.setAttribute("aria-label", label);
+      b.title = label;
+      b.style.setProperty("--sw", hex);
+      b.addEventListener("click", () => { applyAccent(key); showToast(label + " it is"); });
+      box.appendChild(b);
+    }
+    // Any color: the phone's own color picker.
+    const custom = document.createElement("label");
+    custom.className = "accent-opt custom" + (isHex(pick) ? " active" : "");
+    custom.title = "Pick any color";
+    custom.setAttribute("aria-label", "Pick any color");
+    if (isHex(pick)) custom.style.setProperty("--sw", pick);
+    const input = document.createElement("input");
+    input.type = "color";
+    input.id = "accent-custom";
+    input.value = isHex(pick) ? pick : "#4c8dff";
+    input.addEventListener("change", () => applyAccent(input.value));
+    custom.appendChild(input);
+    box.appendChild(custom);
+  }
+  try { applyAccent(localStorage.getItem(ACCENT_KEY) || "blue"); } catch { applyAccent("blue"); }
+
+  // Glass: how see-through the dock and pop-ups are. Stored per device.
+  const GLASS_KEY = "copypaster-glass";
+  function applyGlass(value) {
+    const pick = value === "off" || value === "strong" ? value : "subtle";
+    if (pick === "subtle") delete document.documentElement.dataset.glass; else document.documentElement.dataset.glass = pick;
+    try { localStorage.setItem(GLASS_KEY, pick); } catch {}
+    document.querySelectorAll("[data-glass-pick]").forEach((b) => {
+      const on = b.dataset.glassPick === pick;
       b.classList.toggle("active", on);
       b.setAttribute("aria-checked", on ? "true" : "false");
     });
   }
-  document.querySelectorAll("[data-accent-pick]").forEach((b) => b.addEventListener("click", () => applyAccent(b.dataset.accentPick)));
-  try { applyAccent(localStorage.getItem(ACCENT_KEY) || "blue"); } catch { applyAccent("blue"); }
+  document.querySelectorAll("[data-glass-pick]").forEach((b) => b.addEventListener("click", () => applyGlass(b.dataset.glassPick)));
+  try { applyGlass(localStorage.getItem(GLASS_KEY)); } catch { applyGlass("subtle"); }
 
   // ---------- Collapsible sidebar sections ----------
 

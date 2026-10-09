@@ -354,24 +354,26 @@ body:has(#settings-overlay:not(.hidden)) .popover, body:has(#settings-overlay:no
 }
 
 /* ---------- Accent colors (Settings → Appearance → Color) ---------- */
-html:root[data-accent="violet"] { --accent: #8b5cf6; --accent-hover: #a78bfa; --accent-text: #fff; --accent-soft: rgba(139, 92, 246, 0.14); --accent-ring: rgba(139, 92, 246, 0.35);
-  --primary-shadow: 0 4px 14px -4px rgba(139, 92, 246, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.18); --accent-grad: linear-gradient(145deg, #a78bfa, #7c3aed); --accent-glow: rgba(139, 92, 246, 0.6); }
-html:root[data-accent="green"] { --accent: #16a34a; --accent-hover: #22c55e; --accent-text: #fff; --accent-soft: rgba(22, 163, 74, 0.14); --accent-ring: rgba(22, 163, 74, 0.35);
-  --primary-shadow: 0 4px 14px -4px rgba(22, 163, 74, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.18); --accent-grad: linear-gradient(145deg, #34d399, #15803d); --accent-glow: rgba(22, 163, 74, 0.6); }
-html:root[data-accent="orange"] { --accent: #ea580c; --accent-hover: #f97316; --accent-text: #fff; --accent-soft: rgba(234, 88, 12, 0.14); --accent-ring: rgba(234, 88, 12, 0.35);
-  --primary-shadow: 0 4px 14px -4px rgba(234, 88, 12, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.18); --accent-grad: linear-gradient(145deg, #fb923c, #ea580c); --accent-glow: rgba(234, 88, 12, 0.6); }
-html:root[data-accent="pink"] { --accent: #db2777; --accent-hover: #ec4899; --accent-text: #fff; --accent-soft: rgba(219, 39, 119, 0.14); --accent-ring: rgba(219, 39, 119, 0.35);
-  --primary-shadow: 0 4px 14px -4px rgba(219, 39, 119, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.18); --accent-grad: linear-gradient(145deg, #f472b6, #db2777); --accent-glow: rgba(219, 39, 119, 0.6); }
-html:root[data-accent="teal"] { --accent: #0d9488; --accent-hover: #14b8a6; --accent-text: #fff; --accent-soft: rgba(13, 148, 136, 0.14); --accent-ring: rgba(13, 148, 136, 0.35);
-  --primary-shadow: 0 4px 14px -4px rgba(13, 148, 136, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.18); --accent-grad: linear-gradient(145deg, #2dd4bf, #0f766e); --accent-glow: rgba(13, 148, 136, 0.6); }
 html:root[data-accent="mono"] { --accent: #e5e7eb; --accent-hover: #f3f4f6; --accent-text: #111318; --accent-soft: rgba(229, 231, 235, 0.12); --accent-ring: rgba(229, 231, 235, 0.3);
   --primary-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.6); --accent-grad: linear-gradient(145deg, #f3f4f6, #cbd5e1); --accent-glow: rgba(0, 0, 0, 0.5); }
 html:root[data-accent="mono"][data-theme="light"] { --accent: #1f2937; --accent-hover: #374151; --accent-text: #fff; --accent-soft: rgba(31, 41, 55, 0.08); --accent-ring: rgba(31, 41, 55, 0.25);
   --primary-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.35); --accent-grad: linear-gradient(145deg, #374151, #111827); --accent-glow: rgba(0, 0, 0, 0.35); }
 html:root[data-accent="mono"] .tab-btn .plus-ring, html:root[data-accent="mono"] #new-btn, html:root[data-accent="mono"] .wn-ok { color: var(--accent-text); }
-#accent-picker { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
-.accent-opt { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; background: var(--sw); cursor: pointer; padding: 0; box-shadow: inset 0 0 0 2px var(--bg); }
-.accent-opt.active { border-color: var(--sw); }
+#accent-picker { display: grid; grid-template-columns: repeat(7, 30px); gap: 8px; justify-content: end; }
+/* Swatches: plain circles; the chosen one gets a ring and a tick. */
+.accent-opt { position: relative; width: 30px; height: 30px; border-radius: 50%; border: none; padding: 0; cursor: pointer; background: var(--sw); }
+.accent-opt.active { box-shadow: 0 0 0 2px var(--elevated), 0 0 0 4px var(--sw); }
+.accent-opt.active::after { content: ""; position: absolute; left: 10px; top: 7px; width: 7px; height: 12px; border: solid #fff; border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); filter: drop-shadow(0 0 1px rgba(0,0,0,.6)); }
+.accent-opt.custom { background: conic-gradient(#ef4444, #f59e0b, #84cc16, #06b6d4, #6366f1, #ec4899, #ef4444); overflow: hidden; display: block; }
+.accent-opt.custom.active { background: var(--sw); }
+.accent-opt.custom input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; border: none; padding: 0; }
+@media (max-width: 720px) { #accent-picker { grid-template-columns: repeat(5, 30px); } }
+
+/* Glass (Settings → Appearance): off is solid, strong is more see-through. */
+html[data-glass="off"] body.has-dock #tab-bar, html[data-glass="off"] .toast-item, html[data-glass="off"] #bulk-bar {
+  background: var(--elevated); backdrop-filter: none; -webkit-backdrop-filter: none; }
+html[data-glass="strong"] body.has-dock #tab-bar, html[data-glass="strong"] .toast-item, html[data-glass="strong"] #bulk-bar {
+  background: color-mix(in srgb, var(--elevated) 34%, transparent); backdrop-filter: saturate(2) blur(30px); -webkit-backdrop-filter: saturate(2) blur(30px); }
 
 /* "What is this?" under a note's photos */
 .see-card { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 14px; padding: 10px 12px; border-radius: 14px; border: 1px solid var(--line); background: var(--surface-1); }

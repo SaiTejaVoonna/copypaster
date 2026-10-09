@@ -417,10 +417,10 @@ test("Sort this snap with no matching space offers to make one from the right te
   await expect(lastToast(page)).toContainText("Saved to Health → Medicines");
 });
 
-test("44 templates in sections with search, and a color you pick in Appearance", async ({ page }) => {
+test("46 templates in sections with search, and a color you pick in Appearance", async ({ page }) => {
   await page.click("#groups-add-btn");
-  await expect(page.locator(".gp-tpl")).toHaveCount(44);
-  await expect(page.locator(".gp-tpl-sec")).toHaveText(["Start", "Health", "Food", "Money", "Home & family", "Travel & vehicles", "Work & study", "Documents & gadgets", "Hobbies"]);
+  await expect(page.locator(".gp-tpl")).toHaveCount(46);
+  await expect(page.locator(".gp-tpl-sec")).toHaveText(["Start", "Health", "Food", "Money", "Home & family", "Travel & vehicles", "Work & study", "Documents & gadgets", "Hobbies & games"]);
   await page.fill("#gp-tpl-search", "emi");
   await expect(page.locator(".gp-tpl")).toHaveCount(1);
   await expect(page.locator(".gp-tpl")).toContainText("Loans & EMIs");
@@ -476,4 +476,23 @@ test("an older see.js left in a cache never blanks the editor: the card just hid
   await pickFile(page, () => page.click('#new-menu [data-new="photo"]'));
   await expect(page.locator("#title-input")).toBeVisible();
   await expect(page.locator("#see-card")).toBeHidden();
+});
+
+test("Color: only the picked swatch is ticked, any color works, and Glass can be off or strong", async ({ page }) => {
+  await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="appearance"]');
+  await expect(page.locator(".accent-opt.active")).toHaveCount(1);
+  await expect(page.locator('.accent-opt[data-accent-pick="blue"]')).toHaveClass(/active/);
+  await page.click('[data-accent-pick="orange"]');
+  await expect(page.locator(".accent-opt.active")).toHaveCount(1);
+  await expect(page.locator('.accent-opt[data-accent-pick="orange"]')).toHaveClass(/active/);
+  // Your own color; light colors get dark text on buttons.
+  await page.locator("#accent-custom").evaluate((el) => { el.value = "#ffd60a"; el.dispatchEvent(new Event("change")); });
+  const v = await page.evaluate(() => [getComputedStyle(document.documentElement).getPropertyValue("--accent").trim(), getComputedStyle(document.documentElement).getPropertyValue("--accent-text").trim(), document.documentElement.dataset.accent]);
+  expect(v).toEqual(["#ffd60a", "#111318", "custom"]);
+  await expect(page.locator(".accent-opt.custom")).toHaveClass(/active/);
+  await page.click('[data-glass-pick="off"]');
+  expect(await page.evaluate(() => document.documentElement.dataset.glass)).toBe("off");
+  await page.reload();
+  expect(await page.evaluate(() => [document.documentElement.dataset.glass, getComputedStyle(document.documentElement).getPropertyValue("--accent").trim()])).toEqual(["off", "#ffd60a"]);
 });

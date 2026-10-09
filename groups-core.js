@@ -176,9 +176,19 @@
       [sub("Courses", "Course", "school", "#4c8dff"), sub("Certificates", "Certificate", "star", "#f5b544"), sub("Exams", "Exam", "calendar", "#ef4444")],
       { mainLabel: "Course", mainType: "thing", custom: [{ name: "Valid till", type: "expiry", unit: "", stat: "none" }] }),
     // Hobbies
-    T("gaming", "Gaming", "Playing, finished, wishlist and clips", "play", "#8b5cf6",
+    T("gaming", "Video games", "Playing, finished, wishlist and clips, per game", "play", "#8b5cf6",
       [sub("Playing", "Playing", "play", "#4c8dff"), sub("Finished", "Finished", "check", "#22c55e"), sub("Wishlist", "Wish", "heart", "#ec4899"), sub("Clips", "Clip", "camera", "#f97316")],
       { mainLabel: "Game", mainType: "title", rating: true, custom: [{ name: "Hours", type: "number", unit: "h", stat: "sum" }] }),
+    T("sports", "Sports & matches", "Cricket, football, badminton, running: matches, practice, scores and gear", "dumbbell", "#16a34a",
+      [sub("Matches", "Match", "star", "#16a34a"), sub("Practice", "Session", "calendar", "#4c8dff"), sub("Scores & stats", "Score", "check", "#f5b544"),
+        sub("Gear", "Gear", "cart", "#8b5cf6"), sub("Fees & turf", "Booking", "receipt", "#f97316")],
+      { mainLabel: "Sport", mainType: "thing", custom: [{ name: "Result", type: "text", unit: "", stat: "none" }, { name: "Score", type: "text", unit: "", stat: "none" },
+        { name: "Minutes played", type: "number", unit: "min", stat: "sum" }, { name: "Venue", type: "place", unit: "", stat: "none" }] }),
+    T("boardgames", "Board & indoor games", "Chess, carrom, cards and board games: game nights, results, wishlist", "star", "#a16207",
+      [sub("Game nights", "Game night", "calendar", "#a16207"), sub("Results", "Result", "check", "#22c55e"), sub("Rules & tips", "Tip", "book", "#4c8dff", { noStatus: true }),
+        sub("Wishlist", "Wish", "heart", "#ec4899")],
+      { mainLabel: "Game", mainType: "title", amount: false, rating: true, custom: [{ name: "Players", type: "number", unit: "", stat: "none" },
+        { name: "Winner", type: "person", unit: "", stat: "none" }, { name: "Minutes", type: "number", unit: "min", stat: "sum" }] }),
     T("music", "Music & concerts", "Concerts, albums and playlists", "music", "#ec4899",
       [sub("Concerts", "Concert", "music", "#ec4899"), sub("Albums", "Album", "play", "#8b5cf6"), sub("Playlists", "Playlist", "bookmark", "#4c8dff")],
       { mainLabel: "Artist", mainType: "person", rating: true, custom: [] }),
@@ -203,7 +213,7 @@
     ["Travel & vehicles", ["trips", "tickets", "bike", "car", "commute"]],
     ["Work & study", ["work", "jobs", "clients", "study", "certs"]],
     ["Documents & gadgets", ["documents", "gadgets"]],
-    ["Hobbies", ["movies", "books", "gaming", "music", "photography", "collections"]]
+    ["Hobbies & games", ["movies", "books", "gaming", "sports", "boardgames", "music", "photography", "collections"]]
   ];
   function templateSections(list) {
     const placed = new Set();
