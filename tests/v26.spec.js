@@ -483,7 +483,7 @@ test("Color: only the picked swatch is ticked, any color works, and Glass can be
   await page.click("#settings-btn");
   await page.click('.settings-nav-item[data-page="appearance"]');
   await expect(page.locator(".accent-opt.active")).toHaveCount(1);
-  await expect(page.locator('.accent-opt[data-accent-pick="blue"]')).toHaveClass(/active/);
+  await expect(page.locator('.accent-opt[data-accent-pick="stash"]')).toHaveClass(/active/);
   await page.click('[data-accent-pick="orange"]');
   await expect(page.locator(".accent-opt.active")).toHaveCount(1);
   await expect(page.locator('.accent-opt[data-accent-pick="orange"]')).toHaveClass(/active/);
@@ -585,4 +585,20 @@ test("@fzv3 on a snap picks that vehicle's page when sorting", async ({ page }) 
   await expect(page.locator("#gp-sort-spaces .gp-mini.active")).toContainText("Bike");
   await expect(page.locator(".gp-sort-row .gp-mini.active", { hasText: "Fz V3" })).toHaveCount(1);
   await expect(page.locator("#gp-sort-title")).toHaveValue("petrol");
+});
+
+test("Stash colors are the default; someone who had the old default blue gets Stash, someone who picked a color keeps it", async ({ page }) => {
+  expect(await page.evaluate(() => [document.documentElement.dataset.accent, getComputedStyle(document.documentElement).getPropertyValue("--accent").trim()])).toEqual(["stash", "#7b61ff"]);
+  expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue("--accent-grad"))).toContain("#27d5ff");
+  // Old default saved without a choice → Stash.
+  await page.evaluate(() => { localStorage.setItem("copypaster-accent", "blue"); localStorage.removeItem("copypaster-accent-picked"); });
+  await page.reload();
+  expect(await page.evaluate(() => document.documentElement.dataset.accent)).toBe("stash");
+  // Picked blue on purpose → stays blue.
+  await page.click("#settings-btn");
+  await page.click('.settings-nav-item[data-page="appearance"]');
+  await page.click('[data-accent-pick="blue"]');
+  await page.reload();
+  expect(await page.evaluate(() => document.documentElement.dataset.accent)).toBeUndefined();
+  expect(await page.evaluate(() => localStorage.getItem("copypaster-accent"))).toBe("blue");
 });

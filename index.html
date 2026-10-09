@@ -2340,7 +2340,10 @@
 
   // Accent color: blue by default; picked in Settings → Appearance. Stored per device.
   const ACCENT_KEY = "copypaster-accent";
-  const ACCENTS = [["blue", "Blue", "#4c8dff"], ["indigo", "Indigo", "#6366f1"], ["violet", "Violet", "#8b5cf6"], ["pink", "Pink", "#ec4899"],
+  // "stash" is the brand look: violet buttons, the blue → violet → pink → peach gradient.
+  const STASH_GRAD = "linear-gradient(135deg, #27d5ff 0%, #7b61ff 38%, #ff5db8 72%, #ffb36b 100%)";
+  const ACCENT_PICKED_KEY = "copypaster-accent-picked";
+  const ACCENTS = [["stash", "Stash", "#7b61ff"], ["blue", "Blue", "#4c8dff"], ["indigo", "Indigo", "#6366f1"], ["violet", "Violet", "#8b5cf6"], ["pink", "Pink", "#ec4899"],
     ["red", "Red", "#ef4444"], ["orange", "Orange", "#f97316"], ["amber", "Amber", "#f59e0b"], ["lime", "Lime", "#84cc16"], ["green", "Green", "#16a34a"],
     ["teal", "Teal", "#0d9488"], ["cyan", "Cyan", "#06b6d4"], ["mono", "Graphite", "#9ca3af"]];
   const ACCENT_PROPS = ["--accent", "--accent-hover", "--accent-text", "--accent-soft", "--accent-ring", "--primary-shadow", "--accent-grad", "--accent-glow"];
@@ -2354,7 +2357,7 @@
   function applyAccent(value) {
     const root = document.documentElement;
     const preset = ACCENTS.find((a) => a[0] === value);
-    const pick = preset ? value : isHex(value) ? value.toLowerCase() : "blue";
+    const pick = preset ? value : isHex(value) ? value.toLowerCase() : "stash";
     ACCENT_PROPS.forEach((p) => root.style.removeProperty(p));
     delete root.dataset.accent;
     if (pick === "mono") root.dataset.accent = "mono";
@@ -2366,7 +2369,7 @@
         "--accent": hex, "--accent-hover": mix(82, "white"), "--accent-text": textOn(hex),
         "--accent-soft": mix(15, "transparent"), "--accent-ring": mix(38, "transparent"),
         "--primary-shadow": "0 4px 14px -4px " + mix(60, "transparent") + ", inset 0 1px 0 rgba(255, 255, 255, 0.18)",
-        "--accent-grad": "linear-gradient(145deg, " + mix(78, "white") + ", " + hex + ")", "--accent-glow": mix(60, "transparent")
+        "--accent-grad": pick === "stash" ? STASH_GRAD : "linear-gradient(145deg, " + mix(78, "white") + ", " + hex + ")", "--accent-glow": mix(60, "transparent")
       };
       for (const [k, v] of Object.entries(set)) root.style.setProperty(k, v);
     }
@@ -2387,7 +2390,8 @@
       b.setAttribute("aria-label", label);
       b.title = label;
       b.style.setProperty("--sw", hex);
-      b.addEventListener("click", () => { applyAccent(key); showToast(label + " it is"); });
+      b.addEventListener("click", () => { markAccentPicked(); applyAccent(key); showToast(label + " it is"); });
+      if (key === "stash") b.style.background = STASH_GRAD;
       box.appendChild(b);
     }
     // Any color: the phone's own color picker.
@@ -2400,11 +2404,18 @@
     input.type = "color";
     input.id = "accent-custom";
     input.value = isHex(pick) ? pick : "#4c8dff";
-    input.addEventListener("change", () => applyAccent(input.value));
+    input.addEventListener("change", () => { markAccentPicked(); applyAccent(input.value); });
     custom.appendChild(input);
     box.appendChild(custom);
   }
-  try { applyAccent(localStorage.getItem(ACCENT_KEY) || "blue"); } catch { applyAccent("blue"); }
+  function markAccentPicked() { try { localStorage.setItem(ACCENT_PICKED_KEY, "1"); } catch {} }
+  // Stash is the default. Blue was the old default and got saved without anyone
+  // picking it, so it only stays when someone chose it on purpose.
+  (function () {
+    let saved = null, picked = false;
+    try { saved = localStorage.getItem(ACCENT_KEY); picked = !!localStorage.getItem(ACCENT_PICKED_KEY); } catch {}
+    applyAccent(!saved || (saved === "blue" && !picked) ? "stash" : saved);
+  })();
 
   // Glass: how see-through the dock and pop-ups are. Stored per device.
   const GLASS_KEY = "copypaster-glass";
