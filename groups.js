@@ -189,6 +189,21 @@
       img.src = url;
     });
   }
+  // A small square copy from the middle of a photo, for circles.
+  function squarePhoto(dataUrl, size = 320) {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const side = Math.min(img.naturalWidth, img.naturalHeight);
+        const c = document.createElement("canvas");
+        c.width = c.height = Math.min(size, side);
+        c.getContext("2d").drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, c.width, c.height);
+        resolve(c.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = () => resolve(null);
+      img.src = dataUrl;
+    });
+  }
   async function pickPhotos({ camera = false, multiple = true } = {}) {
     return new Promise((resolve) => {
       const input = h("input", { type: "file", accept: "image/*", hidden: true });
@@ -701,6 +716,10 @@
     if (ui.s !== "all") d.sub = ui.s;
     if (d.sub === undefined || (d.sub && !C.subOf(g, d.sub))) d.sub = (prefs.lastSub[g.id] && C.subOf(g, prefs.lastSub[g.id]) ? prefs.lastSub[g.id] : (g.subs[0] && g.subs[0].id)) || null;
     if (d.tag === undefined || (d.tag && !C.tagOf(g, d.tag))) d.tag = ui.tag && ui.tag !== "__none" ? ui.tag : (prefs.lastTag[g.id] && C.tagOf(g, prefs.lastTag[g.id]) ? prefs.lastTag[g.id] : null);
+    // Opening a page (Fz V3) picks it for the next entry, even if the draft had another one.
+    const openPage = ui.tag && ui.tag !== "__none" && C.tagOf(g, ui.tag) ? ui.tag : null;
+    if (openPage && d.pageSeen !== openPage) d.tag = openPage;
+    d.pageSeen = openPage;
     return d;
   }
   function renderComposer(g) {
@@ -730,6 +749,12 @@
     renderComposerTop();
     grow(ta);
   }
+  // The + menu closes on a tap anywhere outside it, or Escape.
+  document.addEventListener("pointerdown", (e) => {
+    if (!ui.menu || e.target.closest(".gp-plus-menu, #gp-b-plus")) return;
+    ui.menu = false; renderComposerTop(); syncSend();
+  }, true);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && ui.menu) { ui.menu = false; renderComposerTop(); syncSend(); } });
   function grow(t) { t.style.height = "auto"; t.style.height = Math.min(160, t.scrollHeight) + "px"; }
   function focusLater(id) { setTimeout(() => { const el = document.getElementById(id); if (el) el.focus(); }, 0); }
   function canSend(d) { return !!(d.text.trim() || d.photos.length || d.link.trim() || C.toMinor(d.amount) || Object.values(d.fields).some((v) => v !== "" && v != null)); }
@@ -981,6 +1006,16 @@
         const type = E.typeOf(types, w.type);
         body.append(h("label", { class: "gp-label", for: "gp-ent-name" }, "Name"),
           h("input", { class: "input gp-input", id: "gp-ent-name", value: w.name, maxlength: E.MAX.name, oninput: (e) => { w.name = e.target.value; } }));
+        // A photo for the circle (your bike, the doctor, the cafe); initials when there's none.
+        body.append(h("span", { class: "gp-label" }, "Photo"), h("div", { class: "gp-ent-photo" },
+          h("span", { class: "gp-ava lg", style: "--c:" + (opts.color || "var(--accent)") }, w.photo ? h("img", { src: w.photo, alt: "" }) : initials(w.name || "?")),
+          h("button", { class: "btn gp-small", id: "gp-ent-photo", onclick: async () => {
+            const [p] = await pickPhotos({ multiple: false });
+            if (!p) return;
+            w.photo = await squarePhoto(p);
+            draw();
+          } }, ic("image", "icon-sm"), w.photo ? "Change" : "Add photo"),
+          w.photo ? h("button", { class: "btn ghost gp-small", onclick: () => { w.photo = null; draw(); } }, "Remove") : null));
         const typeSel = h("select", { class: "input gp-input", id: "gp-ent-type", "aria-label": "Type", onchange: (e) => { w.type = e.target.value; w.kind = E.typeOf(types, w.type).kind; draw(); } });
         types.forEach((t) => typeSel.append(h("option", { value: t.key }, t.name)));
         typeSel.value = type.key;
@@ -1179,6 +1214,14 @@
       const first = Math.min(...list.map((e) => e.happenedOn)), last = Math.max(...list.map((e) => e.happenedOn));
       out.push({ icon: "clock", value: fmtDate(last), label: list.length > 1 ? "Last · since " + fmtDay(first) + " " + new Date(first).getFullYear() : "Last" });
     }
+    // Vehicles: what the last fill-up did.
+    const fuel = C.fuelStats(list, g);
+    if (fuel && fuel.dist) {
+      const sym = (C.CURRENCIES.find((c) => c.code === fuel.currency) || { symbol: "" }).symbol;
+      out.push({ icon: "route", value: C.formatNumber(fuel.dist) + " km", label: "Since last fill-up" });
+      if (fuel.perKm) out.push({ icon: "fuel", value: sym + fuel.perKm.toFixed(2) + "/km", label: "Cost per km" });
+      if (fuel.perUnit) out.push({ icon: "fuel", value: fuel.perUnit.toFixed(1) + " km/" + fuel.unit, label: fuel.avgPerUnit ? "Mileage · avg " + fuel.avgPerUnit.toFixed(1) : "Mileage" });
+    } else if (fuel && fuel.lastKm) out.push({ icon: "route", value: C.formatNumber(fuel.lastKm) + " km", label: "Odometer" });
     if (ent) for (const d of dueRows(60).filter((x) => x.sub === ent.name && x.key.startsWith(ent.id))) out.push({ icon: "bell", value: fmtDate(d.at), label: d.title + (d.due ? " (due)" : "") });
     return out;
   }
@@ -1190,7 +1233,7 @@
       h("div", { class: "gp-page-top" }, avatar(t, "xl"),
         h("div", { class: "gp-page-id" }, h("h2", null, t.name), h("p", null, [type.name, t.info].filter(Boolean).join(" · ")),
           phoneField ? h("button", { class: "gp-page-phone", onclick: () => api.copy(String(ent.fields[phoneField.id]), "Phone number copied") }, ic("copy", "icon-sm"), String(ent.fields[phoneField.id])) : null),
-        ent ? h("button", { class: "btn gp-small", id: "gp-page-edit", onclick: () => openEntity(ent) }, ic("edit", "icon-sm"), "Edit") : null,
+        ent ? h("button", { class: "btn gp-small", id: "gp-page-edit", onclick: () => openEntity(ent, { color: t.color }) }, ic("edit", "icon-sm"), "Edit") : null,
         h("button", { class: "btn icon ghost gp-page-close", "aria-label": "Back to every " + (g.mainLabel || "one").toLowerCase(), title: "Back to every " + (g.mainLabel || "one").toLowerCase(), onclick: () => setTag(null) }, ic("close"))));
     const statsEl = h("div", { class: "gp-stats" });
     for (const s of pageStats(g, t, ent)) statsEl.append(h("div", { class: "gp-stat" }, ic(s.icon), h("div", null, h("b", null, s.value), h("span", null, s.label))));
@@ -1889,6 +1932,26 @@
     if (!m) return null;
     return groups.find((g) => m.space.test(g.name)) || groups.find((g) => m.icons.includes(g.icon)) || null;
   }
+  // "@fzv3" → the page whose name (or other spelling) starts that way, and its space.
+  function mentionIn(text) {
+    const words = String(text || "").match(/@[\w.-]+/g);
+    if (!words) return null;
+    const squash = (x) => E.fold(x).replace(/\s+/g, "");
+    for (const w of words) {
+      const q = squash(w.slice(1));
+      if (q.length < 2) continue;
+      for (const g of groups) for (const t of g.mainTags) {
+        const ent = pageEntity(t);
+        const names = [t.name, ...(ent ? [ent.name, ...ent.aka] : [])].map(squash);
+        if (names.some((x) => x === q) ) return { g, t };
+      }
+      for (const g of groups) for (const t of g.mainTags) {
+        const ent = pageEntity(t);
+        if ([t.name, ...(ent ? [ent.name, ...ent.aka] : [])].map(squash).some((x) => x.startsWith(q))) return { g, t };
+      }
+    }
+    return null;
+  }
   // Moves a snap from Inbox into a space as an entry: same photo, original and capture details.
   async function moveSnapInto(n, where, title) {
     const photos = (n.images || []).filter((p) => typeof p === "string" && /^data:image\/(jpeg|png|webp|gif);/.test(p));
@@ -1907,14 +1970,18 @@
     const guess = n.suggest || null;
     const m = guess && SNAP_MATCH[guess.kind];
     let g = (guess && snapSpaceFor(guess.kind)) || null;
-    const suggestedId = g && g.id;
     let subId = null, tagId = null;
     const pickSub = () => { subId = null; if (g && m) for (const re of m.sub) { const s = g.subs.find((x) => re.test(x.name)); if (s) { subId = s.id; break; } } };
+    // "@fzv3" written on it picks that page and its space.
+    const mention = mentionIn((n.title || "") + " " + (n.content || ""));
+    if (mention) { g = mention.g; tagId = mention.t.id; }
+    const suggestedId = g && g.id;
     pickSub();
     const cap = n.capture || {};
     const nice = (t) => t ? t.charAt(0).toUpperCase() + t.slice(1) : "";
     sheet("Sort this snap", (body, close) => {
-      const title = h("input", { class: "input gp-input", id: "gp-sort-title", placeholder: "What is it?", value: (n.title || "").trim() || (guess && guess.detail ? nice(guess.detail) : ""), "aria-label": "Title" });
+      const written = ((n.title || "").trim() || (n.content || "").split("\n")[0]).replace(/@[\w.-]+/g, "").replace(/\s+/g, " ").trim();
+      const title = h("input", { class: "input gp-input", id: "gp-sort-title", placeholder: "What is it?", value: written || (guess && guess.detail ? nice(guess.detail) : ""), "aria-label": "Title" });
       const draw = () => {
         body.replaceChildren();
         const facts = [guess ? (window.CPSee ? window.CPSee.describe(guess) : guess.label) : "", cap.at ? fmtDay(cap.at) + ", " + fmtTime(cap.at) : "",

@@ -2864,6 +2864,10 @@
     cache = rawItems.map((raw) => (raw.vaulted ? vaultStub(raw) : normalize(raw)));
     await saveItems(needsCorrection);
 
+    // Words typed just before the app closed: saved to the note now, before
+    // anything blank is cleaned out.
+    await restoreClosingDraft();
+
     // Clean out completely blank items left behind before empty notes were
     // discarded automatically (they showed up as "Untitled").
     await deleteItems(cache.filter((i) => !i.vaulted && !i.deletedAt && isBlankItem(i)).map((i) => i.id));
@@ -5956,6 +5960,8 @@
   }
   // Opens "Sort this snap" for a snap still in Inbox.
   function sortSnapById(id) {
+    // Use what's typed in the open editor, even if it isn't saved yet.
+    if (editor && editor.item.id === id && id === currentId) editor.flush();
     const item = cache.find((i) => i.id === id);
     if (!item || !groupsApi) return;
     if (!groupsApi.enabled()) groupsApi.setEnabled(true);
@@ -7004,6 +7010,34 @@
     }
   }
 
+  // Leaving the app (switching apps, locking the phone, closing or reloading)
+  // saves what's typed right away. A page that's closing may not get to finish
+  // a database write, so a copy also goes to localStorage at once, and the
+  // next start puts it back (restoreClosingDraft).
+  const CLOSING_DRAFT_KEY = "copypaster-closing-draft";
+  function keepClosingDraft() {
+    if (!currentId) return;
+    const item = cache.find((i) => i.id === currentId);
+    const title = document.getElementById("title-input"), content = document.getElementById("content-input");
+    if (!item || item.vaulted || item._locked || !title || !content) return;
+    if (title.value.trim() === (item.title || "") && content.value === (item.content || "")) return;
+    try { localStorage.setItem(CLOSING_DRAFT_KEY, JSON.stringify({ profile: currentProfile && currentProfile.id, id: item.id, title: title.value.trim(), content: content.value, at: Date.now() })); } catch {}
+    saveOpenDraft();
+  }
+  async function restoreClosingDraft() {
+    let d = null;
+    try { d = JSON.parse(localStorage.getItem(CLOSING_DRAFT_KEY) || "null"); } catch {}
+    if (!d || (currentProfile && d.profile && d.profile !== currentProfile.id)) return;
+    try { localStorage.removeItem(CLOSING_DRAFT_KEY); } catch {}
+    const item = cache.find((i) => i.id === d.id);
+    if (!item || item.deletedAt || item.vaulted || (item.updatedAt || 0) > d.at) return;
+    if (typeof d.title === "string") item.title = d.title.slice(0, 500);
+    if (typeof d.content === "string") item.content = d.content;
+    item.updatedAt = d.at;
+    await saveItem(item);
+  }
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") keepClosingDraft(); });
+  window.addEventListener("pagehide", keepClosingDraft);
   async function saveOpenDraft() {
     if (!currentId) return;
     const item = cache.find((i) => i.id === currentId);

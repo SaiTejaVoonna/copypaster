@@ -30,7 +30,7 @@ test("Groups tab, a group screen, Snap, and back steps out one screen at a time"
   await expect(page.locator("#tab-bar")).toBeHidden();
 
   // Sub-chats are tabs on a phone; the send bar takes custom fields.
-  await page.locator(".gp-tab", { hasText: "Petrol" }).click();
+  await page.locator(".gp-tab", { hasText: "Fuel" }).click();
   await page.click("#gp-text");
   await page.fill(".gp-field-mini:has-text('Litres') input", "5.2");
   await page.click("#gp-b-amount");

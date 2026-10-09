@@ -25,7 +25,8 @@
     { key: "restaurant", name: "Restaurant", kind: "place", icon: "utensils", fields: [f("cuisine", "Cuisine", "text"), f("area", "Area", "text"), f("price", "Price", "text")] },
     { key: "clinic", name: "Clinic", kind: "place", icon: "cross", fields: [f("area", "Area", "text"), f("phone", "Phone", "phone")] },
     { key: "place", name: "Place", kind: "place", icon: "map-pin", fields: [f("area", "Area", "text"), f("address", "Address", "text"), f("phone", "Phone", "phone")] },
-    { key: "vehicle", name: "Vehicle", kind: "thing", icon: "bike", fields: [f("model", "Model", "text"), f("reg", "Registration", "text"), f("insurance", "Insurance expiry", "expiry"), f("service", "Next service", "expiry")] },
+    { key: "vehicle", name: "Vehicle", kind: "thing", icon: "bike", fields: [f("kind", "Kind (bike, car, scooter…)", "text"), f("model", "Model", "text"), f("fuel", "Fuel (petrol, power, diesel, CNG, EV)", "text"),
+      f("reg", "Registration", "text"), f("insurance", "Insurance expiry", "expiry"), f("puc", "Pollution (PUC) expiry", "expiry"), f("service", "Next service", "expiry")] },
     { key: "title", name: "Title", kind: "thing", icon: "film", fields: [f("format", "Format", "text"), f("episodes", "Episodes", "number"), f("year", "Year", "number")] },
     { key: "thing", name: "Thing", kind: "thing", icon: "layers", fields: [] }
   ];

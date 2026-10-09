@@ -417,9 +417,9 @@ test("Sort this snap with no matching space offers to make one from the right te
   await expect(lastToast(page)).toContainText("Saved to Health → Medicines");
 });
 
-test("46 templates in sections with search, and a color you pick in Appearance", async ({ page }) => {
+test("45 templates in sections with search, and a color you pick in Appearance", async ({ page }) => {
   await page.click("#groups-add-btn");
-  await expect(page.locator(".gp-tpl")).toHaveCount(46);
+  await expect(page.locator(".gp-tpl")).toHaveCount(45);
   await expect(page.locator(".gp-tpl-sec")).toHaveText(["Start", "Health", "Food", "Money", "Home & family", "Travel & vehicles", "Work & study", "Documents & gadgets", "Hobbies & games"]);
   await page.fill("#gp-tpl-search", "emi");
   await expect(page.locator(".gp-tpl")).toHaveCount(1);
@@ -495,4 +495,93 @@ test("Color: only the picked swatch is ticked, any color works, and Glass can be
   expect(await page.evaluate(() => document.documentElement.dataset.glass)).toBe("off");
   await page.reload();
   expect(await page.evaluate(() => [document.documentElement.dataset.glass, getComputedStyle(document.documentElement).getPropertyValue("--accent").trim()])).toEqual(["off", "#ffd60a"]);
+});
+
+// ---------- Vehicles ----------
+test("a vehicle page works out the last fill-up: km since, cost per km and mileage; services don't count", async ({ page }) => {
+  await createGroup(page, "Vehicles", "Bike");
+  await page.click("#gp-text");
+  await page.click(".gp-extras .gp-mini:has-text('New')");
+  await page.fill("#gp-page-name", "Fz V3");
+  await page.click("#gp-page-create");
+  const fill = async (sub, km, amount, litres) => {
+    await page.click("#gp-text");
+    await page.locator(".gp-extras .gp-xrow").first().locator(".gp-mini", { hasText: sub }).click();
+    await page.fill("#gp-text", sub);
+    if (!(await page.locator("#gp-amount").count())) await page.click("#gp-b-amount");
+    await page.fill("#gp-amount", String(amount));
+    await page.locator(".gp-field-mini", { hasText: "Odometer" }).locator("input").fill(String(km));
+    if (litres) await page.locator(".gp-field-mini", { hasText: "Litres" }).locator("input").fill(String(litres));
+    await page.click("#gp-send");
+    await page.waitForTimeout(200);
+  };
+  await fill("Fill-up", 27500, 1200, 11);
+  await fill("Service", 27700, 900);
+  await fill("Fill-up", 27850, 1300, 9.2);
+  await page.locator(".gp-person", { hasText: "Fz V3" }).click();
+  const head = page.locator(".gp-page");
+  await expect(head).toContainText("350 km");
+  await expect(head).toContainText("Since last fill-up");
+  await expect(head).toContainText("₹3.71/km");
+  await expect(head).toContainText("38.0 km/L");
+});
+
+test("Vehicles is one template for bikes and cars; a vehicle has kind, fuel and PUC details and a photo", async ({ page }) => {
+  await page.click("#groups-add-btn");
+  await expect(page.locator(".gp-tpl", { hasText: /^Car/ })).toHaveCount(0);
+  await expect(page.locator(".gp-tpl", { hasText: "Vehicles" })).toContainText("Fuel · Service");
+  await page.locator(".gp-tpl", { hasText: "Vehicles" }).click();
+  await page.click(".gp-sheet button:has-text('Create space')");
+  await page.click("#gp-text");
+  await page.click(".gp-extras .gp-mini:has-text('New')");
+  await page.fill("#gp-page-name", "Fz V3");
+  await page.click("#gp-page-create");
+  await page.locator(".gp-person", { hasText: "Fz V3" }).click();
+  await page.click("#gp-page-edit");
+  await expect(page.locator(".gp-ent-field", { hasText: "Fuel" })).toBeVisible();
+  await expect(page.locator(".gp-ent-field", { hasText: "Pollution (PUC) expiry" })).toBeVisible();
+  const chooser = page.waitForEvent("filechooser");
+  await page.click("#gp-ent-photo");
+  await (await chooser).setFiles("tests/fixtures.js".replace("fixtures.js", "") + "../icons/icon-512.png");
+  await expect(page.locator(".gp-ent-photo img")).toBeVisible();
+  await page.click("#gp-ent-save");
+  await expect(page.locator(".gp-page .gp-ava img")).toBeVisible();
+});
+
+test("the space's + menu closes with a tap outside; an open page is picked for the next entry", async ({ page }) => {
+  await createGroup(page, "Vehicles", "Bike");
+  await page.click("#gp-text");
+  await page.click(".gp-extras .gp-mini:has-text('New')");
+  await page.fill("#gp-page-name", "Fz V3");
+  await page.click("#gp-page-create");
+  // Draft picks None, then the Fz V3 page is opened: Fz V3 is picked again.
+  await page.locator(".gp-extras .gp-xrow", { hasText: "Vehicle" }).locator(".gp-mini", { hasText: "None" }).click();
+  await page.locator(".gp-person", { hasText: "Fz V3" }).click();
+  await page.click("#gp-text");
+  await expect(page.locator(".gp-extras .gp-xrow", { hasText: "Vehicle" }).locator(".gp-mini.active")).toContainText("Fz V3");
+  await page.click("#gp-b-plus");
+  await expect(page.locator(".gp-plus-menu")).toBeVisible();
+  await page.mouse.click(5, 300);
+  await expect(page.locator(".gp-plus-menu")).toHaveCount(0);
+});
+
+test("@fzv3 on a snap picks that vehicle's page when sorting", async ({ page }) => {
+  await createGroup(page, "Vehicles", "Bike");
+  await page.click("#gp-text");
+  await page.click(".gp-extras .gp-mini:has-text('New')");
+  await page.fill("#gp-page-name", "Fz V3");
+  await page.click("#gp-page-create");
+  await page.locator('#main-nav [data-nav="all"]').click();
+  await page.evaluate(() => { window.CPSee.engine = async () => ({ classify: () => ({ classifications: [{ categories: [{ categoryName: "moped", index: 665, score: 0.6 }] }] }) }); });
+  await page.click("#new-btn");
+  await pickFile(page, () => page.click('#new-menu [data-new="snap"]'));
+  await page.locator(".item-row").first().click();
+  await page.fill("#content-input", "@fzv3 petrol");
+  await page.dispatchEvent("#content-input", "input");
+  await page.waitForTimeout(600);
+  await expect(page.locator("#see-sort")).toBeVisible();
+  await page.click("#see-sort");
+  await expect(page.locator("#gp-sort-spaces .gp-mini.active")).toContainText("Bike");
+  await expect(page.locator(".gp-sort-row .gp-mini.active", { hasText: "Fz V3" })).toHaveCount(1);
+  await expect(page.locator("#gp-sort-title")).toHaveValue("petrol");
 });

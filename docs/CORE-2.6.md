@@ -78,17 +78,31 @@ Starting templates are now **Health** (was Hospital), Food, **Trips** (new), **V
 
 ## Templates and colors
 
-- 44 templates to start a space from, in sections with a search box (it matches the start of words: "emi" finds Loans & EMIs):
+- 45 templates to start a space from, in sections with a search box (it matches the start of words: "emi" finds Loans & EMIs):
   - **Health:** Health, Medicines & refills, Dental, Eye care, Fitness, Period & cycle, Therapy & wellbeing, Insurance claims
   - **Food:** Food, Cooking & recipes
   - **Money:** Money, Bills & subscriptions, Credit cards, Loans & EMIs, Tax, Shopping
   - **Home & family:** Home, Kids, Parents & elders, Pets, Rent & landlord, House help & services, Events & gifts, Wedding & big events, Plants & garden
-  - **Travel & vehicles:** Trips, Tickets & bookings, Vehicles, Car, Daily commute
+  - **Travel & vehicles:** Vehicles, Trips, Tickets & bookings, Daily commute
   - **Work & study:** Work, Job hunt, Clients & invoices, Study, Courses & certificates
   - **Documents & gadgets:** Documents & IDs, Gadgets
-  - **Hobbies:** Watchlist, Books, Gaming, Music & concerts, Photography, Collections
+  - **Hobbies & games:** Watchlist, Books, Video games, Sports & matches, Board & indoor games, Music & concerts, Photography, Collections
   - Each comes with sub-chats, a page type where it fits (Dentist, Loan, Client…) and useful fields: expiry dates that turn into reminders (Next EMI, Policy ends, Agreement ends), numbers that add up (Litres, Hours) or show the latest (Odometer, Tablets left).
 - **Settings → Appearance → Color:** Blue (default), Violet, Green, Orange, Pink, Teal or Graphite.
+
+## Vehicles
+
+- **One Vehicles template** for bikes, cars and scooters (Car was merged into it). Each vehicle gets its own page. Sub-chats: Fuel, Service, Spare parts, Insurance & papers, Tolls & parking, Photos.
+- A vehicle's details: Kind, Model, Fuel (petrol, power, diesel, CNG, EV), Registration, Insurance expiry, Pollution (PUC) expiry, Next service. The expiry dates become reminders.
+- **Fill-up maths** on the vehicle's page, from Fuel entries with an odometer reading: km since the last fill-up, cost per km, and km per litre (with the average over all fill-ups). Services and other entries don't count. Uses the full-tank method: a fill-up's amount covers the distance since the one before.
+- **A photo for any page's circle** (your bike, a doctor, a cafe): Edit → Photo. Initials show when there's none.
+- **@mentions:** write "@fzv3" on a snap, and Sort this snap picks that page and its space.
+
+## Fixes
+
+- Opening a page picks it in the message bar for the next entry (it used to keep an older choice, like None).
+- The space's + menu closes with a tap outside it, or Escape.
+- Words typed just before the app is closed or put away are kept: they're saved at once, with a copy that's put back on the next start.
 
 ## What's new
 

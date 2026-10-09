@@ -103,8 +103,14 @@ test("What's new shows once after an update, never on a brand-new install", asyn
   // Someone updating from 2.5: they have notes and never saw this.
   await page.tap("#new-btn");
   await page.tap('#new-menu [data-new="note"]');
-  await page.keyboard.type("Milk");
-  await page.waitForTimeout(700);
+  await expect(page.locator("#content-input")).toBeFocused();
+  await page.fill("#content-input", "Milk");
+  await page.dispatchEvent("#content-input", "input");
+  await expect.poll(() => page.evaluate(async () => {
+    const db = await new Promise((r) => { const q = indexedDB.open("copypaster"); q.onsuccess = () => r(q.result); });
+    const n = await new Promise((r) => { const q = db.transaction("items").objectStore("items").count(); q.onsuccess = () => r(q.result); });
+    db.close(); return n;
+  }), { timeout: 5000 }).toBeGreaterThan(0);
   await page.evaluate(() => localStorage.removeItem("copypaster-seen-version"));
   await page.reload();
   await expect(page.locator("#whats-new")).toBeVisible();
@@ -115,4 +121,14 @@ test("What's new shows once after an update, never on a brand-new install", asyn
   await expect(page.locator("#tab-bar")).toBeVisible();
   await page.waitForTimeout(300);
   await expect(page.locator("#whats-new")).toHaveCount(0);
+});
+
+test("words typed just before the app closes are kept", async ({ page }) => {
+  await page.tap("#new-btn");
+  await page.tap('#new-menu [data-new="note"]');
+  await expect(page.locator("#content-input")).toBeFocused();
+  await page.fill("#content-input", "Milk and eggs");
+  await page.dispatchEvent("#content-input", "input");
+  await page.reload(); // straight away, before the usual save
+  await expect(page.locator(".item-row", { hasText: "Milk and eggs" })).toHaveCount(1);
 });

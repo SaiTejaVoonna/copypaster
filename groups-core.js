@@ -59,9 +59,9 @@
         sub("To watch", "To watch", "bookmark", "#f5b544"), sub("Thoughts", "Thought", "quote", "#8b5cf6", { noStatus: true })],
       mainLabel: "Title", mainType: "title", fields: { amount: { on: false, currency: "INR" }, rating: true, custom: [{ name: "Episode", type: "number", unit: "", stat: "none" }] },
       cards: "title", cardWord: "Title" },
-    { key: "bike", name: "Vehicles", desc: "Each bike or car: service, spare parts, petrol and rides", icon: "bike", color: "#14b8a6",
-      subs: [sub("Service", "Service", "wrench", "#4c8dff"), sub("Spare parts", "Spare part", "cog", "#8b5cf6"),
-        sub("Petrol", "Petrol", "fuel", "#f97316"), sub("Photos", "Photo", "camera", "#ec4899"), sub("Road trips", "Road trip", "route", "#22c55e")],
+    { key: "bike", name: "Vehicles", desc: "Every bike, car or scooter with its own page: fuel, mileage, service, papers", icon: "bike", color: "#14b8a6",
+      subs: [sub("Fuel", "Fill-up", "fuel", "#f97316"), sub("Service", "Service", "wrench", "#4c8dff"), sub("Spare parts", "Spare part", "cog", "#8b5cf6"),
+        sub("Insurance & papers", "Paper", "clipboard", "#22c55e", { noStatus: true }), sub("Tolls & parking", "Toll", "receipt", "#f5b544"), sub("Photos", "Photo", "camera", "#ec4899")],
       mainLabel: "Vehicle", mainType: "vehicle", fields: { amount: { on: true, currency: "INR" }, rating: false, custom: [
         { name: "Odometer", type: "number", unit: "km", stat: "latest" }, { name: "Litres", type: "number", unit: "L", stat: "sum" }] },
       cards: "none", cardWord: "" },
@@ -155,10 +155,6 @@
       [sub("Vendors", "Vendor", "briefcase", "#4c8dff"), sub("Payments", "Payment", "wallet", "#22c55e"), sub("Guests", "Guest", "heart", "#ec4899"), sub("Ideas", "Idea", "image", "#8b5cf6", { noStatus: true })],
       { mainLabel: "Vendor", mainType: "person", custom: [{ name: "Phone", type: "phone", unit: "", stat: "none" }] }),
     // Travel & vehicles
-    T("car", "Car", "Service, fuel, insurance, parking and tolls", "car", "#4c8dff",
-      [sub("Service", "Service", "wrench", "#4c8dff"), sub("Fuel", "Fill-up", "fuel", "#f97316"), sub("Insurance", "Policy", "clipboard", "#22c55e"), sub("Parking & tolls", "Toll", "receipt", "#f5b544")],
-      { mainLabel: "", custom: [{ name: "Odometer", type: "number", unit: "km", stat: "latest" }, { name: "Litres", type: "number", unit: "L", stat: "sum" },
-        { name: "Insurance ends", type: "expiry", unit: "", stat: "none" }] }),
     T("commute", "Daily commute", "Cabs, autos, metro, bus passes and fares", "route", "#14b8a6",
       [sub("Cabs & autos", "Ride", "car", "#f5b544"), sub("Metro & bus", "Ride", "route", "#14b8a6"), sub("Passes", "Pass", "clipboard", "#6366f1")],
       { mainLabel: "", custom: [] }),
@@ -210,7 +206,7 @@
     ["Food", ["food", "cooking"]],
     ["Money", ["money", "bills", "cards", "loans", "tax", "shopping"]],
     ["Home & family", ["home", "kids", "elders", "pets", "rent", "helpers", "events", "wedding", "garden"]],
-    ["Travel & vehicles", ["trips", "tickets", "bike", "car", "commute"]],
+    ["Travel & vehicles", ["bike", "trips", "tickets", "commute"]],
     ["Work & study", ["work", "jobs", "clients", "study", "certs"]],
     ["Documents & gadgets", ["documents", "gadgets"]],
     ["Hobbies & games", ["movies", "books", "gaming", "sports", "boardgames", "music", "photography", "collections"]]
@@ -488,6 +484,33 @@
     }
     return out;
   }
+  // Fill-up maths for vehicles, from entries with an odometer reading:
+  // the latest fill-up against the one before it (the full-tank method).
+  function fuelStats(list, g) {
+    const num = (f) => f.type === "number";
+    const odo = g.fields.custom.find((f) => num(f) && (/odo/i.test(f.name) || f.unit === "km"));
+    if (!odo) return null;
+    const lit = g.fields.custom.find((f) => num(f) && (/lit(re|er)|fuel|units|kwh/i.test(f.name) || f.unit === "L" || f.unit === "kWh"));
+    // Only fill-ups count (a service with an odometer reading would throw the maths off).
+    const fuelSub = g.subs.find((x) => /fuel|petrol|diesel|fill|charg|cng/i.test(x.name));
+    if (fuelSub) list = list.filter((e) => (e.refs || []).some((r) => r.g === g.id && r.s === fuelSub.id));
+    const fills = list.map((e) => ({ e, km: Number(e.fields[odo.id]), l: lit ? Number(e.fields[lit.id]) : NaN }))
+      .filter((x) => Number.isFinite(x.km) && x.km > 0).sort((a, b) => a.km - b.km || a.e.happenedOn - b.e.happenedOn);
+    if (fills.length < 2) return fills.length ? { lastKm: fills[0].km } : null;
+    const last = fills[fills.length - 1], prev = fills[fills.length - 2];
+    const dist = last.km - prev.km;
+    if (!(dist > 0)) return { lastKm: last.km };
+    const cur = entryCurrency(last.e, g);
+    const out = { lastKm: last.km, dist, currency: cur };
+    if (last.e.amount > 0) out.perKm = last.e.amount / 100 / dist;
+    if (Number.isFinite(last.l) && last.l > 0) out.perUnit = dist / last.l;
+    // Over every fill-up after the first: overall km per litre.
+    const later = fills.slice(1).filter((x) => Number.isFinite(x.l) && x.l > 0);
+    const span = fills[fills.length - 1].km - fills[0].km;
+    if (later.length >= 2 && span > 0) out.avgPerUnit = span / later.reduce((t, x) => t + x.l, 0);
+    out.unit = lit && (lit.unit === "kWh" || /kwh|units/i.test(lit.name)) ? "kWh" : "L";
+    return out;
+  }
   const plural = (w) => (!w ? "Entries" : /s$/i.test(w) ? w : w + "s");
   const formatNumber = (v) => (Math.round(v * 100) / 100).toLocaleString("en-IN");
 
@@ -530,7 +553,7 @@
     uid, normalizeGroup, normalizeEntry, normalizeTagName, groupFromTemplate,
     toMinor, formatMoney, formatTotals, totals, entryCurrency, formatNumber, plural,
     refIn, subOf, tagOf, sameDay, monthKey, inGroup, inSub, filterEntries, entryText, counts,
-    buildCards, titleSummary, stats, countsAsVisit,
+    buildCards, titleSummary, stats, countsAsVisit, fuelStats,
     templateFromGroup, validateTemplate, encodeTemplate, decodeTemplate
   };
 })();

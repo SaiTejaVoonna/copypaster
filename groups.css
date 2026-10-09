@@ -443,3 +443,5 @@ body.group-mode #toast { top: calc(14px + env(safe-area-inset-top)); bottom: aut
 #gp-tpl-search { margin-bottom: 4px; }
 .gp-tpl-sections { display: flex; flex-direction: column; gap: 8px; }
 .gp-tpl-sec { font-size: var(--fs-xs); font-weight: var(--fw-semibold); color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 6px; }
+.gp-ava.lg { width: 52px; height: 52px; font-size: 17px; }
+.gp-ent-photo { display: flex; gap: 10px; align-items: center; }
