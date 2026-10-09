@@ -89,3 +89,23 @@ Adding a field to one entity asks whether to add it to the type. If yes, future 
 - A guess at what a photo shows is made on the device and stored as `suggest` `{ kind, label, detail, confidence, source, at, confirmed }`. It is a suggestion (rule 4): it never files, renames or tags anything by itself.
 - "From Inbox" in a space moves the captured note into that space as an entry, with its capture details. It is moved, never copied.
 - The photo shown in lists is a smaller copy; `capture.original` keeps the file as it was picked (up to 15 MB).
+
+## Sync (2.7)
+
+Stash still has no server. Sync writes from the phone straight to the user's
+own Google Drive (`sync.js`, `sync-core.js`).
+
+- Sign-in: Google Identity Services token client, scope `drive.file` only, so
+  Stash sees just the files it makes. The OAuth client ID belongs to the user
+  and is typed into Settings → Sync; none is in the code. Tokens last an hour;
+  after that, the next sync needs a tap.
+- Folder: "Stash" ("Stash - Profile" for other profiles). Inside it there's one
+  Markdown file per space, `Notes.md`, `Me.md`, `README.md` and, if on,
+  `Stash backup.cps` (the same as Export).
+- Readable files never hold Vault items, password items or deleted notes.
+  Photos and files are only counted in them; the backup has everything.
+- Each file's fingerprint is kept, so unchanged files aren't sent again. A
+  space that's no longer synced has its file moved to Drive's bin.
+- One way: phone → Drive. Edits made in Drive are overwritten. Restore from
+  Drive adds what the backup has and this device doesn't (like Import).
+- Auto-sync runs about 20 s after a change while signed in.

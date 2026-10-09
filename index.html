@@ -1128,6 +1128,15 @@
   .settings-row-actions { display: flex; gap: var(--s-2); flex-wrap: wrap; }
   .settings-subtitle { font-weight: var(--fw-semibold); font-size: var(--fs-md); }
   .settings-hint { font-size: var(--fs-sm); color: var(--text-2); line-height: var(--lh); }
+  #sync-box .settings-group.padded { display: flex; flex-direction: column; gap: var(--s-2); }
+  .sync-label { font-weight: 600; font-size: var(--fs-sm); margin-top: var(--s-2); }
+  #sync-client-id { width: 100%; padding: 10px 12px; border-radius: var(--r-md); border: 1px solid var(--line); background: var(--surface-2); color: var(--text); font: inherit; font-size: 16px; }
+  .sync-help { font-size: var(--fs-sm); color: var(--text-2); }
+  .sync-help summary { cursor: pointer; color: var(--accent); }
+  .sync-help ol { margin: var(--s-2) 0 0; padding-left: 20px; display: grid; gap: 4px; word-break: break-word; }
+  .sync-note { padding: var(--s-2) var(--s-1) 0; }
+  #sync-status { word-break: break-word; }
+  #sync-box > .settings-section { margin-top: var(--s-5); }
   .settings-check { display: flex; align-items: center; gap: var(--s-3); font-size: var(--fs-md); cursor: pointer; min-height: 44px; }
   .settings-check input[type="checkbox"] {
     order: 2; margin-left: auto; appearance: none; -webkit-appearance: none; width: 36px; height: 22px; border-radius: var(--r-full);
@@ -1515,6 +1524,7 @@
     <symbol id="icon-palette" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 0 0 0 18c1.2 0 2-.8 2-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"/><circle cx="7.5" cy="11" r="1" fill="currentColor"/><circle cx="10" cy="7" r="1" fill="currentColor"/><circle cx="14.5" cy="7" r="1" fill="currentColor"/></g></symbol>
     <symbol id="icon-info" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></g></symbol>
     <symbol id="icon-keyboard" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M7 14h10"/></g></symbol>
+    <symbol id="icon-cloud" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.1 4.7 4.7 0 0 0 7 18.5z"/></symbol>
     <symbol id="icon-database" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7.5" ry="2.8"/><path d="M4.5 5.5v13c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8v-13M4.5 12c0 1.5 3.4 2.8 7.5 2.8s7.5-1.3 7.5-2.8"/></g></symbol>
     <symbol id="icon-wand" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2M15 10V8M11 6h2M17 6h2M18.5 3.5l-1 1M4 20l10-10"/><path d="M13 11l-1.5-1.5"/></g></symbol>
     <symbol id="icon-users" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8.5" r="3.5"/><path d="M2.5 20c.6-3.3 3.2-5.3 6.5-5.3s5.9 2 6.5 5.3M16 5.2a3.3 3.3 0 0 1 0 6.6M18 14.9c1.9.6 3.2 2.3 3.5 5.1"/></g></symbol>
@@ -1632,6 +1642,7 @@
         <button class="settings-nav-item" data-page="tags"><span class="sn-icon" style="background:#ec4899"><svg class="icon"><use href="#icon-tag"></use></svg></span>Tags<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="cleanup"><span class="sn-icon" style="background:#a78bfa"><svg class="icon"><use href="#icon-sparkle"></use></svg></span>Paste clean-up<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="data"><span class="sn-icon" style="background:#f59e0b"><svg class="icon"><use href="#icon-database"></use></svg></span>Your data<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
+        <button class="settings-nav-item" data-page="sync"><span class="sn-icon" style="background:#0ea5e9"><svg class="icon"><use href="#icon-cloud"></use></svg></span>Sync<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="shortcuts"><span class="sn-icon" style="background:#64748b"><svg class="icon"><use href="#icon-keyboard"></use></svg></span>Shortcuts<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <button class="settings-nav-item" data-page="about"><span class="sn-icon" style="background:#8e8e93"><svg class="icon"><use href="#icon-info"></use></svg></span>About<span class="sn-chevron"><svg class="icon"><use href="#icon-chevron-right"></use></svg></span></button>
         <div id="settings-footer"></div>
@@ -1734,6 +1745,12 @@
           <input id="import-file" type="file" accept=".cps,.json" hidden>
         </section>
 
+        <section class="settings-page" data-page="sync" id="sync-settings">
+          <h2 class="settings-page-title">Sync</h2>
+          <p class="settings-page-lead">Keep a copy in your own Google Drive: readable files for each space (so an AI you connect to your Drive can read them) and a full backup to restore on another device.</p>
+          <div id="sync-box"></div>
+        </section>
+
         <section class="settings-page" data-page="shortcuts">
           <h2 class="settings-page-title">Shortcuts</h2>
           <div class="settings-group" id="shortcut-list"></div>
@@ -1769,6 +1786,8 @@
 <script src="snap.js"></script>
 <script src="see.js"></script>
 <script src="chat.js"></script>
+<script src="sync-core.js"></script>
+<script src="sync.js"></script>
 <script src="groups.js"></script>
 <script src="search-core.js"></script>
 <script src="password-core.js"></script>
@@ -1780,7 +1799,7 @@
 (function () {
   "use strict";
 
-  const APP_VERSION = "2.6";
+  const APP_VERSION = "2.7";
 
   // ---------- Profiles ----------
   // Each profile is its own IndexedDB database, so notes, folders, tags and
@@ -1839,6 +1858,7 @@
 
   let db = null;
   let groupsApi = null; // set once Groups (groups.js) has loaded its data
+  let syncApi = null; // Google Drive sync (sync.js), set once the data is loaded
   let timelineApi = null; // set once the Timeline (timeline.js) is ready
   let toolsApi = null; // password builder, 2FA, voice, sketch (tools.js)
   let currentId = null;
@@ -2512,6 +2532,7 @@
     // Pages whose contents depend on your data are drawn when shown.
     if (page === "tags") renderTagSettings();
     if (page === "appearance") renderDockSettings();
+    if (page === "sync" && syncApi) syncApi.render();
     if (page === "data") { renderBackupInfo(); renderStorage(); const sl = document.getElementById("snap-location"); if (sl) sl.checked = snapLocationOn(); const ss = document.getElementById("snap-see"); if (ss) ss.checked = snapSeeOn(); }
     try { localStorage.setItem(SETTINGS_PAGE_KEY, page); } catch {}
     if (push && settingsIsStacked()) {
@@ -2963,6 +2984,7 @@
   let renderQueued = false;
   let genAtLastChange = 0;
   onItemsChanged(() => {
+    if (syncApi) syncApi.touch();
     genAtLastChange = renderGeneration;
     if (renderQueued) return;
     renderQueued = true;
@@ -6440,7 +6462,8 @@
 
   // ---------- Export / Import ----------
 
-  document.getElementById("export-btn").addEventListener("click", async () => {
+  // Everything, as one backup object (a .cps file's contents).
+  async function buildBackup() {
     // Vault items go into the file exactly as stored: encrypted. The file also
     // carries the Vault's password-locked key, so the same password opens them
     // after importing on another device. (Passkeys belong to this device.)
@@ -6459,6 +6482,10 @@
       const g = groupsApi.exportData();
       if (g.groups.length || g.entries.length || g.entities.length) { payload.cpsVersion = 2; payload.groups = g.groups; payload.entries = g.entries; payload.entities = g.entities; payload.entityTypes = g.entityTypes; }
     }
+    return payload;
+  }
+  document.getElementById("export-btn").addEventListener("click", async () => {
+    const payload = await buildBackup();
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -6490,69 +6517,71 @@
     e.target.value = "";
     if (!file) return;
     try {
-      const text = await file.text();
-      const data = JSON.parse(text);
-      if (!data || typeof data.cpsVersion !== "number") throw new Error("Not a recognized .cps file");
-
-      const existingItemIds = new Set(cache.map((i) => i.id));
-      const existingTagIds = new Set(tagCache.map((t) => t.id));
-      const existingFolderIds = new Set(folderCache.map((f) => f.id));
-
-      let addedItems = 0, addedTags = 0, addedFolders = 0;
-
-      for (const folder of (data.folders || [])) {
-        if (!folder.id || existingFolderIds.has(folder.id)) continue;
-        await put(FOLDERS_STORE, folder);
-        folderCache.push(folder);
-        addedFolders++;
-      }
-      for (const tag of (data.tags || [])) {
-        if (!tag.id || existingTagIds.has(tag.id)) continue;
-        await put(TAGS_STORE, tag);
-        tagCache.push(tag);
-        addedTags++;
-      }
-      const incoming = data.items || [];
-      const vaultImport = await prepareVaultImport(data, incoming.filter((i) => i.vaulted && i.enc && !existingItemIds.has(i.id)));
-      const progress = incoming.length > 20 ? showToast("Importing\u2026", { sticky: true }) : null;
-      let processed = 0;
-      const batch = [];
-      for (const item of incoming) {
-        processed++;
-        if (progress && processed % 10 === 0) {
-          progress.update("Importing " + processed + " of " + incoming.length + "\u2026");
-          progress.progress(processed / incoming.length);
-        }
-        if (!item.id || existingItemIds.has(item.id)) continue;
-        if (item.vaulted) {
-          const vaultItem = await importVaultRecord(item, vaultImport);
-          if (!vaultItem) continue;
-          batch.push(vaultItem);
-          if (batch.length === 50) await saveItems(batch.splice(0));
-          addedItems++;
-          continue;
-        }
-        const normalized = normalize(item);
-        convertStandaloneImageToGallery(normalized);
-        // New to this device, so flag it until it's been looked at.
-        if (!normalized.deletedAt) normalized.unread = true;
-        batch.push(normalized);
-        if (batch.length === 50) await saveItems(batch.splice(0));
-        addedItems++;
-      }
-      await saveItems(batch);
-      const addedGroups = groupsApi && (data.groups || data.entries || data.entities) ? await groupsApi.importData(data) : { groups: 0, entries: 0 };
-
-      if (progress) progress.close();
-      renderAllViews();
-      showToast("Imported " + addedItems + " items" + (addedTags || addedFolders ? " (+tags/folders)" : "") + (addedItems ? " \u2014 new ones are marked unread" : "") +
-        (addedGroups.groups || addedGroups.entries ? " \u00b7 " + addedGroups.groups + " spaces, " + addedGroups.entries + " space entries" : "") +
-        (vaultImport.skipped ? " \u00b7 " + vaultImport.skipped + " Vault items skipped" : ""));
+      await importBackup(JSON.parse(await file.text()));
     } catch (err) {
       console.error("Import failed:", err);
       showToast("Import failed \u2014 not a valid .cps file");
     }
   });
+  // Adds what a backup has that this device doesn't. Nothing is overwritten.
+  async function importBackup(data) {
+    if (!data || typeof data.cpsVersion !== "number") throw new Error("Not a recognized .cps file");
+
+    const existingItemIds = new Set(cache.map((i) => i.id));
+    const existingTagIds = new Set(tagCache.map((t) => t.id));
+    const existingFolderIds = new Set(folderCache.map((f) => f.id));
+
+    let addedItems = 0, addedTags = 0, addedFolders = 0;
+
+    for (const folder of (data.folders || [])) {
+      if (!folder.id || existingFolderIds.has(folder.id)) continue;
+      await put(FOLDERS_STORE, folder);
+      folderCache.push(folder);
+      addedFolders++;
+    }
+    for (const tag of (data.tags || [])) {
+      if (!tag.id || existingTagIds.has(tag.id)) continue;
+      await put(TAGS_STORE, tag);
+      tagCache.push(tag);
+      addedTags++;
+    }
+    const incoming = data.items || [];
+    const vaultImport = await prepareVaultImport(data, incoming.filter((i) => i.vaulted && i.enc && !existingItemIds.has(i.id)));
+    const progress = incoming.length > 20 ? showToast("Importing\u2026", { sticky: true }) : null;
+    let processed = 0;
+    const batch = [];
+    for (const item of incoming) {
+      processed++;
+      if (progress && processed % 10 === 0) {
+        progress.update("Importing " + processed + " of " + incoming.length + "\u2026");
+        progress.progress(processed / incoming.length);
+      }
+      if (!item.id || existingItemIds.has(item.id)) continue;
+      if (item.vaulted) {
+        const vaultItem = await importVaultRecord(item, vaultImport);
+        if (!vaultItem) continue;
+        batch.push(vaultItem);
+        if (batch.length === 50) await saveItems(batch.splice(0));
+        addedItems++;
+        continue;
+      }
+      const normalized = normalize(item);
+      convertStandaloneImageToGallery(normalized);
+      // New to this device, so flag it until it's been looked at.
+      if (!normalized.deletedAt) normalized.unread = true;
+      batch.push(normalized);
+      if (batch.length === 50) await saveItems(batch.splice(0));
+      addedItems++;
+    }
+    await saveItems(batch);
+    const addedGroups = groupsApi && (data.groups || data.entries || data.entities) ? await groupsApi.importData(data) : { groups: 0, entries: 0 };
+
+    if (progress) progress.close();
+    renderAllViews();
+    showToast("Imported " + addedItems + " items" + (addedTags || addedFolders ? " (+tags/folders)" : "") + (addedItems ? " \u2014 new ones are marked unread" : "") +
+      (addedGroups.groups || addedGroups.entries ? " \u00b7 " + addedGroups.groups + " spaces, " + addedGroups.entries + " space entries" : "") +
+      (vaultImport.skipped ? " \u00b7 " + vaultImport.skipped + " Vault items skipped" : ""));
+  }
 
   // ---------- New item ----------
 
@@ -7974,6 +8003,7 @@
   // ---------- What's new: shown once after an update ----------
   const SEEN_VERSION_KEY = "copypaster-seen-version";
   const WHATS_NEW = [
+    ["cloud", "Sync to your Google Drive", "Settings \u2192 Sync keeps a copy in your own Drive: a readable file per space, so an AI you connect to your Drive can read it, and a full backup to restore on another phone."],
     ["sparkle", "CopyPaster is now Stash", "Capture today. Find it tomorrow. New name and icon, same app; everything you saved is still here."],
     ["layers", "Groups are now Spaces", "Same data, new name: Health, Food, Trips… Personal and Work are still your Profiles."],
     ["chat", "Me: message yourself", "Drop text, photos and files like a chat with yourself. Saved at once with when and where. Select messages and Forward them into a space."],
@@ -9521,6 +9551,20 @@
     await saveItem(item);
     return item;
   }
+  // Sync to your own Google Drive (sync.js).
+  function startSync() {
+    if (!window.CPSync || !window.CPSyncCore) return;
+    syncApi = window.CPSync.init({
+      profileKey, showToast, backup: buildBackup, importBackup,
+      folderName: () => (currentProfile.id === "default" ? "Stash" : "Stash - " + currentProfile.name),
+      spaces: () => (groupsApi ? groupsApi.groupList() : []),
+      data: () => {
+        const g = groupsApi ? groupsApi.exportData() : { groups: [], entries: [], entities: [], entityTypes: {} };
+        return { ...g, items: cache, tagName: (id) => (tagById(id) || {}).name || "", folderName: (id) => (folderCache.find((f) => f.id === id) || {}).name || "" };
+      }
+    });
+  }
+
   function startChat() {
     if (!window.CPChat) return;
     try {
@@ -9642,7 +9686,7 @@
         capturedNotes: () => cache.filter((i) => i.captured && !i.deletedAt && !i._locked && !i.vaulted).sort((a, b) => b.createdAt - a.createdAt),
         closeSidebarOnMobile, openSidebarDrawer, renderTabBar, renderAllViews, closeSettings,
         tags: tagsWithCounts, ensureTag, tagLabel, openTag, renderNav,
-        changed: () => { renderTagsList(); renderNav(); if (timelineApi) timelineApi.refresh(); },
+        changed: () => { renderTagsList(); renderNav(); if (timelineApi) timelineApi.refresh(); if (syncApi) syncApi.touch(); },
         copy: (text, msg) => copyToClipboard(text, msg),
         openPhoto: (src) => openImageLightbox(src),
         openFile: (f) => openChatFile(f),
@@ -9682,6 +9726,7 @@
       await startGroups();
       startTimeline();
       startChat();
+      startSync();
       renderNav();
       checkReminders();
       setInterval(checkReminders, 15000);

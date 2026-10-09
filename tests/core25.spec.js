@@ -413,6 +413,6 @@ test("backup reminder after a month; Back up now clears it; storage use is shown
   await expect(page.locator("#last-backup")).toContainText("Last backup today");
   await expect(page.locator("#storage-box")).toContainText("Using");
   await page.click('.settings-nav-item[data-page="about"]');
-  await expect(page.locator("#app-version")).toHaveText("Version 2.6");
+  await expect(page.locator("#app-version")).toHaveText("Version 2.7");
   await expect(page.locator("#rights-notice")).toContainText("All rights reserved");
 });
