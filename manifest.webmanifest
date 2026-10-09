@@ -1,7 +1,7 @@
 {
   "name": "Stash",
   "short_name": "Stash",
-  "description": "Stash anything: snaps, notes, files and records, sorted into spaces. Private, on your device, no account.",
+  "description": "Capture today. Find it tomorrow. Snaps, notes, files and records, sorted into spaces. Private, on your device, no account.",
   "id": "./",
   "start_url": "./",
   "scope": "./",

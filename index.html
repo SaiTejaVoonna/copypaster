@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Stash</title>
-<meta name="description" content="Your private clipboard, notes and commands. Local-first, no account.">
 <meta name="theme-color" content="#0b0d11">
+<meta name="description" content="Stash: capture today, find it tomorrow. Snaps, notes, files and records, private on your device.">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="groups.css">
 <link rel="stylesheet" href="tools.css">
@@ -265,6 +265,8 @@
     background: var(--accent-grad); box-shadow: 0 3px 10px -3px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,.25);
   }
   #brand-dot .icon { width: 15px; height: 15px; }
+  #brand-dot:has(img) { background: none; box-shadow: 0 2px 8px -3px rgba(0, 0, 0, 0.35); overflow: hidden; }
+  #brand-dot img { width: 100%; height: 100%; display: block; }
   #brand-label { flex: 1; font-family: var(--font-display); font-size: var(--fs-lg); font-weight: var(--fw-bold); letter-spacing: -0.02em; }
   #sidebar-collapse-btn { width: var(--h-sm); height: var(--h-sm); }
 
@@ -1530,7 +1532,7 @@
 <div id="app">
   <div id="sidebar-backdrop"></div>
   <div id="sidebar">
-    <div id="brand"><span id="brand-dot"><svg class="icon"><use href="#icon-logo"></use></svg></span><span id="brand-label">Stash</span>
+    <div id="brand"><span id="brand-dot"><img src="icons/icon-192.png" alt=""></span><span id="brand-label">Stash</span>
       <button id="sidebar-collapse-btn" title="Collapse sidebar" aria-label="Collapse sidebar"><svg class="icon"><use href="#icon-sidebar"></use></svg></button>
     </div>
     <button id="profile-btn" type="button" title="Switch profile"><span class="profile-avatar" id="profile-avatar"></span><span id="profile-name"></span><span id="profile-caret"><svg class="icon icon-sm"><use href="#icon-chevron-down"></use></svg></span></button>
@@ -1737,7 +1739,7 @@
         <section class="settings-page" data-page="about" id="install-section">
           <h2 class="settings-page-title">About</h2>
           <div class="settings-group">
-            <div class="settings-line"><span><b id="app-version"></b><small>Local-first. No account. Works offline.</small></span><button id="check-updates-btn" type="button">Check for updates</button></div>
+            <div class="settings-line"><span><b id="app-version"></b><small>Capture today. Find it tomorrow. Local-first, no account, works offline.</small></span><button id="check-updates-btn" type="button">Check for updates</button></div>
             <div id="update-status" class="hidden" aria-live="polite"><div class="update-bar"></div><div class="update-text"></div></div>
           </div>
           <div class="settings-section">
@@ -7919,7 +7921,7 @@
   // ---------- What's new: shown once after an update ----------
   const SEEN_VERSION_KEY = "copypaster-seen-version";
   const WHATS_NEW = [
-    ["logo", "CopyPaster is now Stash", "New name, new icon, same app. Everything you saved is still here."],
+    ["sparkle", "CopyPaster is now Stash", "Capture today. Find it tomorrow. New name and icon, same app; everything you saved is still here."],
     ["layers", "Groups are now Spaces", "Same data, new name: Health, Food, Trips… Personal and Work are still your Profiles."],
     ["chat", "Me: message yourself", "Drop text, photos and files like a chat with yourself. Saved at once with when and where. Select messages and Forward them into a space."],
     ["camera", "Snap in the middle", "Tap the middle of the dock to snap a photo straight into Me. Hold it for the New menu."],
