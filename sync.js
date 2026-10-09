@@ -28,7 +28,7 @@
   function prefs() {
     let p = {};
     try { p = JSON.parse(localStorage.getItem(api.profileKey(KEY)) || "{}") || {}; } catch {}
-    return { clientId: "", on: false, auto: true, spaces: "all", notes: true, chat: true, backup: true,
+    return { clientId: "", on: false, auto: true, twoWay: true, spaces: "all", notes: true, chat: true, backup: false,
       folderId: null, known: {}, token: null, exp: 0, last: 0, lastFiles: 0, error: "", ...p };
   }
   function save(p) { try { localStorage.setItem(api.profileKey(KEY), JSON.stringify(p)); } catch {} }
@@ -115,14 +115,14 @@
     if (!id) id = await findIn(folderId, f.name);
     if (f.text.length > 4 * 1024 * 1024) return putLarge(folderId, f, id);
     if (id) {
-      const r = await drive(UPLOAD + "/" + id + "?uploadType=multipart&fields=id", { method: "PATCH", ...multipart({ name: f.name }, f.type, f.text) });
-      if (r.status !== 404) return (await json(r, "saving " + f.name)).id;
+      const r = await drive(UPLOAD + "/" + id + "?uploadType=multipart&fields=id,version", { method: "PATCH", ...multipart({ name: f.name }, f.type, f.text) });
+      if (r.status !== 404) return json(r, "saving " + f.name);
     }
-    return (await json(await drive(UPLOAD + "?uploadType=multipart&fields=id", { method: "POST", ...multipart({ name: f.name, parents: [folderId] }, f.type, f.text) }), "saving " + f.name)).id;
+    return json(await drive(UPLOAD + "?uploadType=multipart&fields=id,version", { method: "POST", ...multipart({ name: f.name, parents: [folderId] }, f.type, f.text) }), "saving " + f.name);
   }
   // Big files (the backup with photos) go up in a "resumable" upload.
   async function putLarge(folderId, f, id) {
-    const start = await drive(UPLOAD + (id ? "/" + id : "") + "?uploadType=resumable&fields=id", {
+    const start = await drive(UPLOAD + (id ? "/" + id : "") + "?uploadType=resumable&fields=id,version", {
       method: id ? "PATCH" : "POST", headers: { "Content-Type": "application/json; charset=UTF-8", "X-Upload-Content-Type": f.type },
       body: JSON.stringify(id ? { name: f.name } : { name: f.name, parents: [folderId] }) });
     if (id && start.status === 404) return putLarge(folderId, f, null);
@@ -130,9 +130,121 @@
     const where = start.headers.get("Location");
     if (!where) throw new Error("Drive didn't accept the backup upload. Try again, or turn off Full backup.");
     const r = await t.fetch(where, { method: "PUT", headers: { "Content-Type": f.type }, body: new Blob([f.text], { type: f.type }) });
-    return (await json(r, "saving " + f.name)).id;
+    return json(r, "saving " + f.name);
   }
   const trash = (id) => drive(API + "/" + id, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ trashed: true }) });
+
+  // ---------- Two-way: keep devices in step (see merge() in sync-core.js) ----------
+  // What this device last agreed with Drive. Kept apart from the settings: it
+  // can be large (a fingerprint per record).
+  const STATE_KEY = "copypaster-sync-state";
+  function syncState() {
+    let st = {};
+    try { st = JSON.parse(localStorage.getItem(api.profileKey(STATE_KEY)) || "{}") || {}; } catch {}
+    return { folder: null, base: {}, drive: {}, tombs: {}, versions: {}, ...st };
+  }
+  function saveState(st) {
+    try { localStorage.setItem(api.profileKey(STATE_KEY), JSON.stringify(st)); }
+    catch { throw new Error("This device is out of space for sync's notes. Free some space and try again."); }
+  }
+  async function dataFolder(parentId) {
+    const st = syncState();
+    if (st.folder) {
+      const r = await drive(API + "/" + st.folder + "?fields=id,trashed");
+      if (r.ok) { const f = await r.json(); if (!f.trashed) return f.id; }
+    }
+    const name = "Sync data (don't edit)";
+    const q = encodeURIComponent("name = '" + name.replace(/'/g, "\\'") + "' and '" + parentId + "' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false");
+    const found = await json(await drive(API + "?q=" + q + "&fields=files(id)&spaces=drive"), "finding the sync folder");
+    const id = found.files && found.files[0] ? found.files[0].id
+      : (await json(await drive(API + "?fields=id", { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, parents: [parentId], mimeType: "application/vnd.google-apps.folder" }) }), "making the sync folder")).id;
+    // A different folder: start over from what's there (nothing is lost, it's a merge).
+    saveState(id === st.folder ? st : { ...syncState(), folder: id, base: {}, drive: {}, tombs: {}, versions: {} });
+    return id;
+  }
+  async function listShards(fid) {
+    const q = encodeURIComponent("'" + fid + "' in parents and trashed = false");
+    const r = await json(await drive(API + "?q=" + q + "&fields=files(id,name,version)&pageSize=100&spaces=drive"), "listing sync files");
+    return new Map((r.files || []).map((f) => [f.name, { id: f.id, version: String(f.version) }]));
+  }
+  async function download(id) {
+    const res = await drive(API + "/" + id + "?alt=media");
+    if (!res.ok) throw new Error("Couldn't download sync data (" + res.status + ")");
+    const d = await res.json();
+    return { records: d && d.records && typeof d.records === "object" ? d.records : {}, tombs: d && d.tombs && typeof d.tombs === "object" ? d.tombs : {} };
+  }
+  const inShard = (obj, i) => Object.fromEntries(Object.entries(obj).filter(([k]) => SC.shardOf(k) === i));
+
+  // One round: read Drive, merge, write the shards that changed, then change
+  // this device. Returns null if another device wrote at the same moment (try again).
+  async function exchange(fid) {
+    const st = syncState();
+    const files = await listShards(fid);
+    const full = new Map(); // shard → { records, tombs } as downloaded
+    for (let i = 0; i < SC.SHARDS; i++) {
+      const f = files.get(SC.shardName(i));
+      if (f && f.version !== st.versions[i]) { state.status = "Checking other devices…"; render(); full.set(i, await download(f.id)); }
+    }
+    const local = await api.records();
+    for (let round = 0; round < 3; round++) {
+      // Drive as it is: downloaded shards as they are, the rest as this device left them.
+      const remote = new Map(), tombs = {}, before = {};
+      for (let i = 0; i < SC.SHARDS; i++) {
+        let recs, tb;
+        if (full.has(i)) ({ records: recs, tombs: tb } = full.get(i));
+        else if (files.has(SC.shardName(i))) { recs = Object.fromEntries(Object.entries(inShard(st.drive, i)).map(([k, h]) => [k, { h }])); tb = inShard(st.tombs, i); }
+        else { recs = {}; tb = {}; }
+        for (const [k, v] of Object.entries(recs)) remote.set(k, v);
+        Object.assign(tombs, tb);
+        before[i] = SC.shardSummary(recs, tb);
+      }
+      const res = SC.merge({ local: local.map, remote, tombs, base: st.base, hold: local.hold });
+      // Shards to write, with every record's data.
+      const writes = [], missing = new Set();
+      for (let i = 0; i < SC.SHARDS; i++) {
+        const recs = {};
+        for (const [k, o] of res.out) if (SC.shardOf(k) === i) recs[k] = o;
+        const tb = inShard(res.tombs, i);
+        if (SC.shardSummary(recs, tb) === before[i]) continue;
+        for (const [k, o] of Object.entries(recs)) {
+          const d = o.d || local.map.get(k);
+          if (!d) missing.add(i); else recs[k] = { h: o.h, at: o.at || 0, d };
+        }
+        writes.push({ i, recs, tb });
+      }
+      if (missing.size) { for (const i of missing) { const f = files.get(SC.shardName(i)); full.set(i, f ? await download(f.id) : { records: {}, tombs: {} }); } continue; }
+      // Write. If a shard moved on since we read it, another device is syncing too: start again.
+      const versions = { ...st.versions };
+      for (const [name, f] of files) { const m = /^stash-sync-([0-9a-f]+)\.json$/.exec(name); if (m) versions[parseInt(m[1], 16)] = f.version; }
+      for (const w of writes) {
+        const f = files.get(SC.shardName(w.i));
+        if (f) {
+          const now = await json(await drive(API + "/" + f.id + "?fields=version"), "checking sync data");
+          if (String(now.version) !== f.version) return null;
+        }
+        state.status = "Saving changes…"; render();
+        const done = await put(fid, { name: SC.shardName(w.i), type: "application/json", text: JSON.stringify({ v: 1, records: w.recs, tombs: w.tb }) }, f && f.id);
+        versions[w.i] = String(done.version);
+      }
+      // Now this device.
+      if (res.put.length || res.del.length) await api.applyRecords(res.put, res.del);
+      const driveHashes = {};
+      for (const [k, o] of res.out) driveHashes[k] = o.h;
+      saveState({ ...syncState(), base: res.base, drive: driveHashes, tombs: res.tombs, versions });
+      return { got: res.put.length + res.del.length, sent: writes.length };
+    }
+    throw new Error("Sync data in Drive looks incomplete. Try again.");
+  }
+  async function twoWay(parentId) {
+    const fid = await dataFolder(parentId);
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const r = await exchange(fid);
+      if (r) return r;
+      await new Promise((ok) => setTimeout(ok, 800 * (attempt + 1)));
+    }
+    throw new Error("Another device kept syncing at the same time. Try again in a moment.");
+  }
 
   // ---------- Sync ----------
   async function run({ fromTap = false } = {}) {
@@ -147,6 +259,8 @@
     try {
       const folderId = await folder();
       p = prefs();
+      let got = 0;
+      if (p.twoWay) { applying = true; try { got = (await twoWay(folderId)).got; } finally { applying = false; } }
       const files = SC.buildFiles(api.data(), { spaces: p.spaces, notes: p.notes, chat: p.chat, at: Date.now() });
       if (p.backup) {
         const b = await api.backup();
@@ -157,11 +271,11 @@
       const known = { ...p.known };
       for (const f of todo.upload) {
         state.status = "Saving " + f.name + "…"; render();
-        known[f.name] = { id: await put(folderId, f, known[f.name] && known[f.name].id), hash: f.hash };
+        known[f.name] = { id: (await put(folderId, f, known[f.name] && known[f.name].id)).id, hash: f.hash };
       }
       for (const name of todo.remove) { await trash(known[name].id); delete known[name]; }
       if (!p.backup && known[SC.BACKUP_NAME]) { await trash(known[SC.BACKUP_NAME].id); delete known[SC.BACKUP_NAME]; }
-      patch({ known, last: Date.now(), lastFiles: todo.upload.length, error: "" });
+      patch({ known, last: Date.now(), lastFiles: todo.upload.length, lastGot: got, error: "" });
       state.status = "";
       return true;
     } catch (err) {
@@ -181,9 +295,10 @@
     state.timer = setTimeout(() => run(), ms);
   }
   // Called when anything changes; syncs a little later if it can.
+  let applying = false; // changes coming from other devices don't count
   function touch() {
     const p = prefs();
-    if (!p.on || !p.auto) return;
+    if (!p.on || !p.auto || applying) return;
     state.pending = true;
     if (hasToken(p)) later(AUTO_DELAY);
     else render();
@@ -270,10 +385,12 @@
     const line = state.busy ? state.status
       : p.error ? "⚠ " + p.error
       : state.pending && !hasToken(p) ? "Changes waiting. Tap Sync now (Google asks you to sign in again every hour)."
-      : p.last ? "Last synced " + ago(p.last) : "Not synced yet";
+      : p.last ? "Last synced " + ago(p.last) + (p.twoWay && p.lastGot ? " · " + p.lastGot + " change" + (p.lastGot > 1 ? "s" : "") + " from your other devices" : "") : "Not synced yet";
     kids.push(h("div", { class: "settings-group" },
       h("div", { class: "settings-line" }, h("span", null, "Google Drive", h("small", { id: "sync-status" }, line)),
         h("button", { id: "sync-now", class: "btn primary", type: "button", disabled: state.busy, onclick: () => guard(async () => { if (await run({ fromTap: true })) api.showToast("Synced"); }) }, "Sync now")),
+      h("label", { class: "settings-line" }, h("span", null, "Keep my devices in step", h("small", null, "Two-way: what you add or change on one phone or computer shows up on the others. Turn it on on each device. The Vault stays on each device.")),
+        h("input", { type: "checkbox", id: "sync-two-way", checked: p.twoWay, onchange: (e) => { patch({ twoWay: e.target.checked }); touch(); } })),
       h("label", { class: "settings-line" }, h("span", null, "Sync automatically", h("small", null, "A little after you change something, while you're signed in.")),
         h("input", { type: "checkbox", id: "sync-auto", checked: p.auto, onchange: (e) => patch({ auto: e.target.checked }) })),
       h("label", { class: "settings-line" }, h("span", null, "Full backup too", h("small", null, "“" + SC.BACKUP_NAME + "”, with photos and files, for Restore on another device. Vault items stay encrypted.")),
@@ -306,10 +423,19 @@
 
   function init(appApi) {
     api = appApi;
-    // Last chance before the app goes to the background.
+    // Last chance before the app goes to the background; coming back, see what
+    // the other devices did. While open, look now and then.
     document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden" && state.pending && hasToken(prefs()) && prefs().auto) run();
+      const p = prefs();
+      if (!p.on || !p.auto || !hasToken(p)) return;
+      if (document.visibilityState === "hidden" && state.pending) run();
+      if (document.visibilityState === "visible" && p.twoWay) later(1500);
     });
+    setInterval(() => {
+      const p = prefs();
+      if (p.on && p.auto && p.twoWay && hasToken(p) && document.visibilityState === "visible" && !state.busy) run();
+    }, 120000);
+    { const p = prefs(); if (p.on && p.auto && p.twoWay && hasToken(p)) later(3000); }
     return { render, touch, run, restore, disconnect, _test: t, prefs: () => prefs() };
   }
   window.CPSync = { init, _test: t };

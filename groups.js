@@ -2232,6 +2232,14 @@
     await openGroup(gid, "all");
     focusLater("gp-text");
   }
+  // Another device changed things (two-way sync): read everything again.
+  async function reload() {
+    groups = (await api.getAll(GROUPS_STORE)).map(C.normalizeGroup).sort((a, b) => a.order - b.order);
+    entries = (await api.getAll(ENTRIES_STORE)).map(C.normalizeEntry);
+    await loadEntities();
+    if (ui.selected && !entries.some((e) => e.id === ui.selected)) ui.selected = null;
+    render();
+  }
   const groupList = () => groups.map((g) => ({ id: g.id, name: g.name, icon: g.icon, color: g.color }));
 
   const publicApi = {
@@ -2240,7 +2248,7 @@
     onHome: () => ui.screen === "home",
     stepBack, exit, showHome, snapContext, snapHere, openNewGroup, paletteItems, exportData, importData, moveNoteToGroup, focusComposer,
     timelineRows, openEntry, tagCounts, renameTag, removeTag, openComposer, groupList, setEnabled,
-    dueRows, takeDue, sortSnap,
+    dueRows, takeDue, sortSnap, reload,
     hasGroups: () => groups.length > 0
   };
   // Add the icons now, so the static markup (Settings) can use them right away.

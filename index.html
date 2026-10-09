@@ -1747,7 +1747,7 @@
 
         <section class="settings-page" data-page="sync" id="sync-settings">
           <h2 class="settings-page-title">Sync</h2>
-          <p class="settings-page-lead">Keep a copy in your own Google Drive: readable files for each space (so an AI you connect to your Drive can read them) and a full backup to restore on another device.</p>
+          <p class="settings-page-lead">Keep your phones and computers in step through your own Google Drive. It also writes a readable file for each space, so an AI you connect to your Drive can read them.</p>
           <div id="sync-box"></div>
         </section>
 
@@ -1859,6 +1859,7 @@
   let db = null;
   let groupsApi = null; // set once Groups (groups.js) has loaded its data
   let syncApi = null; // Google Drive sync (sync.js), set once the data is loaded
+  const SYNC_STORES = ["items", "tags", "folders", "groups", "entries", "entities"]; // what two-way sync shares
   let timelineApi = null; // set once the Timeline (timeline.js) is ready
   let toolsApi = null; // password builder, 2FA, voice, sketch (tools.js)
   let currentId = null;
@@ -8003,7 +8004,7 @@
   // ---------- What's new: shown once after an update ----------
   const SEEN_VERSION_KEY = "copypaster-seen-version";
   const WHATS_NEW = [
-    ["cloud", "Sync to your Google Drive", "Settings \u2192 Sync keeps a copy in your own Drive: a readable file per space, so an AI you connect to your Drive can read it, and a full backup to restore on another phone."],
+    ["cloud", "Sync your devices through your Google Drive", "Settings \u2192 Sync: what you add on your phone shows up on your laptop and back. It goes to your own Drive, with a readable file per space that an AI you connect to your Drive can read."],
     ["sparkle", "CopyPaster is now Stash", "Capture today. Find it tomorrow. New name and icon, same app; everything you saved is still here."],
     ["layers", "Groups are now Spaces", "Same data, new name: Health, Food, Trips… Personal and Work are still your Profiles."],
     ["chat", "Me: message yourself", "Drop text, photos and files like a chat with yourself. Saved at once with when and where. Select messages and Forward them into a space."],
@@ -9558,6 +9559,60 @@
       profileKey, showToast, backup: buildBackup, importBackup,
       folderName: () => (currentProfile.id === "default" ? "Stash" : "Stash - " + currentProfile.name),
       spaces: () => (groupsApi ? groupsApi.groupList() : []),
+      // Two-way sync: every record as stored, keyed "store:id". Vault items stay
+      // on this device; the note open in the editor isn't changed under you.
+      records: async () => {
+        const map = new Map(), hold = new Set();
+        for (const store of SYNC_STORES) {
+          for (const rec of await getAll(store)) {
+            if (!rec || !rec.id) continue;
+            if (store === ITEMS_STORE && rec.vaulted) { hold.add(store + ":" + rec.id); continue; }
+            map.set(store + ":" + rec.id, rec);
+          }
+        }
+        const types = (await getAll(META_STORE)).find((m) => m.id === "entityTypes");
+        if (types) map.set(META_STORE + ":entityTypes", types);
+        if (currentId) hold.add(ITEMS_STORE + ":" + currentId);
+        return { map, hold };
+      },
+      applyRecords: async (puts, dels) => {
+        const split = (key) => { const i = key.indexOf(":"); return [key.slice(0, i), key.slice(i + 1)]; };
+        let notes = false, spaces = false;
+        for (const [key, rec] of puts) {
+          const [store, id] = split(key);
+          if (!SYNC_STORES.includes(store) && !(store === META_STORE && id === "entityTypes")) continue;
+          if (!rec || typeof rec !== "object" || rec.id !== id || (store === ITEMS_STORE && rec.vaulted)) continue;
+          await put(store, rec);
+          if (store === ITEMS_STORE) {
+            const item = normalize(rec);
+            const i = cache.findIndex((c) => c.id === id);
+            if (i === -1) cache.push(item); else cache[i] = item;
+            notes = true;
+          } else if (store === TAGS_STORE || store === FOLDERS_STORE) {
+            const list = store === TAGS_STORE ? tagCache : folderCache;
+            const i = list.findIndex((c) => c.id === id);
+            if (i === -1) list.push(rec); else list[i] = rec;
+            notes = true;
+          } else spaces = true;
+        }
+        for (const key of dels) {
+          const [store, id] = split(key);
+          if (!SYNC_STORES.includes(store)) continue;
+          if (store === ITEMS_STORE) {
+            const old = cache.find((c) => c.id === id);
+            if (old && old.vaulted) continue;
+            cache = cache.filter((c) => c.id !== id);
+            notes = true;
+          } else if (store === TAGS_STORE) { tagCache = tagCache.filter((c) => c.id !== id); notes = true; }
+          else if (store === FOLDERS_STORE) { folderCache = folderCache.filter((c) => c.id !== id); notes = true; }
+          else spaces = true;
+          await remove(store, id);
+        }
+        if (notes) { cache.sort((a, b) => b.updatedAt - a.updatedAt); renderAllViews(); renderFoldersList(); renderTagsList(); }
+        if (spaces && groupsApi && groupsApi.reload) await groupsApi.reload();
+        if ((notes || spaces) && timelineApi) timelineApi.refresh();
+        if (chatApi && chatApi.isOpen()) chatApi.render();
+      },
       data: () => {
         const g = groupsApi ? groupsApi.exportData() : { groups: [], entries: [], entities: [], entityTypes: {} };
         return { ...g, items: cache, tagName: (id) => (tagById(id) || {}).name || "", folderName: (id) => (folderCache.find((f) => f.id === id) || {}).name || "" };

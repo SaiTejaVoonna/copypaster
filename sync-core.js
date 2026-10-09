@@ -171,5 +171,79 @@
   }
   const BACKUP_NAME = "Stash backup.cps";
 
-  window.CPSyncCore = { fileNames, spaceMarkdown, notesMarkdown, buildFiles, hash, plan, BACKUP_NAME };
+  // ---------- Two-way sync between devices ----------
+  // Every record (note, tag, folder, space, entry, person/place/thing) is one
+  // key, "store:id". Drive holds the shared copy, split into SHARDS files so a
+  // small change only re-uploads one file. Each device remembers what it last
+  // agreed with Drive (the "base": a fingerprint per key). Comparing local,
+  // Drive and base tells who changed what:
+  //   only this device changed it  → send it up
+  //   only another device did      → take it here
+  //   both did                     → the newer edit wins
+  // A delete is written down as a "tombstone", so other devices delete it too.
+  // A key missing from Drive without a tombstone is never deleted here: it's
+  // sent up again (that's what protects against two devices saving at once).
+  const SHARDS = 16;
+  const TOMB_DAYS = 90;
+  function stable(v) {
+    if (Array.isArray(v)) return "[" + v.map(stable).join(",") + "]";
+    if (v && typeof v === "object") return "{" + Object.keys(v).filter((k) => v[k] !== undefined).sort().map((k) => JSON.stringify(k) + ":" + stable(v[k])).join(",") + "}";
+    return JSON.stringify(v === undefined ? null : v);
+  }
+  const fingerprint = (rec) => hash(stable(rec));
+  function shardOf(key) {
+    let h = 0;
+    for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
+    return (h >>> 0) % SHARDS;
+  }
+  const shardName = (i) => "stash-sync-" + i.toString(16) + ".json";
+  const when = (rec) => (rec && (rec.updatedAt || rec.createdAt)) || 0;
+
+  // local:  Map key → record (this device, as stored)
+  // remote: Map key → { h, at, d? } (Drive; d is the record when it was downloaded)
+  // tombs:  { key: time } (Drive's tombstones)
+  // base:   { key: h } (what this device and Drive last agreed on)
+  // hold:   Set of keys not to change here right now (the note open in the editor,
+  //         Vault items); they keep their old base, so they're picked up later.
+  // Returns what to change here, the merged Drive state, and the new base.
+  function merge({ local, remote, tombs = {}, base = {}, hold = new Set(), now = Date.now() }) {
+    const put = [], del = [];
+    const out = new Map(); // key → { h, at, d }
+    const outTombs = {};
+    const newBase = {};
+    const keys = new Set([...local.keys(), ...remote.keys(), ...Object.keys(tombs), ...Object.keys(base)]);
+    for (const key of keys) {
+      const L = local.get(key), R = remote.get(key), T = tombs[key], B = base[key];
+      const lh = L ? fingerprint(L) : null;
+      const takeLocal = () => { out.set(key, { h: lh, at: when(L), d: L }); newBase[key] = lh; };
+      const takeRemote = () => {
+        out.set(key, R);
+        if (hold.has(key)) { if (B) newBase[key] = B; return; } // later
+        put.push([key, R.d]); newBase[key] = R.h;
+      };
+      if (L && R) {
+        if (lh === R.h) { out.set(key, { ...R, d: R.d || L }); newBase[key] = lh; }
+        else if (lh === B) takeRemote();
+        else if (R.h === B) takeLocal();
+        else if (when(R.d) > when(L) && R.d) takeRemote();
+        else takeLocal();
+      } else if (L) {
+        if (T && lh === B) { outTombs[key] = T; if (hold.has(key)) newBase[key] = B; else del.push(key); }
+        else takeLocal(); // new here, or changed here after another device deleted it
+      } else if (R) {
+        if (B && R.h === B) outTombs[key] = now; // deleted here
+        else if (R.d) takeRemote(); // new from another device (or changed there after we deleted it)
+        else { out.set(key, R); if (B) newBase[key] = B; }
+      } else if (T) outTombs[key] = T;
+    }
+    for (const [k, t] of Object.entries(outTombs)) if (now - t > TOMB_DAYS * 864e5) delete outTombs[k];
+    return { put, del, out, tombs: outTombs, base: newBase };
+  }
+  // A shard's contents in a form that's the same whenever its data is.
+  function shardSummary(records, tombs) {
+    return Object.keys(records).sort().map((k) => k + "=" + records[k].h).join("|") + "#" + Object.keys(tombs).sort().join("|");
+  }
+
+  window.CPSyncCore = { fileNames, spaceMarkdown, notesMarkdown, buildFiles, hash, plan, BACKUP_NAME,
+    SHARDS, stable, fingerprint, shardOf, shardName, merge, shardSummary };
 })();

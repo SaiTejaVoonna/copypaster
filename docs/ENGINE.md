@@ -106,6 +106,29 @@ own Google Drive (`sync.js`, `sync-core.js`).
   Photos and files are only counted in them; the backup has everything.
 - Each file's fingerprint is kept, so unchanged files aren't sent again. A
   space that's no longer synced has its file moved to Drive's bin.
-- One way: phone → Drive. Edits made in Drive are overwritten. Restore from
-  Drive adds what the backup has and this device doesn't (like Import).
-- Auto-sync runs about 20 s after a change while signed in.
+- Readable files are one way: Stash → Drive. Edits made to them in Drive are
+  overwritten. Restore from Drive adds what the backup has and this device
+  doesn't (like Import).
+- Auto-sync runs about 20 s after a change while signed in, when the app comes
+  back to the front, and every 2 minutes while it's open.
+
+### Two-way between devices
+
+On by default ("Keep my devices in step"). Records (notes, tags, folders,
+spaces, entries, people/places/things and custom types) go to a
+"Sync data (don't edit)" folder as 16 shard files, keyed `store:id`, each with
+a fingerprint. Each device keeps a base: the fingerprint it last agreed with
+Drive for every key (localStorage, `copypaster-sync-state`). See `merge()` in
+`sync-core.js`:
+
+- only this device changed it → sent up; only another did → taken here;
+  both did → the newer `updatedAt` wins.
+- deletes are tombstones (kept 90 days). A record missing from Drive without a
+  tombstone is sent again, never deleted, so two devices saving at once can't
+  lose anything.
+- before writing a shard, its Drive version is checked; if another device wrote
+  it meanwhile, the round starts again.
+- only shards whose contents changed are uploaded, and only shards whose
+  version moved are downloaded.
+- Vault items never sync (each device has its own Vault key). The note open in
+  the editor isn't changed under you; it's picked up on the next sync.

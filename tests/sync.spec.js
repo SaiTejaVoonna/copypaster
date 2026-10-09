@@ -5,10 +5,10 @@ const { test, expect, openApp, newNote } = require("./fixtures");
 const CLIENT_ID = "123-test.apps.googleusercontent.com";
 
 // A tiny in-page Drive: folders, files, multipart uploads, trash, download.
-async function fakeDrive(page) {
-  await page.evaluate(() => {
-    const files = new Map();
-    let n = 0;
+async function fakeDrive(page, preload) {
+  await page.evaluate((preload) => {
+    const files = new Map((preload || []).map((f) => [f.id, f]));
+    let n = 1000 + Math.floor(Math.random() * 1000) * 1000;
     const log = [];
     const ok = (body, status = 200) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
     const parse = (init) => {
@@ -26,33 +26,34 @@ async function fakeDrive(page) {
       log.push(method + " " + u.pathname);
       if (method === "GET" && u.searchParams.get("q")) {
         const q = u.searchParams.get("q");
-        const name = q.match(/name = '([^']+)'/)[1];
+        const name = (q.match(/name = '((?:[^'\\]|\\.)+)'/) || [])[1];
         const parent = (q.match(/'([^']+)' in parents/) || [])[1];
-        const hits = [...files.values()].filter((f) => !f.trashed && f.name === name && (!parent || f.parents.includes(parent)) && (!/folder/.test(q) || f.folder));
-        return ok({ files: hits.map((f) => ({ id: f.id })) });
+        const hits = [...files.values()].filter((f) => !f.trashed && (!name || f.name === name.replace(/\\'/g, "'")) && (!parent || f.parents.includes(parent)) && (!/folder/.test(q) || f.folder));
+        return ok({ files: hits.map((f) => ({ id: f.id, name: f.name, version: f.version })) });
       }
       if (method === "GET" && id) {
         const f = files.get(id);
         if (!f) return ok({ error: { message: "not found" } }, 404);
-        return u.searchParams.get("alt") === "media" ? new Response(f.text) : ok({ id: f.id, trashed: !!f.trashed });
+        return u.searchParams.get("alt") === "media" ? new Response(f.text) : ok({ id: f.id, trashed: !!f.trashed, version: f.version });
       }
       if (method === "POST" && !u.pathname.includes("/upload/")) {
         const meta = JSON.parse(init.body);
-        const f = { id: "f" + ++n, name: meta.name, parents: [], folder: true };
+        const f = { id: "f" + ++n, name: meta.name, parents: meta.parents || [], folder: true, version: 1 };
         files.set(f.id, f);
         return ok({ id: f.id });
       }
       if (method === "POST") {
         const { meta, text } = parse(init);
-        const f = { id: "f" + ++n, name: meta.name, parents: meta.parents || [], text };
+        const f = { id: "f" + ++n, name: meta.name, parents: meta.parents || [], text, version: 1 };
         files.set(f.id, f);
-        return ok({ id: f.id });
+        return ok({ id: f.id, version: f.version });
       }
       if (method === "PATCH" && u.pathname.includes("/upload/")) {
         const f = files.get(id);
         if (!f) return ok({ error: { message: "not found" } }, 404);
         f.text = parse(init).text;
-        return ok({ id: f.id });
+        f.version++;
+        return ok({ id: f.id, version: f.version });
       }
       if (method === "PATCH") {
         const f = files.get(id);
@@ -61,9 +62,10 @@ async function fakeDrive(page) {
       }
       return ok({ error: { message: "unexpected " + method } }, 400);
     };
-  });
+  }, preload);
 }
-const driveFiles = (page) => page.evaluate(() => [...window.__drive.files.values()].filter((f) => !f.folder && !f.trashed).map((f) => f.name).sort());
+const dumpDrive = (page) => page.evaluate(() => [...window.__drive.files.values()].map((f) => ({ ...f })));
+const driveFiles = (page) => page.evaluate(() => [...window.__drive.files.values()].filter((f) => !f.folder && !f.trashed && !/^stash-sync-/.test(f.name)).map((f) => f.name).sort());
 const driveText = (page, name) => page.evaluate((name) => [...window.__drive.files.values()].find((f) => f.name === name && !f.trashed).text, name);
 const uploads = (page) => page.evaluate(() => window.__drive.log.filter((l) => l.includes("/upload/")).length);
 
@@ -86,10 +88,14 @@ test("connect writes a readable file per space, notes, Me and a backup; unchange
   await page.fill("#sync-client-id", CLIENT_ID);
   await page.click("#sync-connect");
   await expect(page.locator("#sync-status")).toContainText("Last synced");
-  expect(await driveFiles(page)).toEqual(["Me.md", "Notes.md", "README.md", "Stash backup.cps"]);
+  expect(await driveFiles(page)).toEqual(["Me.md", "Notes.md", "README.md"]);
   const notes = await driveText(page, "Notes.md");
   expect(notes).toContain("**Flat**");
   expect(notes).toContain("Gate code is 4521");
+  // Full backup is off by default (two-way sync already keeps everything); on, it's written too.
+  await page.locator("#sync-backup").check();
+  await page.click("#sync-now");
+  await expect(page.locator("#toast")).toContainText("Synced");
   const backup = JSON.parse(await driveText(page, "Stash backup.cps"));
   expect(backup.items.some((i) => i.title === "Flat")).toBe(true);
   // Again with nothing changed: nothing is uploaded.
@@ -171,4 +177,89 @@ test("Vault items, passwords and deleted notes are never written to the readable
   const notes = files.find((f) => f.name === "Notes.md").text;
   expect(notes).toContain("Shopping");
   for (const word of ["Secret", "Bank", "Gone"]) expect(files.map((f) => f.text).join("\n")).not.toContain(word);
+});
+
+// ---------- Two-way ----------
+const ON = () => localStorage.setItem("copypaster-sync", JSON.stringify({ clientId: "123-test.apps.googleusercontent.com", on: true, token: "tok", exp: Date.now() + 3600e3 }));
+
+test("merge: who changed what decides; deletes travel as tombstones; a missing record is never deleted", async ({ page }) => {
+  const r = await page.evaluate(() => {
+    const S = window.CPSyncCore;
+    const rec = (id, t, at) => ({ id, title: t, updatedAt: at });
+    const R = (o) => ({ h: S.fingerprint(o), at: o.updatedAt, d: o });
+    const a1 = rec("a", "one", 1), a2 = rec("a", "two", 2), a3 = rec("a", "three", 3);
+    const out = {};
+    // Only the other device changed it → take it.
+    let m = S.merge({ local: new Map([["items:a", a1]]), remote: new Map([["items:a", R(a2)]]), base: { "items:a": S.fingerprint(a1) } });
+    out.theirs = m.put.length === 1 && m.put[0][1].title === "two";
+    // Only this device changed it → keep, nothing to change here.
+    m = S.merge({ local: new Map([["items:a", a2]]), remote: new Map([["items:a", R(a1)]]), base: { "items:a": S.fingerprint(a1) } });
+    out.mine = m.put.length === 0 && m.out.get("items:a").d.title === "two";
+    // Both changed → newer wins.
+    m = S.merge({ local: new Map([["items:a", a3]]), remote: new Map([["items:a", R(a2)]]), base: { "items:a": S.fingerprint(a1) } });
+    out.newer = m.out.get("items:a").d.title === "three";
+    // Deleted here → tombstone for the others.
+    m = S.merge({ local: new Map(), remote: new Map([["items:a", R(a1)]]), base: { "items:a": S.fingerprint(a1) }, now: 50 });
+    out.tomb = m.tombs["items:a"] === 50 && !m.out.has("items:a");
+    // Deleted on another device, unchanged here → delete here.
+    m = S.merge({ local: new Map([["items:a", a1]]), remote: new Map(), tombs: { "items:a": 40 }, base: { "items:a": S.fingerprint(a1) }, now: 50 });
+    out.del = m.del[0] === "items:a";
+    // Deleted there but changed here since → kept.
+    m = S.merge({ local: new Map([["items:a", a2]]), remote: new Map(), tombs: { "items:a": 40 }, base: { "items:a": S.fingerprint(a1) }, now: 50 });
+    out.kept = !m.del.length && m.out.has("items:a") && !m.tombs["items:a"];
+    // Missing from Drive with no tombstone (two devices saved at once) → sent again, not deleted.
+    m = S.merge({ local: new Map([["items:a", a1]]), remote: new Map(), base: { "items:a": S.fingerprint(a1) } });
+    out.resend = !m.del.length && m.out.has("items:a");
+    // The note open in the editor waits.
+    m = S.merge({ local: new Map([["items:a", a1]]), remote: new Map([["items:a", R(a2)]]), base: { "items:a": S.fingerprint(a1) }, hold: new Set(["items:a"]) });
+    out.held = !m.put.length && m.base["items:a"] === S.fingerprint(a1);
+    return out;
+  });
+  expect(r).toEqual({ theirs: true, mine: true, newer: true, tomb: true, del: true, kept: true, resend: true, held: true });
+});
+
+test("two devices: a note and a space made on one show up on the other, and edits flow back", async ({ page, browser }) => {
+  // Device A.
+  await page.evaluate(ON);
+  await newNote(page, "milk and eggs", { title: "From A" });
+  await openSync(page);
+  await page.click("#sync-now");
+  await expect(page.locator("#toast")).toContainText("Synced");
+  const drive = await dumpDrive(page);
+  expect(drive.some((f) => /^stash-sync-/.test(f.name))).toBe(true);
+
+  // Device B: a different browser, empty, same Drive.
+  const ctxB = await browser.newContext();
+  const b = await ctxB.newPage();
+  await b.addInitScript(() => { try { localStorage.setItem("copypaster-seen-version", "99"); } catch {} });
+  await openApp(b);
+  await fakeDrive(b, drive);
+  await b.evaluate(ON);
+  await b.click("#settings-btn");
+  await b.click('.settings-nav-item[data-page="sync"]');
+  await b.click("#sync-now");
+  await expect(b.locator("#toast")).toContainText("Synced");
+  await expect(b.locator("#sync-status")).toContainText("from your other devices");
+  await b.click("#settings-close-btn");
+  await expect(b.locator(".item-row", { hasText: "From A" })).toHaveCount(1);
+  // B adds a space and a note.
+  await b.click("#groups-add-btn");
+  await b.locator(".gp-tpl", { hasText: "Vehicles" }).first().click();
+  await b.fill("#gp-new-name", "Scooter");
+  await b.click(".gp-sheet button:has-text('Create space')");
+  await expect(b.locator(".gp-id h1")).toContainText("Scooter");
+  await b.evaluate(() => document.getElementById("settings-btn").click());
+  await b.click('.settings-nav-item[data-page="sync"]');
+  await b.click("#sync-now");
+  await expect(b.locator("#toast")).toContainText("Synced");
+  const drive2 = await dumpDrive(b);
+  await ctxB.close();
+
+  // Back on A: same Drive, now with B's changes.
+  await page.evaluate((files) => { window.__drive.files.clear(); for (const f of files) window.__drive.files.set(f.id, f); }, drive2);
+  await page.click("#sync-now");
+  await expect(page.locator("#toast")).toContainText("Synced");
+  await page.click("#settings-close-btn");
+  await expect(page.locator("#groups-list, #sidebar").getByText("Scooter").first()).toBeVisible();
+  expect(await driveFiles(page)).toContain("Scooter.md");
 });
