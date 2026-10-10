@@ -18,10 +18,15 @@
   const API = "https://www.googleapis.com/drive/v3/files";
   const UPLOAD = "https://www.googleapis.com/upload/drive/v3/files";
   const AUTO_DELAY = 20000;
+  // Stash's own Google client ID, so connecting is one tap. It isn't a secret:
+  // it only names the app on Google's sign-in screen, and Google only accepts
+  // it from Stash's own web addresses. Anyone can still use their own below.
+  const BUILT_IN_CLIENT_ID = "";
 
   let api = null;
   let state = { busy: false, pending: false, timer: null, status: "" };
-  const t = { fetch: (...a) => fetch(...a), auth: null }; // tests swap these
+  const t = { fetch: (...a) => fetch(...a), auth: null, clientId: null }; // tests swap these
+  const builtIn = () => (t.clientId != null ? t.clientId : BUILT_IN_CLIENT_ID);
 
   // ---------- Settings kept on this device (per profile) ----------
   const KEY = "copypaster-sync";
@@ -58,7 +63,7 @@
     await loadGsi();
     await new Promise((resolve, reject) => {
       const client = window.google.accounts.oauth2.initTokenClient({
-        client_id: p.clientId.trim(), scope: SCOPE,
+        client_id: (p.clientId || builtIn()).trim(), scope: SCOPE,
         callback: (r) => {
           if (r && r.access_token) { patch({ token: r.access_token, exp: Date.now() + (Number(r.expires_in) || 3600) * 1000, on: true, error: "" }); resolve(); }
           else reject(new Error((r && r.error_description) || "Google sign-in didn't finish."));
@@ -354,12 +359,11 @@
     if (!box || !box.isConnected) return;
     const p = prefs();
     const kids = [];
-    // 1. Your Google client ID.
+    // 1. Not connected: one tap with Stash's client ID, or bring your own.
     if (!p.on) {
+      const own = !builtIn();
       const idInput = h("input", { id: "sync-client-id", class: "settings-input", type: "text", placeholder: "1234…apps.googleusercontent.com", value: p.clientId, autocomplete: "off", spellcheck: "false" });
-      kids.push(h("div", { class: "settings-group padded" },
-        h("div", { class: "settings-hint" }, "Stash writes a copy into a “" + api.folderName() + "” folder in your own Google Drive. Nothing goes to us. Stash can only see the files it makes there."),
-        h("label", { class: "sync-label", for: "sync-client-id" }, "Your Google client ID"), idInput,
+      const ownBox = [h("label", { class: "sync-label", for: "sync-client-id" }, own ? "Your Google client ID" : "Your own Google client ID (leave empty to use Stash's)"), idInput,
         h("details", { class: "sync-help" }, h("summary", null, "How to get one (about 5 minutes, once)"),
           h("ol", null,
             h("li", null, "Open console.cloud.google.com and sign in with the Google account whose Drive you want to use."),
@@ -368,11 +372,14 @@
             h("li", null, "OAuth consent screen → External → fill in the app name and your email. Under Test users, add your own email."),
             h("li", null, "Credentials → Create credentials → OAuth client ID → Web application."),
             h("li", null, "Under Authorised JavaScript origins add: " + location.origin),
-            h("li", null, "Copy the Client ID and paste it above."))),
+            h("li", null, "Copy the Client ID and paste it above.")))];
+      kids.push(h("div", { class: "settings-group padded" },
+        h("div", { class: "settings-hint" }, "Your phones and computers stay in step through a “" + api.folderName() + "” folder in your own Google Drive. Nothing goes to us. Stash can only see the files it makes there."),
+        own ? ownBox : h("details", { class: "sync-help sync-advanced" }, h("summary", null, "Advanced: use your own Google client ID"), ...ownBox),
         h("div", { class: "settings-row-actions" },
           h("button", { id: "sync-connect", class: "settings-primary", type: "button", onclick: () => guard(async () => {
             const id = idInput.value.trim();
-            if (!validClientId(id)) throw new Error("That doesn't look like a Google client ID (it ends in .apps.googleusercontent.com).");
+            if (id ? !validClientId(id) : own) throw new Error("That doesn't look like a Google client ID (it ends in .apps.googleusercontent.com).");
             patch({ clientId: id });
             await signIn();
             await run({ fromTap: true });

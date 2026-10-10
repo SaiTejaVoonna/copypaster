@@ -263,3 +263,11 @@ test("two devices: a note and a space made on one show up on the other, and edit
   await expect(page.locator("#groups-list, #sidebar").getByText("Scooter").first()).toBeVisible();
   expect(await driveFiles(page)).toContain("Scooter.md");
 });
+
+test("with Stash's own client ID built in, connecting is one tap", async ({ page }) => {
+  await page.evaluate(() => { window.CPSync._test.clientId = "999-stash.apps.googleusercontent.com"; });
+  await openSync(page);
+  await expect(page.locator("#sync-client-id")).toBeHidden(); // tucked under Advanced
+  await page.click("#sync-connect");
+  await expect(page.locator("#sync-status")).toContainText("Last synced");
+});
